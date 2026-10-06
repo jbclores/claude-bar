@@ -75,16 +75,24 @@ import Testing
     @Test func desksForBusyLoungeForIdleSorted() {
         let layout = PeekLayout.make([a("b", .working), a("a", .waiting), a("z", .idle), a("e", .ended), a("c", .idle)])
         #expect(layout.desks.map(\.name) == ["a", "b"])
+        #expect(layout.freeDesks == 1, "3 desks for 4 cats: one stands free while its cat sleeps")
         #expect(layout.lounge.map(\.name) == ["c", "z"])
         #expect(layout.deskOverflow == 0 && layout.loungeOverflow == 0)
     }
 
+    @Test func freeDesksNeverExceedTheRoom() {
+        #expect(PeekLayout.make([a("i1", .idle)]).freeDesks == 1)
+        #expect(PeekLayout.make([]).freeDesks == 0)
+        #expect(PeekLayout.make((1...6).map { a("i\($0)", .idle) }).freeDesks == 3)
+        #expect(PeekLayout.make((1...2).map { a("w\($0)", .working) } + [a("i", .idle)]).freeDesks == 1)
+    }
+
     @Test func overflow() {
-        let busy = (1...8).map { a("w\($0)", .working) }
-        let idle = (1...5).map { a("i\($0)", .idle) }
+        let busy = (1...5).map { a("w\($0)", .working) }
+        let idle = (1...7).map { a("i\($0)", .idle) }
         let layout = PeekLayout.make(busy + idle)
-        #expect(layout.desks.count == 6 && layout.deskOverflow == 2)
-        #expect(layout.lounge.count == 3 && layout.loungeOverflow == 2)
+        #expect(layout.desks.count == 3 && layout.deskOverflow == 2 && layout.freeDesks == 0)
+        #expect(layout.lounge.count == 5 && layout.loungeOverflow == 2)
     }
 
     @Test func motion() {

@@ -68,16 +68,14 @@ struct OfficeRoomView: View {
 
     private func room(_ layout: PeekLayout) -> some View {
         HStack(alignment: .bottom, spacing: 0) {
-            HStack(alignment: .bottom, spacing: 6) {
-                if layout.desks.isEmpty {
-                    RoomPill(text: "Nobody at a desk")
-                }
+            HStack(alignment: .bottom, spacing: 4) {
                 ForEach(layout.desks) { agent in CatView(agent: agent, atDesk: true).catFrame(agent.id) }
+                ForEach(0..<layout.freeDesks, id: \.self) { _ in FreeDesk() }
                 if layout.deskOverflow > 0 {
                     RoomPill(text: "+\(layout.deskOverflow) more")
                 }
             }
-            .padding(.leading, 44)
+            .padding(.leading, 36)
             .frame(maxWidth: .infinity, alignment: .leading)
             Lounge(cats: layout.lounge, overflow: layout.loungeOverflow)
         }
@@ -133,8 +131,11 @@ struct Lounge: View {
     let overflow: Int
     @EnvironmentObject var state: AppState
 
-    /// Where the 1st, 2nd and 3rd cat sleep: the bed, the sofa, the rug.
-    private static let spots: [CGSize] = [CGSize(width: -40, height: 10), CGSize(width: 26, height: -26), CGSize(width: 22, height: 22)]
+    /// Where the 1st to 5th cat sleep: the bed, the sofa (two), the rug, the bean bag.
+    private static let spots: [CGSize] = [
+        CGSize(width: -40, height: 10), CGSize(width: 18, height: -28), CGSize(width: 46, height: -28),
+        CGSize(width: 20, height: 22), CGSize(width: -50, height: -30),
+    ]
 
     var body: some View {
         VStack(spacing: 4) {
@@ -142,16 +143,17 @@ struct Lounge: View {
                 art("assets/room/rugs/round-cream.png", 512).frame(width: 150).scaleEffect(x: 1, y: 0.45)
                 art("assets/room/props/sofa-round.png", 256).frame(width: 96).offset(x: 34, y: -26)
                 art("assets/room/props/cat-bed-blue.png", 160).frame(width: 52).offset(x: -40, y: 14)
-                ForEach(Array(cats.prefix(3).enumerated()), id: \.element.id) { i, agent in
-                    CatView(agent: agent, atDesk: false, width: 46, plain: true)
+                art("assets/room/props/bean-bag-cream.png", 160).frame(width: 40).offset(x: -50, y: -24)
+                ForEach(Array(cats.prefix(Self.spots.count).enumerated()), id: \.element.id) { i, agent in
+                    CatView(agent: agent, atDesk: false, width: i == 0 ? 46 : 38, plain: true)
                         .catFrame(agent.id)
                         .offset(Self.spots[i])
                 }
             }
-            .frame(width: 170, height: 110)
+            .frame(width: 166, height: 110)
             RoomPill(text: summary)
         }
-        .frame(width: 180)
+        .frame(width: 170)
     }
 
     private var summary: String {
@@ -164,6 +166,22 @@ struct Lounge: View {
     }
 }
 
+/// A desk whose cat is out in the lounge.
+struct FreeDesk: View {
+    @EnvironmentObject var state: AppState
+
+    var body: some View {
+        VStack(spacing: 1) {
+            SpriteImage(key: "desk", fallback: nil) { await state.art.deskImage() }
+                .frame(width: 60, height: 53)
+                .opacity(0.75)
+                .frame(width: 64, height: 64 * 1.34, alignment: .bottom)
+                .padding(.bottom, 14)
+            RoomPill(text: "free desk").opacity(0.6)
+        }
+    }
+}
+
 /// White text on a dark pill, readable on the light floor and the night tint alike.
 struct RoomPill: View {
     let text: String
@@ -172,7 +190,7 @@ struct RoomPill: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(text).font(.system(size: 9, weight: .semibold)).lineLimit(1).truncationMode(.middle)
+            Text(text).font(.system(size: 9, weight: .semibold)).lineLimit(1).truncationMode(.tail)
             if let detail { Text(detail).font(.system(size: 8)).foregroundStyle(detailColor).lineLimit(1) }
         }
         .foregroundStyle(.white)
@@ -230,6 +248,14 @@ struct CatView: View {
         let pose = CatPose(status: agent.status)
         VStack(spacing: 1) {
             ZStack(alignment: .bottom) {
+                if agent.status == .waiting && !plain {
+                    // B's spotlight: a soft amber glow under a cat that needs you.
+                    Ellipse()
+                        .fill(RadialGradient(colors: [Theme.waiting.opacity(0.6), Theme.waiting.opacity(0)],
+                                             center: .center, startRadius: 3, endRadius: 46))
+                        .frame(width: 96, height: 30)
+                        .offset(y: 10)
+                }
                 if !plain { StatusRing(status: agent.status, attention: false).scaleEffect(width / 64).offset(y: 3) }
                 if atDesk && agent.status == .working {
                     desk.offset(y: -14)
@@ -253,7 +279,7 @@ struct CatView: View {
                          detail: Format.statusText(agent.status, needsYou: needsYou,
                                                    since: agent.waitingSince ?? state.statusSince[agent.key]),
                          detailColor: needsYou ? Theme.waiting : Theme.color(agent.status))
-                    .frame(maxWidth: 118)
+                    .frame(maxWidth: 84)
             }
         }
     }

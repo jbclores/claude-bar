@@ -1,19 +1,24 @@
 import Foundation
 
-/// Who sits where in the tiny office: busy cats at desks, idle ones in the lounge.
+/// Who sits where in the tiny office: a row of desks (busy cats at theirs, a free desk for each cat out in the
+/// lounge, up to `maxDesks` in all) and a lounge for idle cats.
 public struct PeekLayout: Equatable, Sendable {
     public var desks: [OfficeAgent]
     public var deskOverflow: Int
+    /// Desks shown empty: their cats are asleep in the lounge.
+    public var freeDesks: Int
     public var lounge: [OfficeAgent]
     public var loungeOverflow: Int
 
-    public static func make(_ agents: [OfficeAgent], maxDesks: Int = 6, maxLounge: Int = 3) -> PeekLayout {
+    public static func make(_ agents: [OfficeAgent], maxDesks: Int = 3, maxLounge: Int = 5) -> PeekLayout {
         let shown = agents
             .filter { $0.status != .ended }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         let busy = shown.filter { $0.status == .working || $0.status == .waiting }
         let idle = shown.filter { $0.status == .idle }
-        return PeekLayout(desks: Array(busy.prefix(maxDesks)), deskOverflow: max(0, busy.count - maxDesks),
+        let desks = Array(busy.prefix(maxDesks))
+        return PeekLayout(desks: desks, deskOverflow: max(0, busy.count - maxDesks),
+                          freeDesks: max(0, min(maxDesks, shown.count) - desks.count),
                           lounge: Array(idle.prefix(maxLounge)), loungeOverflow: max(0, idle.count - maxLounge))
     }
 }
