@@ -46,7 +46,7 @@ public struct LiveSessionReader: Sendable {
     public var dir: URL
     public var isAlive: @Sendable (Int32) -> Bool
 
-    public init(dir: URL = Paths.claudeSessionsDir, isAlive: @escaping @Sendable (Int32) -> Bool = processIsAlive) {
+    public init(dir: URL = Paths.claudeSessionsDir, isAlive: @escaping @Sendable (Int32) -> Bool = { processIsAlive($0) }) {
         self.dir = dir
         self.isAlive = isAlive
     }
