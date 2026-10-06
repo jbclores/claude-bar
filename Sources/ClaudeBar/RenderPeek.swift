@@ -22,12 +22,13 @@ enum RenderPeek {
         }
         let size = OfficePeekView.size
         let host = NSHostingView(rootView: OfficePeekView().environmentObject(state).environmentObject(pointer)
-            .background(Color(white: 0.16)).environment(\.colorScheme, .dark))
+            .background(renderLight ? Color(white: 0.93) : Color(white: 0.16))
+            .environment(\.colorScheme, renderLight ? .light : .dark))
         host.frame = NSRect(origin: .zero, size: size)
         let window = NSWindow(contentRect: NSRect(x: -10_000, y: -10_000, width: size.width, height: size.height),
                               styleMask: .borderless, backing: .buffered, defer: false)
-        window.appearance = NSAppearance(named: .darkAqua)
-        window.backgroundColor = NSColor(white: 0.16, alpha: 1) // what the dark popover looks like
+        window.appearance = NSAppearance(named: renderLight ? .aqua : .darkAqua)
+        window.backgroundColor = NSColor(white: renderLight ? 0.93 : 0.16, alpha: 1) // what the popover looks like
         window.contentView = host
         window.orderFrontRegardless()
         DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
@@ -106,7 +107,8 @@ private func flag(_ name: String) -> (URL, String?)? {
 /// Draws `view` in an offscreen dark window sized to fit, after live data has had time to arrive; saves and quits.
 @MainActor
 private func renderWindow<V: View>(_ view: V, width: CGFloat, to out: URL) {
-    let host = NSHostingView(rootView: view.background(Color(white: 0.16)).environment(\.colorScheme, .dark))
+    let host = NSHostingView(rootView: view.background(renderLight ? Color(white: 0.93) : Color(white: 0.16))
+            .environment(\.colorScheme, renderLight ? .light : .dark))
     let window = NSWindow(contentRect: NSRect(x: -10_000, y: -10_000, width: width, height: 600),
                           styleMask: .borderless, backing: .buffered, defer: false)
     window.appearance = NSAppearance(named: .darkAqua)
@@ -125,3 +127,6 @@ private func renderWindow<V: View>(_ view: V, width: CGFloat, to out: URL) {
         }
     }
 }
+
+/// Renders in light mode with CLAUDEBAR_RENDER_LIGHT=1 (dark otherwise).
+private var renderLight: Bool { ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_LIGHT"] == "1" }

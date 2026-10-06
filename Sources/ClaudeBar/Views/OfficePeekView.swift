@@ -36,7 +36,10 @@ struct OfficeSummary: View {
 struct OfficeRoomView: View {
     @EnvironmentObject var state: AppState
     @EnvironmentObject var pointer: PeekPointer
+    @Environment(\.colorScheme) private var colorScheme
     @State private var catFrames: [String: CGRect] = [:]
+
+    static let height: CGFloat = 180
 
     private var hovered: OfficeAgent? {
         guard let point = pointer.location, let office = state.office else { return nil }
@@ -46,45 +49,40 @@ struct OfficeRoomView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            RoundedRectangle(cornerRadius: 10).fill(Color(hex: 0x2B2622).opacity(0.85))
-            if let office = state.office {
-                room(PeekLayout.make(office.agents))
-            } else {
-                offline
+            ZStack(alignment: .topLeading) {
+                RoomBackdrop()
+                if let office = state.office {
+                    room(PeekLayout.make(office.agents))
+                } else {
+                    offline
+                }
             }
+            // Evening in dark mode: a soft night tint so the room doesn't glare in a dark menu.
+            .overlay(Color(red: 0.05, green: 0.07, blue: 0.15).opacity(colorScheme == .dark ? 0.32 : 0).allowsHitTesting(false))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
             if let agent = hovered { CatCard(agent: agent, since: state.statusSince[agent.key]).padding(6) }
         }
-        .frame(height: 158)
+        .frame(height: Self.height)
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
     }
 
     private func room(_ layout: PeekLayout) -> some View {
-        HStack(spacing: 0) {
-            HStack(alignment: .bottom, spacing: 2) {
+        HStack(alignment: .bottom, spacing: 0) {
+            HStack(alignment: .bottom, spacing: 6) {
                 if layout.desks.isEmpty {
-                    Text("Nobody at a desk").font(.caption).foregroundStyle(.secondary)
+                    RoomPill(text: "Nobody at a desk")
                 }
                 ForEach(layout.desks) { agent in CatView(agent: agent, atDesk: true).catFrame(agent.id) }
                 if layout.deskOverflow > 0 {
-                    Text("+\(layout.deskOverflow) more").font(.caption2).foregroundStyle(.secondary)
+                    RoomPill(text: "+\(layout.deskOverflow) more")
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .padding(.bottom, 10)
-            Rectangle().fill(Color.white.opacity(0.08)).frame(width: 1).padding(.vertical, 12)
-            VStack(spacing: 2) {
-                Text("lounge").font(.caption2).foregroundStyle(.secondary).padding(.top, 8)
-                Spacer()
-                HStack(alignment: .bottom, spacing: 2) {
-                    ForEach(layout.lounge) { agent in CatView(agent: agent, atDesk: false, width: 50).catFrame(agent.id) }
-                }
-                if layout.loungeOverflow > 0 {
-                    Text("+\(layout.loungeOverflow)").font(.caption2).foregroundStyle(.secondary)
-                }
-            }
-            .frame(width: 172)
-            .padding(.bottom, 10)
+            .padding(.leading, 44)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Lounge(cats: layout.lounge, overflow: layout.loungeOverflow)
         }
+        .padding(.bottom, 8)
+        .frame(maxHeight: .infinity, alignment: .bottom)
     }
 
     private var offline: some View {
@@ -93,14 +91,93 @@ struct OfficeRoomView: View {
             if let cat = state.catIds.first {
                 SpriteImage(key: "\(cat)-sleeping", fallback: Theme.idle) { await state.art.catImage(cat: cat, pose: .sleeping) }
                     .frame(width: 70, height: 74)
-                    .opacity(0.8)
             } else {
                 Image(systemName: "cat.fill").font(.system(size: 34)).foregroundStyle(.secondary)
             }
-            Text("Cat Office isn't running").font(.callout).foregroundStyle(.secondary)
+            RoomPill(text: "Cat Office isn't running")
             OfficeStarter(launch: state.officeLaunch, start: { state.startCatOffice() }, openLog: { state.openLauncherLog() })
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(Capsule().fill(.regularMaterial))
             Spacer()
         }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// Cat Office's own room art: a plaster back wall over a birch floor, a plant and a lamp.
+struct RoomBackdrop: View {
+    @EnvironmentObject var state: AppState
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            VStack(spacing: 0) {
+                roomArt("assets/room/walls/plaster.png", size: 512, mode: .fill).frame(height: 46).clipped()
+                Rectangle().fill(Color(hex: 0x73503F)).frame(height: 3)
+                roomArt("assets/room/floors/birch.png", size: 1024, mode: .tile).frame(maxHeight: .infinity)
+            }
+            .background(Color(hex: 0xEADBC8)) // until the art has loaded, or if it can't
+            roomArt("assets/room/props/tall-plant.png", size: 160, mode: .fit).frame(height: 70).offset(x: 6, y: 12)
+            roomArt("assets/room/props/floor-lamp.png", size: 160, mode: .fit).frame(height: 64)
+                .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 14).offset(y: 12)
+        }
+    }
+
+    private func roomArt(_ path: String, size: Int, mode: SpriteImage.Mode) -> SpriteImage {
+        SpriteImage(key: path, fallback: nil, mode: mode) { await state.art.image(path: path, maxPixelSize: size) }
+    }
+}
+
+/// The lounge: a rug, a round sofa and a cat bed, with up to three sleeping cats on them.
+struct Lounge: View {
+    let cats: [OfficeAgent]
+    let overflow: Int
+    @EnvironmentObject var state: AppState
+
+    /// Where the 1st, 2nd and 3rd cat sleep: the bed, the sofa, the rug.
+    private static let spots: [CGSize] = [CGSize(width: -40, height: 10), CGSize(width: 26, height: -26), CGSize(width: 22, height: 22)]
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                art("assets/room/rugs/round-cream.png", 512).frame(width: 150).scaleEffect(x: 1, y: 0.45)
+                art("assets/room/props/sofa-round.png", 256).frame(width: 96).offset(x: 34, y: -26)
+                art("assets/room/props/cat-bed-blue.png", 160).frame(width: 52).offset(x: -40, y: 14)
+                ForEach(Array(cats.prefix(3).enumerated()), id: \.element.id) { i, agent in
+                    CatView(agent: agent, atDesk: false, width: 46, plain: true)
+                        .catFrame(agent.id)
+                        .offset(Self.spots[i])
+                }
+            }
+            .frame(width: 170, height: 110)
+            RoomPill(text: summary)
+        }
+        .frame(width: 180)
+    }
+
+    private var summary: String {
+        let asleep = cats.count + overflow
+        return asleep == 0 ? "lounge · empty" : "lounge · \(asleep) asleep"
+    }
+
+    private func art(_ path: String, _ size: Int) -> some View {
+        SpriteImage(key: path, fallback: nil) { await state.art.image(path: path, maxPixelSize: size) }
+    }
+}
+
+/// White text on a dark pill, readable on the light floor and the night tint alike.
+struct RoomPill: View {
+    let text: String
+    var detail: String?
+    var detailColor: Color = .secondary
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(text).font(.system(size: 9, weight: .semibold)).lineLimit(1).truncationMode(.middle)
+            if let detail { Text(detail).font(.system(size: 8)).foregroundStyle(detailColor).lineLimit(1) }
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 6).padding(.vertical, 2)
+        .background(Capsule().fill(.black.opacity(0.55)))
     }
 }
 
@@ -108,7 +185,7 @@ struct OfficeRoomView: View {
 struct OfficePeekView: View {
     @EnvironmentObject var state: AppState
 
-    static let size = CGSize(width: 500, height: 236)
+    static let size = CGSize(width: 500, height: 258)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -143,6 +220,8 @@ struct CatView: View {
     let agent: OfficeAgent
     let atDesk: Bool
     var width: CGFloat = 64
+    /// Just the cat (lounge): no status ring, no name.
+    var plain = false
     @EnvironmentObject var state: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -151,7 +230,7 @@ struct CatView: View {
         let pose = CatPose(status: agent.status)
         VStack(spacing: 1) {
             ZStack(alignment: .bottom) {
-                StatusRing(status: agent.status, attention: false).scaleEffect(width / 64).offset(y: 3)
+                if !plain { StatusRing(status: agent.status, attention: false).scaleEffect(width / 64).offset(y: 3) }
                 if atDesk && agent.status == .working {
                     desk.offset(y: -14)
                     animatedCat(cat, pose).offset(y: 2)
@@ -167,9 +246,8 @@ struct CatView: View {
                         .offset(x: 18, y: -60)
                 }
             }
-            .frame(width: width, height: width * 1.34)
-            Text(agent.name).font(.system(size: 9)).foregroundStyle(.secondary)
-                .lineLimit(1).truncationMode(.middle).frame(width: width)
+            .frame(width: width, height: plain ? width * 0.95 : width * 1.34)
+            if !plain { RoomPill(text: agent.name).frame(maxWidth: width + 16) }
         }
     }
 
@@ -213,8 +291,11 @@ struct StatusRing: View {
 /// An image loaded once from the art cache, keyed so the same sprite isn't reloaded. When it can't be loaded,
 /// a plain circle in `fallback` stands in (nothing for nil); it's tried again the next time the peek opens.
 struct SpriteImage: View {
+    enum Mode { case fit, fill, tile }
+
     let key: String
     let fallback: Color?
+    var mode: Mode = .fit
     let load: () async -> Data?
     @State private var image: NSImage?
     @State private var failed = false
@@ -222,7 +303,11 @@ struct SpriteImage: View {
     var body: some View {
         Group {
             if let image {
-                Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+                switch mode {
+                case .fit: Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+                case .fill: Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fill)
+                case .tile: Image(nsImage: image).resizable(resizingMode: .tile)
+                }
             } else if failed, let fallback {
                 Circle().fill(fallback.opacity(0.8)).frame(width: 22, height: 22)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
@@ -232,6 +317,10 @@ struct SpriteImage: View {
         }
         .task(id: key) {
             if let data = await load(), let loaded = NSImage(data: data) {
+                // Tiles repeat at Retina scale (2 pixels per point), like Cat Office draws its floors.
+                if mode == .tile, let rep = loaded.representations.first {
+                    loaded.size = NSSize(width: CGFloat(rep.pixelsWide) / 2, height: CGFloat(rep.pixelsHigh) / 2)
+                }
                 image = loaded
             } else {
                 failed = true
