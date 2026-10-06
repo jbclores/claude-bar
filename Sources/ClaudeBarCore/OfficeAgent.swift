@@ -1,5 +1,18 @@
 import Foundation
 
+/// The desk an agent's cat works at in Cat Office (reported by the patched page): design, mirrored, turned.
+public struct AgentDesk: Equatable, Sendable, Decodable {
+    public var id: String
+    public var flip: Bool
+    public var rear: Bool
+
+    public init(id: String, flip: Bool, rear: Bool) {
+        self.id = id
+        self.flip = flip
+        self.rear = rear
+    }
+}
+
 /// One agent from Cat Office's live feed (its `LiveAgent`), reduced to what ClaudeBar shows.
 public struct OfficeAgent: Equatable, Sendable, Identifiable {
     public var id: String
@@ -21,6 +34,8 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
     public var sessionId: String?
     /// The cat the browser shows for this agent (sent by the patched Cat Office).
     public var cat: String?
+    /// The desk its cat works at in Cat Office, once the page has reported it.
+    public var desk: AgentDesk?
     /// Where `task` came from: "custom" (renamed), "ai", "description", or "prompt" (the first message).
     public var titleSource: String?
 
@@ -67,7 +82,7 @@ extension OfficeAgent: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case id, name, owner, status, waitReason, cwd, repo, branch, model, task, lastAction, waitingSince, sessionId, cat
-        case titleSource
+        case titleSource, desk
     }
 
     public init(from decoder: Decoder) throws {
@@ -92,6 +107,7 @@ extension OfficeAgent: Decodable {
             cat: try c.decodeIfPresent(String.self, forKey: .cat)
         )
         titleSource = try? c.decodeIfPresent(String.self, forKey: .titleSource)
+        desk = (try? c.decodeIfPresent(AgentDesk.self, forKey: .desk)) ?? nil
     }
 }
 

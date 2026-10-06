@@ -1,10 +1,10 @@
 --- a/server/agent-bridge/cat-assignments.ts
 +++ b/server/agent-bridge/cat-assignments.ts
-@@ -0,0 +1,127 @@
+@@ -0,0 +1,165 @@
 +/**
-+ * The cat the page shows for each agent (POST /__agents/cats), kept in <stateDir>/cat-assignments.json by agent
-+ * id, so other local apps (ClaudeBar's menu bar office) show the same cats. Every snapshot carries an agent's
-+ * `cat` once the page has given it one. Also: ~/.cat-office/bridge.json, telling those apps where the bridge is
++ * The cat the page shows for each agent, and the desk that cat works at (POST /__agents/cats), kept in
++ * <stateDir>/cat-assignments.json by agent id, so other local apps (ClaudeBar's menu bar office) show the same
++ * cats at the same desks. Every snapshot carries an agent's `cat` and `desk` once the page has reported them. Also: ~/.cat-office/bridge.json, telling those apps where the bridge is
 + * and which folder Cat Office runs from (so they find it after the folder moves).
 + */
 +import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
@@ -30,8 +30,26 @@
 +
 +type ChangeListener = () => void;
 +
++/** A desk as the page reports it: catalogue id, mirrored, turned (drawn from the rear). */
++export interface AgentDesk {
++  id: string;
++  flip: boolean;
++  rear: boolean;
++}
++
++function readDesk(v: unknown): AgentDesk | null {
++  if (!v || typeof v !== 'object') return null;
++  const d = v as { desk?: unknown; id?: unknown; flip?: unknown; rear?: unknown };
++  const id = typeof d.desk === 'string' ? d.desk : d.id;
++  if (typeof id !== 'string' || !CAT.test(id) || typeof d.flip !== 'boolean' || typeof d.rear !== 'boolean') return null;
++  return { id, flip: d.flip, rear: d.rear };
++}
++
++const sameDesk = (a: AgentDesk | undefined, b: AgentDesk): boolean => !!a && a.id === b.id && a.flip === b.flip && a.rear === b.rear;
++
 +export class CatAssignmentStore {
 +  private cats = new Map<string, string>();
++  private desks = new Map<string, AgentDesk>();
 +  private listeners = new Set<ChangeListener>();
 +  readonly file: string;
 +
@@ -49,20 +67,35 @@
 +    return this.cats.get(id) ?? null;
 +  }
 +
-+  /** Takes the page's `{ assignments: { [agentId]: catId } }`. False for a bad body (nothing kept) or a failed save. */
++  /**
++   * Takes the page's `{ assignments?: { [agentId]: catId }, desks?: { [agentId]: { desk, flip, rear } } }`. False for
++   * a bad body (nothing kept) or a failed save.
++   */
 +  merge(body: unknown): boolean {
-+    const raw = (body as { assignments?: unknown } | null)?.assignments;
-+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
-+    const entries = Object.entries(raw as Record<string, unknown>);
-+    if (!entries.every(([id, cat]) => ID.test(id) && typeof cat === 'string' && CAT.test(cat))) return false;
++    const b = body as { assignments?: unknown; desks?: unknown } | null;
++    if (!b || (b.assignments === undefined && b.desks === undefined)) return false;
++    const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
++    if (b.assignments !== undefined && !isMap(b.assignments)) return false;
++    if (b.desks !== undefined && !isMap(b.desks)) return false;
++    const cats = Object.entries((b.assignments ?? {}) as Record<string, unknown>);
++    if (!cats.every(([id, cat]) => ID.test(id) && typeof cat === 'string' && CAT.test(cat))) return false;
++    const desks = Object.entries((b.desks ?? {}) as Record<string, unknown>).map(([id, v]) => [id, readDesk(v)] as const);
++    if (!desks.every(([id, desk]) => ID.test(id) && desk !== null)) return false;
 +    let changed = false;
-+    for (const [id, cat] of entries as [string, string][]) {
++    for (const [id, cat] of cats as [string, string][]) {
 +      if (this.cats.get(id) === cat) continue;
 +      this.cats.delete(id); // re-inserted last: the newest
 +      this.cats.set(id, cat);
 +      changed = true;
 +    }
++    for (const [id, desk] of desks as (readonly [string, AgentDesk])[]) {
++      if (sameDesk(this.desks.get(id), desk)) continue;
++      this.desks.delete(id);
++      this.desks.set(id, desk);
++      changed = true;
++    }
 +    while (this.cats.size > KEEP_MAX) this.cats.delete(this.cats.keys().next().value as string);
++    while (this.desks.size > KEEP_MAX) this.desks.delete(this.desks.keys().next().value as string);
 +    if (!changed) return true;
 +    try {
 +      this.save();
@@ -79,22 +112,27 @@
 +    return true;
 +  }
 +
-+  /** The snapshot with each agent's cat, for the agents the page has given one. */
++  /** The snapshot with each agent's cat and desk, for the agents the page has reported them for. */
 +  apply(snapshot: AgentSnapshot): AgentSnapshot {
 +    return {
 +      ...snapshot,
 +      agents: snapshot.agents.map((a) => {
 +        const cat = this.cats.get(a.id);
-+        return cat ? { ...a, cat } : a;
++        const desk = this.desks.get(a.id);
++        return cat || desk ? { ...a, ...(cat ? { cat } : {}), ...(desk ? { desk } : {}) } : a;
 +      }),
 +    };
 +  }
 +
 +  private load(): void {
 +    try {
-+      const d = JSON.parse(readFileSync(this.file, 'utf8')) as { cats?: Record<string, unknown> };
++      const d = JSON.parse(readFileSync(this.file, 'utf8')) as { cats?: Record<string, unknown>; desks?: Record<string, unknown> };
 +      for (const [id, cat] of Object.entries(d.cats ?? {})) {
 +        if (ID.test(id) && typeof cat === 'string' && CAT.test(cat)) this.cats.set(id, cat);
++      }
++      for (const [id, v] of Object.entries(d.desks ?? {})) {
++        const desk = readDesk(v);
++        if (ID.test(id) && desk) this.desks.set(id, desk);
 +      }
 +    } catch {
 +      // None yet (or unreadable): start empty.
@@ -104,7 +142,7 @@
 +  private save(): void {
 +    mkdirSync(dirname(this.file), { recursive: true });
 +    const tmp = `${this.file}.tmp`;
-+    writeFileSync(tmp, JSON.stringify({ cats: Object.fromEntries(this.cats) }, null, 2) + '\n');
++    writeFileSync(tmp, JSON.stringify({ cats: Object.fromEntries(this.cats), desks: Object.fromEntries(this.desks) }, null, 2) + '\n');
 +    renameSync(tmp, this.file);
 +  }
 +}
@@ -134,7 +172,7 @@
   *                                and idle, gets `/exit` typed (409 mid-turn or with a dialog open), then the next
   *                                message resumes it here   {} → 200 { ok: true }
   *   POST /__agents/:id/reply    type at an external session's prompt (its Orca terminal)   { text, attachments? } → 200 { ok: true }
-+ *   POST /__agents/cats        the cat the page shows per agent { assignments: { [id]: catId } } → 200 { ok: true }
++ *   POST /__agents/cats        the cat and desk the page shows per agent { assignments?, desks? } → 200 { ok: true }
   *   POST /__agents/:id/answer   answer its open question / permission / plan dialog        → 200 { ok: true }
   *   GET  /__agents/:id/files/:file   a file sent with a message (attachments.ts): images inline, the rest as downloads
   *   …plus the drawer's routes (drawer.ts): models, skills, reveal, screenshot, transcript, export, repo-files,
@@ -282,12 +320,14 @@
 +}
 --- a/server/agent-bridge/types.ts
 +++ b/server/agent-bridge/types.ts
-@@ -184,6 +184,8 @@
+@@ -184,6 +184,10 @@
     * /clear (the id stays the worker's). Helpers: null.
     */
    sessionId: string | null;
 +  /** The cat (sprite set) the page shows for this agent, once the page has reported it (POST /__agents/cats). */
 +  cat?: string;
++  /** The desk that cat works at (catalogue id, mirrored, turned), once the page has reported it. */
++  desk?: { id: string; flip: boolean; rear: boolean };
    startedAt: number;
    updatedAt: number;
    /** Office workers only (null for external): the conversation, last 60 entries, oldest first. */
@@ -313,10 +353,14 @@
          // An interrupt rejects the running tool: that is the interrupt, not a failure (onResult says "Interrupted").
 --- a/src/agents/live/actions.ts
 +++ b/src/agents/live/actions.ts
-@@ -54,6 +54,10 @@
+@@ -54,6 +54,14 @@
    return value === null ? { ok: false, error: 'The bridge answered without the expected result.' } : { ok: true, value };
  }
  
++/** Tells the bridge which desk each live session's cat works at (see agent-desks.ts). */
++export const reportDesks = (desks: Record<string, { desk: string; flip: boolean; rear: boolean }>): Promise<ActionResult<true>> =>
++  post('/__agents/cats', { desks }, () => true);
++
 +/** Tells the bridge which cat each live session is shown as, so other local apps (ClaudeBar) show the same one. */
 +export const reportCats = (assignments: Record<string, string>): Promise<ActionResult<true>> =>
 +  post('/__agents/cats', { assignments }, () => true);
@@ -324,6 +368,75 @@
  const agentPath = (id: string, action: string): string => `/__agents/${encodeURIComponent(id)}/${action}`;
  
  /** Start a worker in `cwd` with a first prompt. */
+--- a/src/agents/live/agent-desks.ts
++++ b/src/agents/live/agent-desks.ts
+@@ -0,0 +1,66 @@
++import { useEffect, useRef } from 'react';
++import type { FloorId } from '../../world/world.types';
++import { reportDesks } from './actions';
++import type { LiveSource } from './useLiveAgents';
++
++/**
++ * Which desk each live session's cat works at (design, mirrored, turned), reported to the bridge (POST
++ * /__agents/cats) so other local apps (ClaudeBar's menu bar office) draw the same desk.
++ */
++export interface DeskReport {
++  /** Catalogue id (public/data/desks.json). */
++  desk: string;
++  flip: boolean;
++  rear: boolean;
++}
++
++interface CatsAndDesks {
++  agents: readonly { id: string; floor: FloorId; usingSpotId: string | null }[];
++  homeDesk: (catId: string, floor: FloorId) => string | null;
++}
++
++interface FloorsWithDesks {
++  floors: readonly { id: FloorId; room?: { desks?: readonly { id: string; desk: string; flip?: boolean; rear?: boolean }[] } }[];
++}
++
++/** The desk the cat is at, else the one it works at on its floor; null when it has none there. */
++export function deskOf(engine: CatsAndDesks, building: FloorsWithDesks, catId: string): DeskReport | null {
++  const cat = engine.agents.find((a) => a.id === catId);
++  if (!cat) return null;
++  const desks = building.floors.find((f) => f.id === cat.floor)?.room?.desks ?? [];
++  const at = cat.usingSpotId ? desks.find((d) => d.id === cat.usingSpotId) : undefined;
++  const placement = at ?? desks.find((d) => d.id === engine.homeDesk(catId, cat.floor));
++  return placement ? { desk: placement.desk, flip: placement.flip === true, rear: placement.rear === true } : null;
++}
++
++/** Session id → its cat's desk, for the sessions whose cat has one. */
++export function deskReports(engine: CatsAndDesks, building: FloorsWithDesks, agentOf: ReadonlyMap<string, { id: string }>): Record<string, DeskReport> {
++  const out: Record<string, DeskReport> = {};
++  for (const [catId, agent] of agentOf) {
++    const desk = deskOf(engine, building, catId);
++    if (desk) out[agent.id] = desk;
++  }
++  return out;
++}
++
++/** Desks change as cats move between floors and desks (not as React renders): looked at every few seconds. */
++const CHECK_MS = 3000;
++
++/** Reports deskReports to the bridge whenever it changes (live data only). */
++export function useReportDesks(engine: CatsAndDesks, building: FloorsWithDesks, agentOf: ReadonlyMap<string, { id: string }>, source: LiveSource): void {
++  const reported = useRef('');
++  useEffect(() => {
++    if (source !== 'live') return;
++    const check = (): void => {
++      const desks = deskReports(engine, building, agentOf);
++      const body = JSON.stringify(desks);
++      if (body === reported.current || Object.keys(desks).length === 0) return;
++      void reportDesks(desks).then((r) => {
++        if (r.ok) reported.current = body;
++      });
++    };
++    check();
++    const timer = window.setInterval(check, CHECK_MS);
++    return () => window.clearInterval(timer);
++  }, [engine, building, agentOf, source]);
++}
 --- a/src/agents/live/useAgentCats.ts
 +++ b/src/agents/live/useAgentCats.ts
 @@ -1,4 +1,5 @@
@@ -355,9 +468,28 @@
    const agents = snapshot?.agents;
    const catIds = useMemo(() => cats.map((c) => c.catId), [cats]);
    const spare = useMemo(() => (source === 'live' ? spareCats(agents ?? [], catIds, assignment) : []), [source, agents, catIds, assignment]);
+--- a/src/components/mission/MissionControl.tsx
++++ b/src/components/mission/MissionControl.tsx
+@@ -4,6 +4,7 @@
+ import { displayName, helperIcon, isHelper } from '../../agents/live/helpers';
+ import { countByStatus, formatRuntime, runtimeMs } from '../../agents/live/status';
+ import { useAgentCats, type Portrait } from '../../agents/live/useAgentCats';
++import { useReportDesks } from '../../agents/live/agent-desks';
+ import { useLiveAgents } from '../../agents/live/useLiveAgents';
+ import { useWarmStart } from '../../agents/live/warm-start';
+ import { withMeeting, workingHelpers } from '../../agents/live/meetings';
+@@ -162,6 +163,8 @@
+     const agentOf = new Map([...assigned.agentOf].filter(([simId, a]) => !left(simId, a)));
+     return { catOf, agentOf };
+   }, [assigned, departedKey]);
++  // Which desk each session's cat works at, for other local apps (ClaudeBar) to draw the same desk.
++  useReportDesks(engine, world.building, agentOf, live.source);
+   const agents = live.snapshot?.agents ?? NO_AGENTS;
+   // Every session's face in the roster, drawer and feed: its cat's, the one it had, or one picked from its id;
+   // muted when no cat in the office stands for it now (ended, or queued for a free cat).
 --- a/tests/sim/cat-assignments.test.ts
 +++ b/tests/sim/cat-assignments.test.ts
-@@ -0,0 +1,109 @@
+@@ -0,0 +1,146 @@
 +// The cats the page shows, shared with other local apps (ClaudeBar): POST /__agents/cats keeps them in
 +// <stateDir>/cat-assignments.json and every snapshot carries each agent's `cat`; ~/.cat-office/bridge.json tells
 +// local apps where the bridge (and this folder) is. Unit checks of the store, then the routes on a real dev server with a temp
@@ -379,6 +511,41 @@
 +after(() => rmSync(TMP, { recursive: true, force: true }));
 +
 +const { bridgeFile, CatAssignmentStore, writeBridgeInfo } = await import('../../server/agent-bridge/cat-assignments.ts');
++const { deskOf, deskReports } = await import('../../src/agents/live/agent-desks.ts');
++
++test('desks: the page reports each agent desk (design, mirrored, turned) and snapshots carry it', () => {
++  const file = join(TMP, 'unit', 'desks.json');
++  const store = new CatAssignmentStore(file);
++  assert.equal(store.merge({ desks: { a1: { desk: 's2-pink', flip: true, rear: false } } }), true);
++  for (const bad of [{ desks: [] }, { desks: { a1: { desk: 'x y', flip: true, rear: false } } }, { desks: { a1: { desk: 's1-oak', flip: 'yes', rear: false } } }, { desks: { 'a/b': { desk: 's1-oak', flip: false, rear: false } } }]) {
++    assert.equal(store.merge(bad), false, JSON.stringify(bad));
++  }
++  assert.equal(store.merge({ assignments: { a1: 'orange' }, desks: { b2: { desk: 's1-oak', flip: false, rear: true } } }), true);
++  const applied = store.apply({ agents: [{ id: 'a1' }, { id: 'b2' }, { id: 'c3' }], repos: [], at: 1 } as never) as { agents: { id: string; cat?: string; desk?: unknown }[] };
++  assert.deepEqual(applied.agents[0].desk, { id: 's2-pink', flip: true, rear: false });
++  assert.equal(applied.agents[0].cat, 'orange');
++  assert.deepEqual(applied.agents[1].desk, { id: 's1-oak', flip: false, rear: true });
++  assert.equal('desk' in applied.agents[2], false);
++  const again = new CatAssignmentStore(file).apply({ agents: [{ id: 'b2' }], repos: [], at: 1 } as never) as { agents: { desk?: unknown }[] };
++  assert.deepEqual(again.agents[0].desk, { id: 's1-oak', flip: false, rear: true }, 'kept across restarts');
++});
++
++test('deskOf: the desk a cat is at, else its home desk on its floor', () => {
++  const building = { floors: [{ id: 'f1', room: { desks: [
++    { id: 'd1', desk: 's1-walnut', u: 0, v: 0, flip: false },
++    { id: 'd2', desk: 's3-gamer', u: 0, v: 0, flip: true, rear: true },
++  ] } }] };
++  const engine = {
++    agents: [{ id: 'cat-a', floor: 'f1', usingSpotId: 'd2' }, { id: 'cat-b', floor: 'f1', usingSpotId: 'sofa-1' }, { id: 'cat-c', floor: 'f9', usingSpotId: null }],
++    homeDesk: (id: string) => (id === 'cat-b' ? 'd1' : null),
++  };
++  assert.deepEqual(deskOf(engine as never, building as never, 'cat-a'), { desk: 's3-gamer', flip: true, rear: true });
++  assert.deepEqual(deskOf(engine as never, building as never, 'cat-b'), { desk: 's1-walnut', flip: false, rear: false });
++  assert.equal(deskOf(engine as never, building as never, 'cat-c'), null);
++  assert.equal(deskOf(engine as never, building as never, 'nobody'), null);
++  const reports = deskReports(engine as never, building as never, new Map([['cat-a', { id: 'sess-a' }], ['cat-c', { id: 'sess-c' }]]) as never);
++  assert.deepEqual(reports, { 'sess-a': { desk: 's3-gamer', flip: true, rear: true } });
++});
 +
 +test('bridge file: home by default, never there for a test or other state folder', () => {
 +  assert.equal(bridgeFile({ HOME: '/h' }, '/h'), '/h/.cat-office/bridge.json');
@@ -455,13 +622,15 @@
 +    assert.equal((await fetch(`${base}/__agents/cats`, { headers: { 'x-cat-office-token': token } })).status, 405);
 +    assert.equal((await post({ assignments: { [sessionId]: 'not a cat!' } })).status, 400);
 +
-+    const agents = async () => ((await (await fetch(`${base}/__agents`, { headers: { 'x-cat-office-token': token } })).json()).agents as { id: string; cat?: string }[]);
++    const agents = async () => ((await (await fetch(`${base}/__agents`, { headers: { 'x-cat-office-token': token } })).json()).agents as { id: string; cat?: string; desk?: unknown }[]);
 +    const deadline = Date.now() + 15_000;
 +    while (!(await agents()).some((a) => a.id === sessionId) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 200));
 +    assert.ok((await agents()).some((a) => a.id === sessionId), 'the stand-in session shows up');
 +    assert.equal((await post({ assignments: { [sessionId]: 'tuxedo' } })).status, 200);
 +    assert.equal((await agents()).find((a) => a.id === sessionId)?.cat, 'tuxedo');
 +    assert.deepEqual(JSON.parse(readFileSync(join(STATE, 'cat-assignments.json'), 'utf8')).cats, { [sessionId]: 'tuxedo' });
++    assert.equal((await post({ desks: { [sessionId]: { desk: 's2-mint', flip: true, rear: false } } })).status, 200);
++    assert.deepEqual((await agents()).find((a) => a.id === sessionId)?.desk, { id: 's2-mint', flip: true, rear: false });
 +  } finally {
 +    await server.close();
 +  }

@@ -247,7 +247,7 @@ struct CatView: View {
 
     var body: some View {
         let cat = CatPicker.cat(for: agent, catIds: state.catIds)
-        let pose = CatPose(status: agent.status)
+        let scene = DeskScene(agent)
         VStack(spacing: 1) {
             ZStack(alignment: .bottom) {
                 if agent.status == .waiting && !plain {
@@ -259,14 +259,19 @@ struct CatView: View {
                         .offset(y: 10)
                 }
                 if !plain { StatusRing(status: agent.status, attention: false).scaleEffect(width / 64).offset(y: 3) }
-                if atDesk && agent.status == .working {
-                    desk.offset(y: -14)
-                    animatedCat(cat, pose).offset(y: 2)
+                if atDesk && scene.rear {
+                    // A turned desk: the cat works on the far side, facing us, behind the desk.
+                    animatedCat(cat, scene).offset(y: -12)
+                    desk(scene).offset(y: -2)
+                } else if atDesk && agent.status == .working {
+                    desk(scene).offset(y: -14)
+                    animatedCat(cat, scene).offset(y: 2)
                 } else if atDesk {
-                    desk.offset(x: -8, y: -10)
-                    animatedCat(cat, pose).offset(x: 10, y: 2)
+                    // Waiting: up beside the desk, on the open side.
+                    desk(scene).offset(x: scene.mirrored ? 8 : -8, y: -10)
+                    animatedCat(cat, scene).offset(x: scene.mirrored ? -10 : 10, y: 2)
                 } else {
-                    animatedCat(cat, pose)
+                    animatedCat(cat, scene)
                 }
                 if agent.status == .waiting {
                     Text("!").font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
@@ -286,15 +291,24 @@ struct CatView: View {
         }
     }
 
-    private var desk: some View {
-        SpriteImage(key: "desk", fallback: nil) { await state.art.deskImage() }.frame(width: 60, height: 53)
+    /// The cat's own desk in Cat Office (design, rear view, mirrored), else the default one.
+    private func desk(_ scene: DeskScene) -> some View {
+        SpriteImage(key: "desk-\(scene.deskId ?? "default")-\(scene.rear)", fallback: nil) {
+            await state.art.deskImage(id: scene.deskId, rear: scene.rear)
+        }
+        .frame(width: 60, height: 53)
+        .scaleEffect(x: scene.mirrored ? -1 : 1, y: 1)
     }
 
-    private func animatedCat(_ cat: String, _ pose: CatPose) -> some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || agent.status == .waiting)) { context in
+    private func animatedCat(_ cat: String, _ scene: DeskScene) -> some View {
+        let pose = scene.pose
+        let direction = scene.direction
+        return TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || agent.status == .waiting)) { context in
             let motion = reduceMotion ? CatMotion(offsetY: 0, scale: 1)
                 : CatMotion.at(status: agent.status, time: context.date.timeIntervalSinceReferenceDate)
-            SpriteImage(key: "\(cat)-\(pose.rawValue)", fallback: Theme.color(agent.status)) { await state.art.catImage(cat: cat, pose: pose) }
+            SpriteImage(key: "\(cat)-\(pose.rawValue)-\(direction)", fallback: Theme.color(agent.status)) {
+                await state.art.catImage(cat: cat, pose: pose, direction: direction)
+            }
                 .frame(width: width * 0.875, height: width * 0.92)
                 .scaleEffect(motion.scale, anchor: .bottom)
                 .offset(y: motion.offsetY)

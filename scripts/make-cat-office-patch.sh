@@ -11,7 +11,9 @@ FILES=(
   server/agent-bridge/types.ts
   server/agent-bridge/workers.ts
   src/agents/live/actions.ts
+  src/agents/live/agent-desks.ts
   src/agents/live/useAgentCats.ts
+  src/components/mission/MissionControl.tsx
   tests/sim/cat-assignments.test.ts
   tests/sim/plan-usage-workers.test.ts
 )
