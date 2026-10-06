@@ -21,6 +21,8 @@ public struct ProjectRow: Equatable, Sendable, Identifiable {
 public struct OfficeRow: Equatable, Sendable, Identifiable {
     public var id: String
     public var name: String
+    /// OfficeAgent.label: custom/AI title, project, first task words, or the name.
+    public var label: String
     public var status: AgentStatus
     public var since: Date?
     /// Repo name, else the folder's name.
@@ -28,6 +30,7 @@ public struct OfficeRow: Equatable, Sendable, Identifiable {
     public var branch: String?
     /// The task, else the last action.
     public var detail: String?
+    public var lastAction: String?
     public var needsAttention: Bool
 }
 
@@ -205,10 +208,10 @@ public enum StatusModel {
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                 .map { a in
                     OfficeRow(
-                        id: a.key, name: a.name, status: a.status,
+                        id: a.key, name: a.name, label: a.label, status: a.status,
                         since: a.status == .waiting ? (a.waitingSince ?? input.statusSince[a.key]) : input.statusSince[a.key],
                         place: a.repoName ?? (a.cwd as NSString).lastPathComponent,
-                        branch: a.branch, detail: a.task ?? a.lastAction,
+                        branch: a.branch, detail: a.task ?? a.lastAction, lastAction: a.lastAction,
                         needsAttention: input.attention.contains(a.key))
                 }
         }

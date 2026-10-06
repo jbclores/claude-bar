@@ -14,24 +14,23 @@ struct OfficeCatList: View {
             ForEach(rows) { row in
                 HStack(spacing: 8) {
                     Circle().fill(row.needsAttention ? Theme.waiting : Theme.color(row.status)).frame(width: 7, height: 7)
-                    Text(row.name).font(.callout.weight(.medium)).lineLimit(1)
+                    Text(row.label).font(.callout.weight(.medium)).lineLimit(1).layoutPriority(1)
                     Text(statusText(row)).font(.caption)
                         .foregroundStyle(row.needsAttention ? Theme.waiting : Theme.color(row.status))
+                        .fixedSize()
                     Spacer(minLength: 8)
-                    Text([row.place, row.detail ?? row.branch].compactMap { $0 }.joined(separator: " · "))
+                    Text(row.lastAction ?? row.branch ?? "")
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture(perform: openOffice)
-                .help(row.detail ?? row.name)
+                .help([row.name, row.detail].compactMap { $0 }.joined(separator: " — "))
             }
         }
     }
 
     private func statusText(_ row: OfficeRow) -> String {
-        let label = row.needsAttention && row.status == .idle ? "your turn" : row.status.rawValue
-        guard let since = row.since else { return label }
-        return "\(label) \(Format.duration(Date().timeIntervalSince(since)))"
+        Format.statusText(row.status, needsYou: row.needsAttention || row.status == .waiting, since: row.since)
     }
 }
 

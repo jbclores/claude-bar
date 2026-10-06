@@ -247,7 +247,14 @@ struct CatView: View {
                 }
             }
             .frame(width: width, height: plain ? width * 0.95 : width * 1.34)
-            if !plain { RoomPill(text: agent.name).frame(maxWidth: width + 16) }
+            if !plain {
+                let needsYou = agent.status == .waiting || state.attention.contains(agent.key)
+                RoomPill(text: agent.label,
+                         detail: Format.statusText(agent.status, needsYou: needsYou,
+                                                   since: agent.waitingSince ?? state.statusSince[agent.key]),
+                         detailColor: needsYou ? Theme.waiting : Theme.color(agent.status))
+                    .frame(maxWidth: 118)
+            }
         }
     }
 
@@ -332,31 +339,29 @@ struct SpriteImage: View {
 struct CatCard: View {
     let agent: OfficeAgent
     let since: Date?
+    @EnvironmentObject var state: AppState
 
     var body: some View {
+        let needsYou = agent.status == .waiting || state.attention.contains(agent.key)
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
-                Circle().fill(Theme.color(agent.status)).frame(width: 7, height: 7)
-                Text(agent.name).font(.callout.weight(.semibold)).lineLimit(1)
+                Circle().fill(needsYou ? Theme.waiting : Theme.color(agent.status)).frame(width: 7, height: 7)
+                Text(agent.label).font(.callout.weight(.semibold)).lineLimit(1)
                 Spacer()
-                Text(statusText).font(.caption).foregroundStyle(Theme.color(agent.status))
+                Text(Format.statusText(agent.status, needsYou: needsYou, since: agent.waitingSince ?? since))
+                    .font(.caption).foregroundStyle(needsYou ? Theme.waiting : Theme.color(agent.status))
             }
-            let place = [agent.repoName ?? (agent.cwd as NSString).lastPathComponent, agent.branch, agent.model.map(Format.modelName)]
+            let place = [agent.name, agent.repoName, agent.branch, agent.model.map(Format.modelName)]
                 .compactMap { $0 }.filter { !$0.isEmpty }
-            if !place.isEmpty {
-                Text(place.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            }
+            Text(place.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             if let reason = agent.waitReason { Text(reason).font(.caption).foregroundStyle(Theme.waiting) }
-            if let detail = agent.task ?? agent.lastAction { Text(detail).font(.caption).lineLimit(2) }
+            if let task = agent.task, !task.isEmpty { Text(task).font(.caption).lineLimit(3) }
+            if let last = agent.lastAction, !last.isEmpty {
+                Text("Last: \(last)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            }
         }
         .padding(8)
-        .frame(maxWidth: 320, alignment: .leading)
+        .frame(maxWidth: 340, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-    }
-
-    private var statusText: String {
-        let start = agent.status == .waiting ? (agent.waitingSince ?? since) : since
-        guard let start else { return agent.status.rawValue }
-        return "\(agent.status.rawValue) \(Format.duration(Date().timeIntervalSince(start)))"
     }
 }

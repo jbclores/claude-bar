@@ -21,6 +21,17 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
     public var sessionId: String?
     /// The cat the browser shows for this agent (sent by the patched Cat Office).
     public var cat: String?
+    /// Where `task` came from: "custom" (renamed), "ai", "description", or "prompt" (the first message).
+    public var titleSource: String?
+
+    /// What to call the agent: a custom or AI title, else its project, else the first words of its task, else
+    /// its name.
+    public var label: String {
+        if let task, !task.isEmpty, let source = titleSource, source != "prompt" { return Format.shortTitle(task, max: 28) }
+        if let repoName, !repoName.isEmpty { return repoName }
+        if let task, !task.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return Format.shortTitle(task, max: 24) }
+        return name
+    }
 
     public var isOffice: Bool { owner == "office" }
     /// The key this agent shares with snapshots and Claude Code's session files.
@@ -56,6 +67,7 @@ extension OfficeAgent: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case id, name, owner, status, waitReason, cwd, repo, branch, model, task, lastAction, waitingSince, sessionId, cat
+        case titleSource
     }
 
     public init(from decoder: Decoder) throws {
@@ -79,6 +91,7 @@ extension OfficeAgent: Decodable {
             sessionId: try c.decodeIfPresent(String.self, forKey: .sessionId),
             cat: try c.decodeIfPresent(String.self, forKey: .cat)
         )
+        titleSource = try? c.decodeIfPresent(String.self, forKey: .titleSource)
     }
 }
 

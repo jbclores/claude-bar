@@ -15,6 +15,8 @@ final class AppState: ObservableObject {
     @Published private(set) var office: OfficeSnapshot?
     @Published private(set) var needsAttention = false
     @Published private(set) var statusSince: [String: Date] = [:]
+    /// Session keys that need the user (waiting, or just finished).
+    @Published private(set) var attention: Set<String> = []
     @Published private(set) var configError: String?
     /// The current config, for the Settings tab.
     @Published private(set) var settings = Config.empty
@@ -151,6 +153,7 @@ final class AppState: ObservableObject {
         input.attention = tracker.attention
         input.statusSince = tracker.since
         statusSince = tracker.since
+        if attention != tracker.attention { attention = tracker.attention }
         needsAttention = !tracker.attention.isEmpty
         output = StatusModel.build(input)
         let cat = office.flatMap {

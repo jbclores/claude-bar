@@ -29,6 +29,28 @@ public enum Format {
         return "\(s / 86_400)d"
     }
 
+    /// Whitespace collapsed, cut at a word boundary to at most `max` characters (with "…"); a single long word is cut.
+    public static func shortTitle(_ text: String, max: Int) -> String {
+        let words = text.split(whereSeparator: \.isWhitespace)
+        let joined = words.joined(separator: " ")
+        guard joined.count > max else { return joined }
+        var out = ""
+        for word in words {
+            let next = out.isEmpty ? String(word) : out + " " + word
+            if next.count > max - 1 { break }
+            out = next
+        }
+        if out.isEmpty { out = String(joined.prefix(max - 1)) }
+        return out + "…"
+    }
+
+    /// "working 3m", "idle 1h", "needs you" — the second line of a cat's label.
+    public static func statusText(_ status: AgentStatus, needsYou: Bool, since: Date?, now: Date = Date()) -> String {
+        if needsYou { return "needs you" }
+        guard let since else { return status.rawValue }
+        return "\(status.rawValue) \(duration(now.timeIntervalSince(since)))"
+    }
+
     /// "claude-opus-5-5[1m]" → "Opus 5.5", like the status line's display names; anything else unchanged.
     public static func modelName(_ id: String) -> String {
         guard id.hasPrefix("claude-") else { return id }

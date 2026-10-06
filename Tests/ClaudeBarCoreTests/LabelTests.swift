@@ -1,0 +1,54 @@
+import Foundation
+import Testing
+@testable import ClaudeBarCore
+
+@Suite struct LabelTests {
+    let t = Date(timeIntervalSince1970: 1_791_266_000)
+
+    func agent(task: String? = nil, source: String? = nil, repo: String? = nil, name: String = "office-82eb65") -> OfficeAgent {
+        var a = OfficeAgent(id: "a", name: name, owner: "office", status: .working, cwd: "/", repoName: repo, task: task)
+        a.titleSource = source
+        return a
+    }
+
+    @Test func projectFirstThenTaskWordsThenName() {
+        #expect(agent(task: "I want to create a simple app", source: "prompt", repo: "claude-bar").label == "claude-bar")
+        #expect(agent(task: "Create me a status line concept but apply here", source: "prompt").label == "Create me a status line…")
+        #expect(agent(task: "hi", source: "prompt").label == "hi")
+        #expect(agent().label == "office-82eb65")
+    }
+
+    @Test func customOrAiTitleWins() {
+        #expect(agent(task: "Dropdown tabs", source: "custom", repo: "claude-bar").label == "Dropdown tabs")
+        #expect(agent(task: "Fix invite expiry", source: "ai", repo: "app").label == "Fix invite expiry")
+    }
+
+    @Test func shortTitleCutsAtWordsAndCollapsesSpace() {
+        #expect(Format.shortTitle("  Can you\ncheck   what is the agents available", max: 24) == "Can you check what is…")
+        #expect(Format.shortTitle("Supercalifragilisticexpialidocious-and-more", max: 12) == "Supercalifr…")
+        #expect(Format.shortTitle("short", max: 24) == "short")
+    }
+
+    @Test func statusText() {
+        #expect(Format.statusText(.working, needsYou: false, since: t - 190, now: t) == "working 3m")
+        #expect(Format.statusText(.waiting, needsYou: true, since: t - 30, now: t) == "needs you")
+        #expect(Format.statusText(.idle, needsYou: true, since: nil, now: t) == "needs you")
+        #expect(Format.statusText(.idle, needsYou: false, since: nil, now: t) == "idle")
+    }
+
+    @Test func officeRowsCarryLabelAndLastAction() {
+        var a = OfficeAgent(id: "1", name: "office-1", owner: "office", status: .idle, cwd: "/w/app", repoName: "app",
+                            task: "long first prompt", lastAction: "Bash: swift test")
+        a.titleSource = "prompt"
+        let row = StatusModel.build(StatusInput(projects: [], office: OfficeSnapshot(agents: [a]))).office?.first
+        #expect(row?.label == "app")
+        #expect(row?.lastAction == "Bash: swift test")
+    }
+
+    @Test func decodesTitleSource() throws {
+        let json = #"{"type":"snapshot","snapshot":{"agents":[{"id":"x","status":"idle","cwd":"/","task":"T","titleSource":"ai"}]}}"#
+        guard case .snapshot(let snap)? = CatOfficeEvent.decode(json) else { Issue.record("no snapshot"); return }
+        #expect(snap.agents[0].titleSource == "ai")
+        #expect(snap.agents[0].label == "T")
+    }
+}
