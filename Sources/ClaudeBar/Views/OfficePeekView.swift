@@ -57,8 +57,6 @@ struct OfficeRoomView: View {
                     offline
                 }
             }
-            // Evening in dark mode: a soft night tint so the room doesn't glare in a dark menu.
-            .overlay(Color(red: 0.05, green: 0.07, blue: 0.15).opacity(colorScheme == .dark ? 0.32 : 0).allowsHitTesting(false))
             .clipShape(RoundedRectangle(cornerRadius: 10))
             if let agent = hovered { CatCard(agent: agent, since: state.statusSince[agent.key]).padding(6) }
         }
@@ -107,8 +105,10 @@ struct OfficeRoomView: View {
 /// Cat Office's own room art: a plaster back wall over a birch floor, a plant and a lamp.
 struct RoomBackdrop: View {
     @EnvironmentObject var state: AppState
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let night = colorScheme == .dark
         ZStack(alignment: .topLeading) {
             VStack(spacing: 0) {
                 roomArt("assets/room/walls/plaster.png", size: 512, mode: .fill).frame(height: 46).clipped()
@@ -116,7 +116,11 @@ struct RoomBackdrop: View {
                 roomArt("assets/room/floors/birch.png", size: 1024, mode: .tile).frame(maxHeight: .infinity)
             }
             .background(Color(hex: 0xEADBC8)) // until the art has loaded, or if it can't
+            // Night: walls and floor shift to a deep blue (a colour shift, not a grey veil); the furniture stays lit.
+            .colorMultiply(night ? Night.room : .white)
             roomArt("assets/room/props/tall-plant.png", size: 160, mode: .fit).frame(height: 70).offset(x: 6, y: 12)
+                .colorMultiply(night ? Night.furniture : .white)
+            if night { LampLight() }
             roomArt("assets/room/props/floor-lamp.png", size: 160, mode: .fit).frame(height: 64)
                 .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 14).offset(y: 12)
         }
@@ -124,6 +128,39 @@ struct RoomBackdrop: View {
 
     private func roomArt(_ path: String, size: Int, mode: SpriteImage.Mode) -> SpriteImage {
         SpriteImage(key: path, fallback: nil, mode: mode) { await state.art.image(path: path, maxPixelSize: size) }
+    }
+}
+
+/// The night room's colours (dark mode).
+enum Night {
+    /// Multiplied into the walls and floor: deep evening blue.
+    static let room = Color(red: 0.36, green: 0.42, blue: 0.66)
+    /// Multiplied into furniture and desks: just cooled, still bright against the room.
+    static let furniture = Color(red: 0.86, green: 0.88, blue: 0.96)
+    /// Multiplied into sleeping cats: a little dimmer.
+    static let asleep = Color(red: 0.78, green: 0.8, blue: 0.9)
+    static let lamp = Color(red: 1, green: 0.83, blue: 0.54)
+    static let screen = Color(red: 0.45, green: 0.75, blue: 1)
+}
+
+/// The floor lamp's warm light at night: a glow at the shade and a pool on the floor under it.
+struct LampLight: View {
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Circle()
+                .fill(RadialGradient(colors: [Night.lamp.opacity(0.9), Night.lamp.opacity(0)], center: .center, startRadius: 2, endRadius: 34))
+                .frame(width: 68, height: 68)
+                .offset(x: 6, y: -6)
+            Ellipse()
+                .fill(RadialGradient(colors: [Night.lamp.opacity(0.45), Night.lamp.opacity(0)], center: .center, startRadius: 4, endRadius: 80))
+                .frame(width: 170, height: 70)
+                .offset(x: 50, y: 52)
+        }
+        .frame(maxWidth: .infinity, alignment: .topTrailing)
+        .padding(.trailing, 12)
+        .offset(y: 8)
+        .blendMode(.screen)
+        .allowsHitTesting(false)
     }
 }
 
@@ -163,19 +200,24 @@ struct Lounge: View {
         return asleep == 0 ? "lounge · empty" : "lounge · \(asleep) asleep"
     }
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private func art(_ path: String, _ size: Int) -> some View {
         SpriteImage(key: path, fallback: nil) { await state.art.image(path: path, maxPixelSize: size) }
+            .colorMultiply(colorScheme == .dark ? Night.furniture : .white)
     }
 }
 
 /// A desk whose cat is out in the lounge.
 struct FreeDesk: View {
     @EnvironmentObject var state: AppState
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 1) {
             SpriteImage(key: "desk", fallback: nil) { await state.art.deskImage() }
                 .frame(width: 60, height: 53)
+                .colorMultiply(colorScheme == .dark ? Night.furniture : .white)
                 .opacity(0.75)
                 .frame(width: 64, height: 64 * 1.34, alignment: .bottom)
                 .padding(.bottom, 14)
@@ -243,6 +285,7 @@ struct CatView: View {
     /// Just the cat (lounge): no status ring, no name.
     var plain = false
     @EnvironmentObject var state: AppState
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -259,6 +302,14 @@ struct CatView: View {
                         .offset(y: 10)
                 }
                 if !plain { StatusRing(status: agent.status, attention: false).scaleEffect(width / 64).offset(y: 3) }
+                if atDesk && agent.status == .working && colorScheme == .dark {
+                    // Night: the monitors light the desk.
+                    Ellipse()
+                        .fill(RadialGradient(colors: [Night.screen.opacity(0.55), Night.screen.opacity(0)], center: .center, startRadius: 2, endRadius: 40))
+                        .frame(width: 80, height: 50)
+                        .offset(y: -36)
+                        .blendMode(.screen)
+                }
                 if atDesk && scene.rear {
                     // A turned desk: the cat works on the far side, facing us, behind the desk.
                     animatedCat(cat, scene).offset(y: -12)
@@ -298,6 +349,7 @@ struct CatView: View {
         }
         .frame(width: 60, height: 53)
         .scaleEffect(x: scene.mirrored ? -1 : 1, y: 1)
+        .colorMultiply(colorScheme == .dark ? Night.furniture : .white)
     }
 
     private func animatedCat(_ cat: String, _ scene: DeskScene) -> some View {
@@ -310,6 +362,7 @@ struct CatView: View {
                 await state.art.catImage(cat: cat, pose: pose, direction: direction)
             }
                 .frame(width: width * 0.875, height: width * 0.92)
+                .colorMultiply(colorScheme != .dark ? .white : agent.status == .idle ? Night.asleep : Night.furniture)
                 .scaleEffect(motion.scale, anchor: .bottom)
                 .offset(y: motion.offsetY)
         }
@@ -349,9 +402,12 @@ struct SpriteImage: View {
     @State private var image: NSImage?
     @State private var failed = false
 
+    /// Images already loaded, by key: a reopened dropdown (or a fresh render) draws them at once, no flicker.
+    @MainActor static var loaded: [String: NSImage] = [:]
+
     var body: some View {
         Group {
-            if let image {
+            if let image = image ?? Self.loaded[key] {
                 switch mode {
                 case .fit: Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
                 case .fill: Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fill)
@@ -365,12 +421,14 @@ struct SpriteImage: View {
             }
         }
         .task(id: key) {
+            if Self.loaded[key] != nil { return }
             if let data = await load(), let loaded = NSImage(data: data) {
                 // Tiles repeat at Retina scale (2 pixels per point), like Cat Office draws its floors.
                 if mode == .tile, let rep = loaded.representations.first {
                     loaded.size = NSSize(width: CGFloat(rep.pixelsWide) / 2, height: CGFloat(rep.pixelsHigh) / 2)
                 }
                 image = loaded
+                Self.loaded[key] = loaded
             } else {
                 failed = true
             }

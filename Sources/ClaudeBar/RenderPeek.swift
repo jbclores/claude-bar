@@ -33,9 +33,14 @@ enum RenderPeek {
         window.contentView = host
         window.orderFrontRegardless()
         DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
-            guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { exit(1) }
-            host.cacheDisplay(in: host.bounds, to: rep)
-            try? rep.representation(using: .png, properties: [:])?.write(to: out)
+            // SwiftUI's own renderer: the window capture misses colour multiply and blend modes (the night room).
+            let content = OfficePeekView().environmentObject(state).environmentObject(pointer)
+                .background(renderLight ? Color(white: 0.93) : Color(white: 0.16))
+                .environment(\.colorScheme, renderLight ? .light : .dark)
+            let renderer = ImageRenderer(content: content.frame(width: size.width, height: size.height))
+            renderer.scale = 2
+            guard let cg = renderer.cgImage else { exit(1) }
+            try? NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:])?.write(to: out)
             exit(0)
         }
         return true
