@@ -2,6 +2,12 @@ import AppKit
 import ClaudeBarCore
 import ServiceManagement
 
+enum OfficeLaunch: Equatable {
+    case none
+    case starting(since: Date)
+    case failed(String)
+}
+
 /// Everything the menu bar shows: files and git re-read every 5 seconds, Cat Office's feed as it arrives.
 @MainActor
 final class AppState: ObservableObject {
@@ -11,6 +17,7 @@ final class AppState: ObservableObject {
     @Published private(set) var statusSince: [String: Date] = [:]
     @Published private(set) var configError: String?
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @Published private(set) var officeLaunch = OfficeLaunch.none
 
     let config = ConfigStore()
     private let snapshots = SnapshotReader()
@@ -21,6 +28,7 @@ final class AppState: ObservableObject {
         Task { @MainActor in self?.officeUpdated(snapshot) }
     }
     private let notifier = Notifier()
+    private let launcher = CatOfficeLauncher()
     private var tracker = AttentionTracker()
     private var files: StatusInput?
     private var timer: Timer?
@@ -32,6 +40,42 @@ final class AppState: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
+        // Give the feed a moment to connect; start Cat Office only if it's still unreachable.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            if office == nil, config.config.catOffice.autoStart { startCatOffice() }
+        }
+    }
+
+    /// Starts Cat Office's dev server unless something already answers at its address.
+    func startCatOffice() {
+        if case .starting = officeLaunch { return }
+        let started = Date()
+        officeLaunch = .starting(since: started)
+        let settings = config.config.catOffice
+        Task { @MainActor in
+            switch await launcher.start(settings: settings) {
+            case .started, .alreadyRunning:
+                // Reconnect right away a few times while the server comes up.
+                for delay in [2, 3, 5, 8, 12] as [UInt64] {
+                    try? await Task.sleep(nanoseconds: delay * 1_000_000_000)
+                    if office != nil { break }
+                    officeClient.reconnectNow()
+                }
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                if office == nil, officeLaunch == .starting(since: started) { officeLaunch = .failed("Couldn't start Cat Office") }
+            case .notConfigured:
+                officeLaunch = .failed("Set catOffice.dir in the config")
+            case .npmNotFound:
+                officeLaunch = .failed("npm not found")
+            case .failed(let message):
+                officeLaunch = .failed("Couldn't start Cat Office: \(message)")
+            }
+        }
+    }
+
+    func openLauncherLog() {
+        NSWorkspace.shared.open(CatOfficeLauncher.logFile)
     }
 
     /// Re-reads the config, snapshots, sessions and branches (off the main thread), then rebuilds the rows.
@@ -72,6 +116,7 @@ final class AppState: ObservableObject {
     private func officeUpdated(_ snapshot: OfficeSnapshot?) {
         guard snapshot != office else { return }
         office = snapshot
+        if snapshot != nil { officeLaunch = .none }
         recompute()
     }
 

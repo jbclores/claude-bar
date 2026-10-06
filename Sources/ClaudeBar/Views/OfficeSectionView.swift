@@ -4,7 +4,10 @@ import SwiftUI
 struct OfficeSectionView: View {
     let rows: [OfficeRow]?
     let hindered: Bool
+    let launch: OfficeLaunch
     let openOffice: () -> Void
+    let startOffice: () -> Void
+    let openLog: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -18,6 +21,7 @@ struct OfficeSectionView: View {
                         .foregroundStyle(hindered ? Theme.waiting : .secondary)
                 }
             }
+            if rows == nil { OfficeStarter(launch: launch, start: startOffice, openLog: openLog) }
             if let rows {
                 if rows.isEmpty {
                     Text("No office cats right now").font(.caption).foregroundStyle(.secondary)
@@ -44,5 +48,28 @@ struct OfficeSectionView: View {
         let label = row.needsAttention && row.status == .idle ? "your turn" : row.status.rawValue
         guard let since = row.since else { return label }
         return "\(label) \(Format.duration(Date().timeIntervalSince(since)))"
+    }
+}
+
+/// Shown while Cat Office is offline: a Start button, "Starting…", or why it failed.
+struct OfficeStarter: View {
+    let launch: OfficeLaunch
+    let start: () -> Void
+    let openLog: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            switch launch {
+            case .none:
+                Button("Start Cat Office", action: start)
+            case .starting:
+                ProgressView().controlSize(.small)
+                Text("Starting Cat Office…").font(.caption).foregroundStyle(.secondary)
+            case .failed(let message):
+                Text(message).font(.caption).foregroundStyle(Theme.waiting)
+                Button("Try Again", action: start).buttonStyle(.link).font(.caption)
+                Button("Open Log", action: openLog).buttonStyle(.link).font(.caption)
+            }
+        }
     }
 }

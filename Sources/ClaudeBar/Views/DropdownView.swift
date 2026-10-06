@@ -25,12 +25,17 @@ struct DropdownView: View {
             }
             Divider()
             OfficeSectionView(rows: state.output.office, hindered: state.output.claudeHindered,
-                              openOffice: { state.openCatOffice() })
+                              launch: state.officeLaunch,
+                              openOffice: { state.openCatOffice() },
+                              startOffice: { state.startCatOffice() },
+                              openLog: { state.openLauncherLog() })
             Divider()
             HStack(spacing: 14) {
                 Button("Add Folder…") { chooseFolders() }
                 Button("Edit Config") { state.editConfig() }
-                Button("Open Cat Office ↗") { state.openCatOffice() }
+                if state.office != nil {
+                    Button("Open Cat Office ↗") { state.openCatOffice() }
+                }
                 Toggle("Launch at Login", isOn: Binding(get: { state.launchAtLogin }, set: { state.setLaunchAtLogin($0) }))
                     .toggleStyle(.checkbox)
                 Spacer()

@@ -16,10 +16,13 @@ public struct CatOfficeSettings: Equatable, Sendable {
     /// Normalized path of the Cat Office folder (holds .cat-office/bridge.json), if configured.
     public var dir: String?
     public var url: URL
+    /// Start Cat Office when ClaudeBar launches and it isn't running.
+    public var autoStart: Bool
 
-    public init(dir: String? = nil, url: URL = CatOfficeSettings.defaultURL) {
+    public init(dir: String? = nil, url: URL = CatOfficeSettings.defaultURL, autoStart: Bool = true) {
         self.dir = dir
         self.url = url
+        self.autoStart = autoStart
     }
 }
 
@@ -56,6 +59,7 @@ public struct Config: Equatable, Sendable {
         if let office = root["catOffice"] as? [String: Any] {
             if let dir = office["dir"] as? String, !dir.isEmpty { config.catOffice.dir = Paths.normalize(dir) }
             if let s = office["url"] as? String, let url = URL(string: s) { config.catOffice.url = url }
+            if let auto = office["autoStart"] as? Bool { config.catOffice.autoStart = auto }
         }
         if let n = root["notifications"] as? Bool { config.notifications = n }
         return config

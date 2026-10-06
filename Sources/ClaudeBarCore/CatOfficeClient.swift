@@ -31,6 +31,12 @@ public final class CatOfficeClient: @unchecked Sendable {
         task = nil
     }
 
+    /// Tries again right away instead of waiting out the backoff (e.g. just after starting Cat Office).
+    public func reconnectNow() {
+        stop()
+        start()
+    }
+
     private func run() async {
         var delay: UInt64 = 2
         while !Task.isCancelled {

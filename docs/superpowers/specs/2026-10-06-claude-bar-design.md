@@ -10,7 +10,7 @@ A macOS menu bar app that works like the Claude Code status line, but for severa
 - **Projects:** for a fixed list of project folders, show the git branch, the Claude model, context-window usage, and whether a session is working, waiting or idle. Show the account-wide 5-hour and 7-day usage once.
 - **Cat Office:** hovering over the menu bar icon shows a tiny visual office: Cat Office's own cat sprites at desks, posed by status. A "View more" link opens Cat Office in the browser.
 
-**Audience:** one user, on this Mac. ClaudeBar only reads data and never controls Claude Code or Cat Office.
+**Audience:** one user, on this Mac. ClaudeBar reads data and never controls Claude Code sessions or Cat Office agents. Its one action is starting Cat Office's dev server when it isn't running (see §3a).
 
 **Success criteria**
 
@@ -87,6 +87,11 @@ On every status line redraw, the script also writes one JSON file per session:
 }
 ```
 
+`catOffice.autoStart` (default `true`) controls starting Cat Office when ClaudeBar launches (§3a).
+
+```
+```
+
 - `path` is required, and `~` is expanded. `name` is optional and defaults to the folder's base name.
 - `catOffice.dir` points to the Cat Office folder, so the app can find `.cat-office/bridge.json`. `catOffice.url` is used when `bridge.json` doesn't exist. Both are optional.
 - The app creates the file with an empty project list if it doesn't exist.
@@ -104,6 +109,22 @@ On every status line redraw, the script also writes one JSON file per session:
 - **No Origin header** is sent. Cat Office's access check allows loopback requests with a local Host header and no Origin.
 - **Data used from each `LiveAgent`:** `id`, `name`, `owner`, `status`, `waitReason`, `cwd`, `repo`, `branch`, `model`, `task`, `lastAction`, `waitingSince`, `sessionId`, `cat` (added by the patch). The `claude.hindered` health flag is also used.
 - **Down state:** if Cat Office can't be reached, `officeState = .offline`. The peek and the dropdown's Office section show "Cat Office isn't running", and status falls back to `~/.claude/sessions`.
+
+### 3a. Starting Cat Office
+
+- **When:** once, a few seconds after ClaudeBar launches, if `catOffice.autoStart` (default `true`) is on and Cat Office can't be reached. After that, only when the user clicks **Start Cat Office**, which the Office section and the peek show while Cat Office is offline. ClaudeBar never restarts it on its own after it stops.
+- **How:** run `npm run dev` in `catOffice.dir` as a background process.
+  - `PATH` gets the folder holding `npm`/`node`, found by checking `/opt/homebrew/bin`, `/usr/local/bin`, `~/.volta/bin` and the newest `~/.nvm/versions/node/*/bin`, because apps opened from Finder don't inherit the shell's `PATH`.
+  - Output is appended to `~/Library/Logs/ClaudeBar/cat-office.log`.
+  - stdin is `/dev/null`.
+  - Cat Office keeps running when ClaudeBar quits.
+- **Guard:** before starting, `GET <url>/` with a 2s timeout. If anything answers, ClaudeBar starts nothing.
+- **States:**
+  - `starting` shows "Starting Cat Office…".
+  - It returns to normal as soon as the feed connects.
+  - If the feed hasn't connected 30s after the start, the state becomes `failed`, shown as "Couldn't start Cat Office" with an **Open Log** link.
+  - Without `catOffice.dir`, the button is disabled with the hint "Set catOffice.dir in the config".
+- **"Open Cat Office ↗"** is hidden while Cat Office is offline.
 
 ### 4. Art cache
 
@@ -324,7 +345,7 @@ A SwiftUI and AppKit app for macOS 14+ that runs as an agent app (`LSUIElement`,
 
 ## Out of scope
 
-- Controlling Claude Code or Cat Office (replying, answering, stopping or launching agents)
+- Controlling Claude Code or Cat Office agents (replying, answering, stopping or launching agents), and stopping or restarting Cat Office itself
 - Opening a specific agent in Cat Office (Cat Office has no deep links)
 - Rendering the full isometric office, floors, or walking animation
 - Fetching usage directly from Anthropic's servers

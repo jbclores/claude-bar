@@ -19,7 +19,7 @@ import Testing
         let file = dir.appendingPathComponent("projects.json")
         write("""
         {"projects":[{"path":"\(proj.path)/"},{"path":"~/elsewhere","name":"Else"}],
-         "catOffice":{"dir":"~/co","url":"http://localhost:6000"},"notifications":false}
+         "catOffice":{"dir":"~/co","url":"http://localhost:6000","autoStart":false},"notifications":false}
         """, to: file)
         let store = ConfigStore(file: file)
         store.reload()
@@ -29,7 +29,9 @@ import Testing
         #expect(c.projects[1].path == Paths.normalize(NSHomeDirectory() + "/elsewhere"))
         #expect(c.catOffice.dir == Paths.normalize(NSHomeDirectory() + "/co"))
         #expect(c.catOffice.url == URL(string: "http://localhost:6000"))
+        #expect(c.catOffice.autoStart == false)
         #expect(c.notifications == false)
+        #expect(Config.empty.catOffice.autoStart)
     }
 
     @Test func invalidFileKeepsLastGoodConfig() throws {
