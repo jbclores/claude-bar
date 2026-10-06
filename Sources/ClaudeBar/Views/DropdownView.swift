@@ -22,27 +22,43 @@ enum DropdownTab: String, CaseIterable {
     }
 }
 
-/// The click dropdown: usage always on top, then the Office / Projects / Settings tabs, then the footer.
-struct DropdownView: View {
-    @EnvironmentObject var state: AppState
-    /// Reopens on the tab used last.
-    @AppStorage("dropdownTab") private var storedTab: DropdownTab = .office
-    /// Shows this tab without touching the remembered one (for --render-dropdown).
-    var forcedTab: DropdownTab?
-
-    private var tab: Binding<DropdownTab> {
-        forcedTab.map { .constant($0) } ?? $storedTab
+/// Which dropdown tab is showing; saved so the dropdown reopens on it.
+@MainActor
+final class TabSelection: ObservableObject {
+    static let key = "dropdownTab"
+    @Published var tab: DropdownTab {
+        didSet { UserDefaults.standard.set(tab.rawValue, forKey: Self.key) }
     }
 
+    init(_ tab: DropdownTab? = nil) {
+        self.tab = tab ?? DropdownTab(rawValue: UserDefaults.standard.string(forKey: Self.key) ?? "") ?? .office
+    }
+}
+
+/// Top of the dropdown: usage, and a config error if there is one.
+struct DropdownHeader: View {
+    @EnvironmentObject var state: AppState
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             UsageHeader(usage: state.output.usage)
-            TabBar(selected: tab, attention: state.needsAttention)
             if let error = state.configError {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .font(.caption).foregroundStyle(Theme.waiting)
             }
-            switch tab.wrappedValue {
+        }
+        .frame(width: DropdownLayout.contentWidth, alignment: .leading)
+    }
+}
+
+/// Under the tabs: the selected tab's content, then the footer.
+struct DropdownBody: View {
+    @EnvironmentObject var state: AppState
+    @ObservedObject var selection: TabSelection
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            switch selection.tab {
             case .office: OfficeTabView()
             case .projects: ProjectsTabView()
             case .settings: SettingsTabView()
@@ -58,41 +74,115 @@ struct DropdownView: View {
             .buttonStyle(.link)
             .font(.caption)
         }
-        .padding(14)
-        .frame(width: 500)
+        .frame(width: DropdownLayout.contentWidth, alignment: .leading)
     }
 }
 
-/// Office · Projects · Settings, as pill buttons; an amber dot on Office when something needs the user.
-struct TabBar: View {
-    @Binding var selected: DropdownTab
-    let attention: Bool
+enum DropdownLayout {
+    static let width: CGFloat = 500
+    static let padding: CGFloat = 14
+    static var contentWidth: CGFloat { width - padding * 2 }
+}
+
+/// The whole dropdown drawn by SwiftUI alone, for --render-dropdown images (the live dropdown is
+/// DropdownController, whose tab control is AppKit so its clicks always arrive).
+struct DropdownView: View {
+    @EnvironmentObject var state: AppState
+    var forcedTab: DropdownTab?
 
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(DropdownTab.allCases, id: \.self) { tab in
-                Button { selected = tab } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: tab.symbol)
-                        Text(tab.title)
-                        if tab == .office && attention {
-                            Circle().fill(Theme.waiting).frame(width: 6, height: 6)
-                        }
-                    }
-                    .font(.callout.weight(tab == selected ? .semibold : .regular))
-                    .foregroundStyle(tab == selected ? .primary : .secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 5)
-                    .background(RoundedRectangle(cornerRadius: 7).fill(tab == selected ? Color.primary.opacity(0.12) : .clear))
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+        let selection = TabSelection(forcedTab)
+        VStack(alignment: .leading, spacing: 10) {
+            DropdownHeader()
+            Picker("", selection: .constant(selection.tab)) {
+                ForEach(DropdownTab.allCases, id: \.self) { Label($0.title, systemImage: $0.symbol).tag($0) }
             }
-            Spacer()
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            DropdownBody(selection: selection)
         }
-        .padding(3)
-        .background(RoundedRectangle(cornerRadius: 9).fill(Color.primary.opacity(0.05)))
+        .padding(DropdownLayout.padding)
+        .frame(width: DropdownLayout.width)
     }
+}
+
+/// The live dropdown: SwiftUI usage header, a native AppKit tab control, SwiftUI tab content. The tab control
+/// sits outside SwiftUI on purpose: inside a hosting view its clicks were swallowed in the menu bar popover.
+final class DropdownController: NSViewController {
+    private let state: AppState
+    private let selection = TabSelection()
+    private var header: ClickThroughHostingView<AnyView>!
+    private var tabs: FirstClickSegmentedControl!
+    private var content: ClickThroughHostingView<AnyView>!
+
+    init(state: AppState) {
+        self.state = state
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func loadView() {
+        header = ClickThroughHostingView(rootView: AnyView(DropdownHeader().environmentObject(state)))
+        content = ClickThroughHostingView(rootView: AnyView(DropdownBody(selection: selection).environmentObject(state)))
+        tabs = FirstClickSegmentedControl(labels: DropdownTab.allCases.map(\.title), trackingMode: .selectOne,
+                                          target: self, action: #selector(tabChanged(_:)))
+        for (i, tab) in DropdownTab.allCases.enumerated() {
+            tabs.setImage(NSImage(systemSymbolName: tab.symbol, accessibilityDescription: tab.title), forSegment: i)
+            tabs.setImageScaling(.scaleProportionallyDown, forSegment: i)
+        }
+        tabs.controlSize = .large
+        tabs.segmentDistribution = .fillEqually
+        tabs.selectedSegment = DropdownTab.allCases.firstIndex(of: selection.tab) ?? 0
+
+        // Each SwiftUI piece in a plain container: a hosting view claims clicks beyond its own frame when its
+        // content draws outside it (the office's cats do), which took the tab control's clicks.
+        let stack = NSStackView(views: [BoundedContainer(header), tabs, BoundedContainer(content)])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 10
+        stack.edgeInsets = NSEdgeInsets(top: DropdownLayout.padding, left: DropdownLayout.padding,
+                                        bottom: DropdownLayout.padding, right: DropdownLayout.padding)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        tabs.widthAnchor.constraint(equalToConstant: DropdownLayout.contentWidth).isActive = true
+        for host in [header!, content!] {
+            host.sizingOptions = [.intrinsicContentSize]
+            // Keep each piece at its natural height: squeezed, its content spilled over the tabs and took their clicks.
+            host.setContentHuggingPriority(.required, for: .vertical)
+            host.setContentCompressionResistancePriority(.required, for: .vertical)
+            host.onSizeChange = { [weak self] _ in self?.resize() }
+        }
+        tabs.setContentCompressionResistancePriority(.required, for: .vertical)
+        view = stack
+        resize()
+    }
+
+    /// "Office •" on the Office tab when something needs the user.
+    func updateAttention(_ attention: Bool) {
+        tabs?.setLabel(attention ? "Office •" : "Office", forSegment: 0)
+    }
+
+    @objc private func tabChanged(_ sender: NSSegmentedControl) {
+        guard DropdownTab.allCases.indices.contains(sender.selectedSegment) else { return }
+        selection.tab = DropdownTab.allCases[sender.selectedSegment]
+        // Measure once SwiftUI has laid out the new tab.
+        DispatchQueue.main.async { [weak self] in self?.resize() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in self?.resize() }
+    }
+
+    private func resize() {
+        guard let header, let tabs, let content else { return }
+        view.layoutSubtreeIfNeeded()
+        let height = header.fittingSize.height + tabs.fittingSize.height + content.fittingSize.height
+            + 10 * 2 + DropdownLayout.padding * 2
+        let size = NSSize(width: DropdownLayout.width, height: height)
+        if size.height > 0, size != preferredContentSize { preferredContentSize = size }
+    }
+}
+
+/// The dropdown's tab control: takes the first click even while ClaudeBar isn't active.
+final class FirstClickSegmentedControl: NSSegmentedControl {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 /// The tiny office (same drawing as the hover peek) and the cat list under it.
@@ -281,5 +371,30 @@ struct ProjectRowView: View {
                 }
             }
         }
+    }
+}
+
+/// Holds a view and only takes clicks inside its own frame (plain NSView hit testing), clipping what spills out.
+final class BoundedContainer: NSView {
+    init(_ child: NSView) {
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        child.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(child)
+        clipsToBounds = true
+        NSLayoutConstraint.activate([
+            child.leadingAnchor.constraint(equalTo: leadingAnchor),
+            child.trailingAnchor.constraint(equalTo: trailingAnchor),
+            child.topAnchor.constraint(equalTo: topAnchor),
+            child.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+        setContentHuggingPriority(.required, for: .vertical)
+        setContentCompressionResistancePriority(.required, for: .vertical)
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        frame.contains(point) ? super.hitTest(point) : nil
     }
 }

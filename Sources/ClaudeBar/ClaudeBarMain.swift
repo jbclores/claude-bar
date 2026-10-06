@@ -32,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state = AppState()
         if RenderPeek.runIfRequested(state: state) {
             state.sideEffects = false
-            state.start()
+            if ProcessInfo.processInfo.environment["CLAUDEBAR_NO_DATA"] != "1" { state.start() }
             return
         }
         statusItem = StatusItemController(state: state)

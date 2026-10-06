@@ -9,6 +9,7 @@ final class StatusItemController: NSResponder {
     private let state: AppState
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let dropdown = NSPopover()
+    private lazy var dropdownController = DropdownController(state: state)
     private let peek = NSPopover()
     private let pointer = PeekPointer()
     private var subscriptions = Set<AnyCancellable>()
@@ -24,9 +25,7 @@ final class StatusItemController: NSResponder {
         super.init()
 
         dropdown.behavior = .transient
-        let host = NSHostingController(rootView: DropdownView().environmentObject(state))
-        host.sizingOptions = .preferredContentSize
-        dropdown.contentViewController = host
+        dropdown.contentViewController = dropdownController
 
         peek.behavior = .applicationDefined
         peek.animates = false
@@ -80,6 +79,7 @@ final class StatusItemController: NSResponder {
 
     private func updateTitle(_ output: StatusOutput, attention: Bool) {
         item.button?.attributedTitle = MenuBarTitle.make(usage: output.usage, attention: attention)
+        dropdownController.updateAttention(attention)
     }
 
     @objc private func toggleDropdown() {

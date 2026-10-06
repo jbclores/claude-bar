@@ -8,6 +8,7 @@ import SwiftUI
 enum RenderPeek {
     static func runIfRequested(state: AppState) -> Bool {
         if RenderLabel.runIfRequested(state: state) { return true }
+        if TestTabs.runIfRequested(state: state) { return true }
         if let tab = flag("--render-dropdown").flatMap({ DropdownTab(rawValue: $0.1 ?? "") }), let out = flag("--render-dropdown")?.0 {
             renderWindow(DropdownView(forcedTab: tab).environmentObject(state).environmentObject(PeekPointer()), width: 500, to: out)
             return true
@@ -130,3 +131,79 @@ private func renderWindow<V: View>(_ view: V, width: CGFloat, to out: URL) {
 
 /// Renders in light mode with CLAUDEBAR_RENDER_LIGHT=1 (dark otherwise).
 private var renderLight: Bool { ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_LIGHT"] == "1" }
+
+/// `ClaudeBar --test-tabs`: opens the live dropdown (DropdownController) in an offscreen window, clicks the
+/// centre of each tab once with real mouse events, and prints the tab shown after each click. Clicks nothing else.
+@MainActor
+enum TestTabs {
+    static func runIfRequested(state: AppState) -> Bool {
+        guard CommandLine.arguments.contains("--test-tabs") else { return false }
+        if let start = ProcessInfo.processInfo.environment["CLAUDEBAR_START_TAB"] {
+            UserDefaults.standard.set(start, forKey: TabSelection.key)
+        }
+        let controller = DropdownController(state: state)
+        let window = KeyWindow(contentViewController: controller)
+        window.styleMask = [.borderless]
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = NSColor(white: 0.16, alpha: 1)
+        window.setFrameOrigin(NSPoint(x: -10_000, y: -10_000))
+        window.orderFrontRegardless()
+        func capture(_ name: String) {
+            guard let view = window.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+            view.cacheDisplay(in: view.bounds, to: rep)
+            let image = NSImage(size: view.bounds.size)
+            image.lockFocus(); NSColor(white: 0.16, alpha: 1).setFill(); view.bounds.fill(); rep.draw(in: view.bounds); image.unlockFocus()
+            if let tiff = image.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                try? png.write(to: URL(fileURLWithPath: "/tmp/cb-mock/tab-\(name.lowercased()).png"))
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            if controller.preferredContentSize.height > 0 { window.setContentSize(controller.preferredContentSize) }
+            guard let control = findControl(in: window.contentView!) else { print("no tab control found"); exit(1) }
+            print("start:", UserDefaults.standard.string(forKey: TabSelection.key) ?? "-", "dropdown size:", controller.preferredContentSize)
+            for v in window.contentView!.subviews {
+                print("  piece:", type(of: v), "frame:", v.frame, "fitting:", v.fittingSize)
+            }
+            print("  stack:", window.contentView!.frame)
+            var remaining: [(String, Int)] = [("Projects", 1), ("Settings", 2), ("Office", 0), ("Projects", 1)]
+            func next() {
+                guard !remaining.isEmpty else {
+                    UserDefaults.standard.set("office", forKey: TabSelection.key)
+                    exit(0)
+                }
+                let (name, index) = remaining.removeFirst()
+                let frame = control.convert(control.bounds, to: nil)
+                let segment = frame.width / CGFloat(control.segmentCount)
+                let point = NSPoint(x: frame.minX + segment * (CGFloat(index) + 0.5), y: frame.midY)
+                let hit = window.contentView!.hitTest(window.contentView!.superview!.convert(point, from: nil))
+                // Queue the mouse-up first: a native control tracks a press by reading it from the event queue.
+                NSApp.postEvent(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                   windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0)!, atStart: false)
+                window.sendEvent(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if controller.preferredContentSize.height > 0 { window.setContentSize(controller.preferredContentSize) }
+                    capture(name)
+                    print("clicked \(name) (hit \(hit.map { String(describing: type(of: $0)) } ?? "nothing")) →",
+                          UserDefaults.standard.string(forKey: TabSelection.key) ?? "-", "· dropdown height", controller.preferredContentSize.height)
+                    next()
+                }
+            }
+            next()
+        }
+        return true
+    }
+
+    private static func findControl(in view: NSView) -> NSSegmentedControl? {
+        if let control = view as? NSSegmentedControl { return control }
+        for sub in view.subviews { if let found = findControl(in: sub) { return found } }
+        return nil
+    }
+}
+
+/// A borderless window that can take clicks and keyboard focus, like the popover's.
+final class KeyWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+

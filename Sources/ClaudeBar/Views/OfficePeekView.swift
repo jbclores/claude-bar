@@ -63,6 +63,8 @@ struct OfficeRoomView: View {
             if let agent = hovered { CatCard(agent: agent, since: state.statusSince[agent.key]).padding(6) }
         }
         .frame(height: Self.height)
+        // Clicks only inside the visible room: the backdrop and cats extend past it, and took the tabs' clicks.
+        .contentShape(RoundedRectangle(cornerRadius: 10))
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
     }
 
