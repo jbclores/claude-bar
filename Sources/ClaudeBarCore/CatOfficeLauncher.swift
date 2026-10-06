@@ -34,11 +34,15 @@ public struct CatOfficeLauncher: Sendable {
             p.executableURL = URL(fileURLWithPath: bin).appendingPathComponent("npm")
             p.arguments = ["run", "dev"]
             p.currentDirectoryURL = URL(fileURLWithPath: dir)
-            p.environment = Self.environment(binDir: bin, base: ProcessInfo.processInfo.environment)
+            let base = ProcessInfo.processInfo.environment
+            p.environment = Self.environment(binDir: bin, base: base,
+                                             loginPath: Self.loginShellPath(shell: base["SHELL"] ?? "/bin/zsh"),
+                                             home: NSHomeDirectory())
             p.standardInput = FileHandle.nullDevice
             p.standardOutput = handle
             p.standardError = handle
             try p.run()
+            try? handle.close() // the child keeps its own copy
             return .started
         } catch {
             return .failed(error.localizedDescription)
@@ -73,9 +77,37 @@ public struct CatOfficeLauncher: Sendable {
             .max { $0.1.lexicographicallyPrecedes($1.1) }?.0
     }
 
-    static func environment(binDir: String, base: [String: String]) -> [String: String] {
+    /// A PATH like a terminal's (Cat Office passes it on to its agents and tools): node's folder, the usual
+    /// user and Homebrew folders, the login shell's PATH, then what the app got from launchd.
+    static func environment(binDir: String, base: [String: String], loginPath: String?, home: String) -> [String: String] {
         var env = base
-        env["PATH"] = [binDir, base["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"].joined(separator: ":")
+        let usual: [String] = [binDir, home + "/.local/bin", "/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin"]
+        let login: [String] = (loginPath ?? "").split(separator: ":").map(String.init)
+        let inherited: [String] = (base["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin").split(separator: ":").map(String.init)
+        let parts = usual + login + inherited
+        var seen = Set<String>()
+        env["PATH"] = parts.filter { !$0.isEmpty && seen.insert($0).inserted }.joined(separator: ":")
         return env
+    }
+
+    /// The PATH a login shell sets up (apps opened from Finder don't get it), or nil when the shell fails or hangs.
+    static func loginShellPath(shell: String, timeout: TimeInterval = 3) -> String? {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: shell)
+        p.arguments = ["-l", "-c", "printf %s \"$PATH\""]
+        let out = Pipe()
+        p.standardOutput = out
+        p.standardError = FileHandle.nullDevice
+        p.standardInput = FileHandle.nullDevice
+        let done = DispatchSemaphore(value: 0)
+        p.terminationHandler = { _ in done.signal() }
+        do { try p.run() } catch { return nil }
+        if done.wait(timeout: .now() + timeout) == .timedOut {
+            p.terminate()
+            return nil
+        }
+        let path = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return p.terminationStatus == 0 && path.contains("/") ? path : nil
     }
 }

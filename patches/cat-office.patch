@@ -1,6 +1,6 @@
 --- a/server/agent-bridge/cat-assignments.ts
 +++ b/server/agent-bridge/cat-assignments.ts
-@@ -0,0 +1,115 @@
+@@ -0,0 +1,127 @@
 +/**
 + * The cat the page shows for each agent (POST /__agents/cats), kept in <stateDir>/cat-assignments.json by agent
 + * id, so other local apps (ClaudeBar's menu bar office) show the same cats. Every snapshot carries an agent's
@@ -12,8 +12,16 @@
 +import { dirname, join } from 'node:path';
 +import type { AgentSnapshot } from './types.ts';
 +
-+/** Where local apps look for the running bridge; CAT_OFFICE_BRIDGE_FILE overrides it (tests). */
-+export const BRIDGE_FILE = process.env.CAT_OFFICE_BRIDGE_FILE ?? join(homedir(), '.cat-office', 'bridge.json');
++/**
++ * Where local apps look for the running bridge: ~/.cat-office/bridge.json. A server on another state folder
++ * (CAT_OFFICE_STATE_DIR: the tests) keeps it there instead, so it never takes over the real one;
++ * CAT_OFFICE_BRIDGE_FILE overrides both.
++ */
++export function bridgeFile(env: NodeJS.ProcessEnv = process.env, home: string = homedir()): string {
++  if (env.CAT_OFFICE_BRIDGE_FILE) return env.CAT_OFFICE_BRIDGE_FILE;
++  if (env.CAT_OFFICE_STATE_DIR) return join(env.CAT_OFFICE_STATE_DIR, 'bridge.json');
++  return join(home, '.cat-office', 'bridge.json');
++}
 +
 +const ID = /^[\w@.-]{1,128}$/;
 +const CAT = /^[\w-]{1,64}$/;
@@ -41,7 +49,7 @@
 +    return this.cats.get(id) ?? null;
 +  }
 +
-+  /** Takes the page's `{ assignments: { [agentId]: catId } }`. False (and nothing kept) for a bad body. */
++  /** Takes the page's `{ assignments: { [agentId]: catId } }`. False for a bad body (nothing kept) or a failed save. */
 +  merge(body: unknown): boolean {
 +    const raw = (body as { assignments?: unknown } | null)?.assignments;
 +    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
@@ -56,7 +64,11 @@
 +    }
 +    while (this.cats.size > KEEP_MAX) this.cats.delete(this.cats.keys().next().value as string);
 +    if (!changed) return true;
-+    this.save();
++    try {
++      this.save();
++    } catch {
++      return false;
++    }
 +    for (const fn of this.listeners) {
 +      try {
 +        fn();
@@ -130,7 +142,7 @@
  import { ATTACHMENT_BODY_BYTES, serveAttachment } from './attachments.ts';
  import { AgentBridge } from './bridge.ts';
  import { ClaudeStatusMonitor, withClaude } from './claude-status.ts';
-+import { BRIDGE_FILE, CatAssignmentStore, writeBridgeInfo } from './cat-assignments.ts';
++import { bridgeFile, CatAssignmentStore, writeBridgeInfo } from './cat-assignments.ts';
  import { drawerRoute } from './drawer.ts';
  import { PlanUsageWatch } from './plan-usage.ts';
  import { readJson, send } from './http.ts';
@@ -147,7 +159,7 @@
 +      server.httpServer?.once('listening', () => {
 +        const addr = server.httpServer?.address();
 +        if (addr && typeof addr === 'object') {
-+          removeBridgeInfo = writeBridgeInfo(BRIDGE_FILE, { url: `http://localhost:${addr.port}`, token, dir: server.config.root });
++          removeBridgeInfo = writeBridgeInfo(bridgeFile(), { url: `http://localhost:${addr.port}`, token, dir: server.config.root });
 +        }
 +      });
        server.httpServer?.once('close', () => {
@@ -165,7 +177,7 @@
 +        if (url.pathname === '/__agents/cats') {
 +          if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' });
 +          void readJson(req).then(
-+            (body) => (cats.merge(body) ? send(res, 200, { ok: true }) : send(res, 400, { error: 'bad assignments' })),
++            (body) => (cats.merge(body) ? send(res, 200, { ok: true }) : send(res, 400, { error: 'bad or unsaved assignments' })),
 +            (e: unknown) => send(res, e instanceof WorkerError ? e.status : 400, { error: e instanceof Error ? e.message : String(e) }),
            );
            return;
@@ -269,7 +281,7 @@
    const spare = useMemo(() => (source === 'live' ? spareCats(agents ?? [], catIds, assignment) : []), [source, agents, catIds, assignment]);
 --- a/tests/sim/cat-assignments.test.ts
 +++ b/tests/sim/cat-assignments.test.ts
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,109 @@
 +// The cats the page shows, shared with other local apps (ClaudeBar): POST /__agents/cats keeps them in
 +// <stateDir>/cat-assignments.json and every snapshot carries each agent's `cat`; ~/.cat-office/bridge.json tells
 +// local apps where the bridge (and this folder) is. Unit checks of the store, then the routes on a real dev server with a temp
@@ -290,7 +302,20 @@
 +mkdirSync(join(HOME, 'sessions'), { recursive: true });
 +after(() => rmSync(TMP, { recursive: true, force: true }));
 +
-+const { CatAssignmentStore, writeBridgeInfo } = await import('../../server/agent-bridge/cat-assignments.ts');
++const { bridgeFile, CatAssignmentStore, writeBridgeInfo } = await import('../../server/agent-bridge/cat-assignments.ts');
++
++test('bridge file: home by default, never there for a test or other state folder', () => {
++  assert.equal(bridgeFile({ HOME: '/h' }, '/h'), '/h/.cat-office/bridge.json');
++  assert.equal(bridgeFile({ CAT_OFFICE_STATE_DIR: '/tmp/s' }, '/h'), '/tmp/s/bridge.json');
++  assert.equal(bridgeFile({ CAT_OFFICE_STATE_DIR: '/tmp/s', CAT_OFFICE_BRIDGE_FILE: '/x/b.json' }, '/h'), '/x/b.json');
++});
++
++test('store: a failed save answers false instead of throwing', () => {
++  const blocker = join(TMP, 'not-a-dir');
++  writeFileSync(blocker, 'x');
++  const store = new CatAssignmentStore(join(blocker, 'cat-assignments.json'));
++  assert.equal(store.merge({ assignments: { a1: 'orange' } }), false);
++});
 +
 +test('store: merges valid assignments, refuses bad ones, keeps them across restarts', () => {
 +  const file = join(TMP, 'unit', 'cat-assignments.json');

@@ -103,9 +103,11 @@ struct OfficePeekView: View {
         VStack(spacing: 6) {
             Spacer()
             if let cat = state.catIds.first {
-                SpriteImage(key: "\(cat)-sleeping") { await state.art.catImage(cat: cat, pose: .sleeping) }
+                SpriteImage(key: "\(cat)-sleeping", fallback: Theme.idle) { await state.art.catImage(cat: cat, pose: .sleeping) }
                     .frame(width: 70, height: 74)
                     .opacity(0.8)
+            } else {
+                Image(systemName: "cat.fill").font(.system(size: 34)).foregroundStyle(.secondary)
             }
             Text("Cat Office isn't running").font(.callout).foregroundStyle(.secondary)
             OfficeStarter(launch: state.officeLaunch, start: { state.startCatOffice() }, openLog: { state.openLauncherLog() })
@@ -158,14 +160,14 @@ struct CatView: View {
     }
 
     private var desk: some View {
-        SpriteImage(key: "desk") { await state.art.deskImage() }.frame(width: 60, height: 53)
+        SpriteImage(key: "desk", fallback: nil) { await state.art.deskImage() }.frame(width: 60, height: 53)
     }
 
     private func animatedCat(_ cat: String, _ pose: CatPose) -> some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || agent.status == .waiting)) { context in
             let motion = reduceMotion ? CatMotion(offsetY: 0, scale: 1)
                 : CatMotion.at(status: agent.status, time: context.date.timeIntervalSinceReferenceDate)
-            SpriteImage(key: "\(cat)-\(pose.rawValue)") { await state.art.catImage(cat: cat, pose: pose) }
+            SpriteImage(key: "\(cat)-\(pose.rawValue)", fallback: Theme.color(agent.status)) { await state.art.catImage(cat: cat, pose: pose) }
                 .frame(width: width * 0.875, height: width * 0.92)
                 .scaleEffect(motion.scale, anchor: .bottom)
                 .offset(y: motion.offsetY)
@@ -194,22 +196,32 @@ struct StatusRing: View {
     }
 }
 
-/// An image loaded once from the art cache, keyed so the same sprite isn't reloaded.
+/// An image loaded once from the art cache, keyed so the same sprite isn't reloaded. When it can't be loaded,
+/// a plain circle in `fallback` stands in (nothing for nil); it's tried again the next time the peek opens.
 struct SpriteImage: View {
     let key: String
+    let fallback: Color?
     let load: () async -> Data?
     @State private var image: NSImage?
+    @State private var failed = false
 
     var body: some View {
         Group {
             if let image {
                 Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+            } else if failed, let fallback {
+                Circle().fill(fallback.opacity(0.8)).frame(width: 22, height: 22)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             } else {
                 Color.clear
             }
         }
         .task(id: key) {
-            if let data = await load() { image = NSImage(data: data) }
+            if let data = await load(), let loaded = NSImage(data: data) {
+                image = loaded
+            } else {
+                failed = true
+            }
         }
     }
 }

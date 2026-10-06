@@ -46,18 +46,28 @@ public final class CatOfficeClient: @unchecked Sendable {
 
     private func run() async {
         var delay: UInt64 = 2
+        var skipBridge = false
         while !Task.isCancelled {
-            if let info = await resolve(), await follow(info) { delay = 2 }
+            if let info = await resolve(skipBridge: skipBridge) {
+                if await follow(info) {
+                    delay = 2
+                    skipBridge = false
+                } else {
+                    // A bridge file that doesn't lead anywhere (stale, or its pid reused): try the page next time.
+                    skipBridge = info.dir != nil && !skipBridge
+                }
+            }
+            if Task.isCancelled { return } // replaced by reconnectNow(); the new loop reports for itself
             onUpdate(nil)
             try? await Task.sleep(nanoseconds: delay * 1_000_000_000)
             delay = min(delay * 2, 30)
         }
     }
 
-    /// Where Cat Office is and its token: the bridge file first, else the token in its page.
-    func resolve() async -> BridgeInfo? {
+    /// Where Cat Office is and its token: the bridge file first (unless skipped), else the token in its page.
+    func resolve(skipBridge: Bool = false) async -> BridgeInfo? {
         let s = settings.get()
-        if let info = CatOfficeDiscovery.bridgeInfo(file: bridgeFile, isAlive: processIsAlive) {
+        if !skipBridge, let info = CatOfficeDiscovery.bridgeInfo(file: bridgeFile, isAlive: processIsAlive) {
             return info
         }
         guard let result = try? await session.data(from: s.url),

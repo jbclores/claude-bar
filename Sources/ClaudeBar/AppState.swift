@@ -43,6 +43,8 @@ final class AppState: ObservableObject {
     private var files: StatusInput?
     private var timer: Timer?
     private var refreshing = false
+    /// Off for `--render-peek`: no auto-start, no notifications.
+    var sideEffects = true
 
     func start() {
         loadCatalog()
@@ -54,7 +56,7 @@ final class AppState: ObservableObject {
         // Give the feed a moment to connect; start Cat Office only if it's still unreachable.
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 4_000_000_000)
-            if office == nil, config.config.catOffice.autoStart { startCatOffice() }
+            if sideEffects, office == nil, config.config.catOffice.autoStart { startCatOffice() }
         }
     }
 
@@ -140,7 +142,7 @@ final class AppState: ObservableObject {
         input.office = office
         let tracked = StatusModel.trackedSessions(fallback: input.fallbackSessions, office: office)
         let finished = tracker.update(tracked, now: Date())
-        if config.config.notifications { finished.forEach(notifier.post) }
+        if sideEffects, config.config.notifications { finished.forEach(notifier.post) }
         input.attention = tracker.attention
         input.statusSince = tracker.since
         statusSince = tracker.since

@@ -13,7 +13,7 @@ public struct Project: Equatable, Sendable {
 
 public struct CatOfficeSettings: Equatable, Sendable {
     public static let defaultURL = URL(string: "http://localhost:5173")!
-    /// Normalized path of the Cat Office folder (holds .cat-office/bridge.json), if configured.
+    /// Normalized path of the Cat Office folder to start it from, if configured (else the one last seen running).
     public var dir: String?
     public var url: URL
     /// Start Cat Office when ClaudeBar launches and it isn't running.

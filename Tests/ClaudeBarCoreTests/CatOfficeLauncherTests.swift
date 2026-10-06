@@ -30,10 +30,23 @@ import Testing
         #expect(CatOfficeLauncher.newestVersion(["v9.1.0", "v22.1.0", "v18.20.4", "notes"]) == "v22.1.0")
     }
 
-    @Test func environmentPutsNodeFirstOnPath() {
-        let env = CatOfficeLauncher.environment(binDir: "/opt/node/bin", base: ["PATH": "/usr/bin:/bin", "HOME": "/Users/me"])
-        #expect(env["PATH"] == "/opt/node/bin:/usr/bin:/bin")
+    @Test func environmentGivesATerminalLikePath() {
+        let env = CatOfficeLauncher.environment(
+            binDir: "/opt/node/bin", base: ["PATH": "/usr/bin:/bin", "HOME": "/Users/me"],
+            loginPath: "/Users/me/.cargo/bin:/usr/local/bin:/usr/bin", home: "/Users/me")
+        #expect(env["PATH"] == [
+            "/opt/node/bin", "/Users/me/.local/bin", "/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin",
+            "/Users/me/.cargo/bin", "/usr/bin", "/bin",
+        ].joined(separator: ":"))
         #expect(env["HOME"] == "/Users/me")
+        let noLogin = CatOfficeLauncher.environment(binDir: "/n", base: [:], loginPath: nil, home: "/h")
+        #expect(noLogin["PATH"]?.hasSuffix(":/usr/bin:/bin:/usr/sbin:/sbin") == true)
+    }
+
+    @Test func loginShellPathIsReadWithATimeout() {
+        let path = CatOfficeLauncher.loginShellPath(shell: "/bin/zsh", timeout: 5)
+        #expect(path?.contains("/usr/bin") == true)
+        #expect(CatOfficeLauncher.loginShellPath(shell: "/nonexistent-shell", timeout: 1) == nil)
     }
 
     @Test func refusesWithoutFolder() async {

@@ -89,9 +89,6 @@ On every status line redraw, the script also writes one JSON file per session:
 
 `catOffice.autoStart` (default `true`) controls starting Cat Office when ClaudeBar launches (§3a).
 
-```
-```
-
 - `path` is required, and `~` is expanded. `name` is optional and defaults to the folder's base name.
 - `catOffice.dir` is an optional override for the folder to start Cat Office from; without it (or when it no longer exists) ClaudeBar uses the folder the patched Cat Office last reported in `~/.cat-office/bridge.json`, remembered in ClaudeBar's preferences. `catOffice.url` is used when no running Cat Office has written `bridge.json`. Both are optional.
 - The app creates the file with an empty project list if it doesn't exist.
@@ -114,7 +111,7 @@ On every status line redraw, the script also writes one JSON file per session:
 
 - **When:** once, a few seconds after ClaudeBar launches, if `catOffice.autoStart` (default `true`) is on and Cat Office can't be reached. After that, only when the user clicks **Start Cat Office**, which the Office section and the peek show while Cat Office is offline. ClaudeBar never restarts it on its own after it stops.
 - **How:** run `npm run dev` as a background process in `catOffice.dir` if that folder exists, else in the folder Cat Office was last seen running from.
-  - `PATH` gets the folder holding `npm`/`node`, found by checking `/opt/homebrew/bin`, `/usr/local/bin`, `~/.volta/bin` and the newest `~/.nvm/versions/node/*/bin`, because apps opened from Finder don't inherit the shell's `PATH`.
+  - `PATH` is made terminal-like, because apps opened from Finder don't inherit the shell's `PATH` and Cat Office passes it on to its agents and tools: the folder holding `npm`/`node` (found by checking `/opt/homebrew/bin`, `/usr/local/bin`, `~/.volta/bin` and the newest `~/.nvm/versions/node/*/bin`), then `~/.local/bin`, `/opt/homebrew/bin`, `/opt/homebrew/sbin`, `/usr/local/bin`, then the login shell's `PATH` (read with a 3s timeout), then the app's own.
   - Output is appended to `~/Library/Logs/ClaudeBar/cat-office.log`.
   - stdin is `/dev/null`.
   - Cat Office keeps running when ClaudeBar quits.
@@ -123,7 +120,7 @@ On every status line redraw, the script also writes one JSON file per session:
   - `starting` shows "Starting Cat Office…".
   - It returns to normal as soon as the feed connects.
   - If the feed hasn't connected 30s after the start, the state becomes `failed`, shown as "Couldn't start Cat Office" with an **Open Log** link.
-  - Without `catOffice.dir`, the button is disabled with the hint "Set catOffice.dir in the config".
+  - When neither `catOffice.dir` nor a remembered folder exists, clicking the button shows "Cat Office's folder isn't known: set catOffice.dir in the config".
 - **"Open Cat Office ↗"** is hidden while Cat Office is offline.
 
 ### 4. Art cache
