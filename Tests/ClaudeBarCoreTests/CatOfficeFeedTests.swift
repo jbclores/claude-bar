@@ -34,6 +34,7 @@ import Testing
         let a = snap.agents[0]
         #expect(a.name == "office-82eb65" && a.isOffice && a.status == .waiting)
         #expect(a.waitReason == "input needed" && a.repoName == "app" && a.branch == "main")
+        #expect(a.repoRoot == Paths.normalize("/w/app"))
         #expect(a.lastAction == "Edit a.ts" && a.model == "claude-opus-5-5" && a.key == "s1" && a.cat == "tuxedo")
         #expect(a.waitingSince == Date(timeIntervalSince1970: 1_791_266_000))
         #expect(snap.agents[1].status == .idle && snap.agents[1].name == "a2" && snap.agents[1].key == "a2")

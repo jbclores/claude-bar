@@ -172,7 +172,7 @@ public enum StatusModel {
             let sessions = liveByProject[p.path] ?? []
             var row = ProjectRow(
                 path: p.path, name: p.name, branch: input.branches[p.path],
-                model: newest?.model ?? sessions.compactMap(\.model).first,
+                model: (newest?.model ?? sessions.compactMap(\.model).first).map(Format.modelName),
                 contextPct: newest?.contextPct, state: .noSessions,
                 needsAttention: sessions.contains { input.attention.contains($0.key) })
             if !input.existing.contains(p.path) {

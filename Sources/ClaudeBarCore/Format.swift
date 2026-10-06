@@ -29,6 +29,17 @@ public enum Format {
         return "\(s / 86_400)d"
     }
 
+    /// "claude-opus-5-5[1m]" → "Opus 5.5", like the status line's display names; anything else unchanged.
+    public static func modelName(_ id: String) -> String {
+        guard id.hasPrefix("claude-") else { return id }
+        let base = id.split(separator: "[").first.map(String.init) ?? id
+        let parts = base.dropFirst("claude-".count).split(separator: "-").map(String.init)
+        guard let family = parts.first, !family.isEmpty, family.allSatisfy(\.isLetter) else { return id }
+        let version = parts.dropFirst().prefix { $0.count <= 2 && $0.allSatisfy(\.isNumber) }
+        let name = family.prefix(1).uppercased() + family.dropFirst()
+        return version.isEmpty ? name : "\(name) \(version.joined(separator: "."))"
+    }
+
     /// "resets in 2h 14m" within a day, else "resets Fri 1:00 AM".
     public static func resets(_ date: Date, now: Date, calendar: Calendar = .current) -> String {
         let seconds = date.timeIntervalSince(now)

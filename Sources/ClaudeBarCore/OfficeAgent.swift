@@ -11,6 +11,8 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
     /// Normalized folder.
     public var cwd: String
     public var repoName: String?
+    /// Normalized project folder Cat Office worked out from what the agent touches (may differ from `cwd`).
+    public var repoRoot: String?
     public var branch: String?
     public var model: String?
     public var task: String?
@@ -25,7 +27,7 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
     public var key: String { sessionId ?? id }
 
     public init(id: String, name: String, owner: String = "external", status: AgentStatus, waitReason: String? = nil,
-                cwd: String, repoName: String? = nil, branch: String? = nil, model: String? = nil, task: String? = nil,
+                cwd: String, repoName: String? = nil, repoRoot: String? = nil, branch: String? = nil, model: String? = nil, task: String? = nil,
                 lastAction: String? = nil, waitingSince: Date? = nil, sessionId: String? = nil, cat: String? = nil) {
         self.id = id
         self.name = name
@@ -34,6 +36,7 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
         self.waitReason = waitReason
         self.cwd = Paths.normalize(cwd)
         self.repoName = repoName
+        self.repoRoot = repoRoot.map(Paths.normalize)
         self.branch = branch
         self.model = model
         self.task = task
@@ -45,7 +48,10 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
 }
 
 extension OfficeAgent: Decodable {
-    private struct Repo: Decodable { var name: String }
+    private struct Repo: Decodable {
+        var name: String
+        var root: String?
+    }
     private struct Action: Decodable { var label: String }
 
     enum CodingKeys: String, CodingKey {
@@ -55,6 +61,7 @@ extension OfficeAgent: Decodable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let id = try c.decode(String.self, forKey: .id)
+        let repo = try? c.decodeIfPresent(Repo.self, forKey: .repo)
         self.init(
             id: id,
             name: try c.decodeIfPresent(String.self, forKey: .name) ?? id,
@@ -62,7 +69,8 @@ extension OfficeAgent: Decodable {
             status: AgentStatus(rawValue: try c.decodeIfPresent(String.self, forKey: .status) ?? "") ?? .idle,
             waitReason: try c.decodeIfPresent(String.self, forKey: .waitReason),
             cwd: try c.decodeIfPresent(String.self, forKey: .cwd) ?? "",
-            repoName: (try? c.decodeIfPresent(Repo.self, forKey: .repo))??.name,
+            repoName: repo?.name,
+            repoRoot: repo?.root,
             branch: try c.decodeIfPresent(String.self, forKey: .branch),
             model: try c.decodeIfPresent(String.self, forKey: .model),
             task: try c.decodeIfPresent(String.self, forKey: .task),
@@ -96,6 +104,7 @@ public struct OfficeSnapshot: Equatable, Sendable, Decodable {
 
 extension LiveSession {
     public init(office a: OfficeAgent) {
-        self.init(key: a.key, cwd: a.cwd, status: a.status, name: a.name, model: a.model, isOffice: a.isOffice, task: a.task)
+        // Where the agent is really working: Cat Office's project folder when it knows one.
+        self.init(key: a.key, cwd: a.repoRoot ?? a.cwd, status: a.status, name: a.name, model: a.model, isOffice: a.isOffice, task: a.task)
     }
 }

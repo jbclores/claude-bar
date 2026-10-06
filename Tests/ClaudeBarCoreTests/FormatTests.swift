@@ -42,3 +42,14 @@ import Testing
         #expect(Format.resets(friday, now: ISO8601DateFormatter().date(from: "2026-10-06T12:00:00Z")!, calendar: utc) == "resets Fri 1:00 AM")
     }
 }
+
+@Suite struct ModelNameTests {
+    @Test func prettifiesModelIds() {
+        #expect(Format.modelName("claude-opus-5-5") == "Opus 5.5")
+        #expect(Format.modelName("claude-sonnet-5-5[1m]") == "Sonnet 5.5")
+        #expect(Format.modelName("claude-haiku-4-5-20251001") == "Haiku 4.5")
+        #expect(Format.modelName("claude-fable-5-1") == "Fable 5.1")
+        #expect(Format.modelName("Opus 5.5") == "Opus 5.5")
+        #expect(Format.modelName("some-other-model") == "some-other-model")
+    }
+}

@@ -89,7 +89,7 @@ import Testing
         ])
         let row = StatusModel.build(input([docs], office: office)).projects[0]
         #expect(row.state == .live(.working, count: 1))
-        #expect(row.model == "claude-opus-5-5")
+        #expect(row.model == "Opus 5.5")
         #expect(row.contextPct == nil)
     }
 
@@ -143,5 +143,26 @@ import Testing
             office: OfficeSnapshot(agents: [OfficeAgent(id: "s1", name: "x", owner: "office", status: .ended, cwd: "/", task: "t1", sessionId: "s1")]))
         #expect(tracked.map(\.key) == ["s1", "t"])
         #expect(tracked[0].status == .ended && tracked[0].isOffice && tracked[0].task == "t1")
+    }
+
+    @Test func officeAgentCountsUnderItsCatOfficeProject() {
+        let office = OfficeSnapshot(agents: [
+            OfficeAgent(id: "w1", name: "office-1", owner: "office", status: .working, cwd: "/Users/me",
+                        repoName: "app", repoRoot: "/w/app", model: "claude-opus-5-5"),
+            OfficeAgent(id: "w2", name: "office-2", owner: "office", status: .idle, cwd: "/w/docs"),
+        ])
+        let out = StatusModel.build(input([app, docs], office: office))
+        #expect(out.projects[0].state == .live(.working, count: 1))
+        #expect(out.projects[0].model == "Opus 5.5")
+        #expect(out.projects[1].state == .live(.idle, count: 1), "no project: falls back to where it started")
+    }
+
+    @Test func snapshotFolderStillBeatsCatOfficeProject() {
+        let office = OfficeSnapshot(agents: [
+            OfficeAgent(id: "s1", name: "term", status: .working, cwd: "/Users/me", repoRoot: "/w/app", sessionId: "s1"),
+        ])
+        let out = StatusModel.build(input([app, docs], snaps: [snap("s1", "/w/docs", at: 0)], office: office))
+        #expect(out.projects[1].state == .live(.working, count: 1))
+        #expect(out.projects[0].state == .noSessions)
     }
 }

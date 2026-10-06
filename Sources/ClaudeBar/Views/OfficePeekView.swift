@@ -252,7 +252,7 @@ struct CatCard: View {
                 Spacer()
                 Text(statusText).font(.caption).foregroundStyle(Theme.color(agent.status))
             }
-            let place = [agent.repoName ?? (agent.cwd as NSString).lastPathComponent, agent.branch, agent.model]
+            let place = [agent.repoName ?? (agent.cwd as NSString).lastPathComponent, agent.branch, agent.model.map(Format.modelName)]
                 .compactMap { $0 }.filter { !$0.isEmpty }
             if !place.isEmpty {
                 Text(place.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
