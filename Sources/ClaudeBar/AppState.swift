@@ -119,7 +119,7 @@ final class AppState: ObservableObject {
             if let b = git.branch(at: p.path) { branches[p.path] = b }
         }
         return StatusInput(projects: projects, snapshots: snapshots.read(), fallbackSessions: sessions.read(),
-                           branches: branches, existing: existing)
+                           branches: branches, existing: existing, planUsage: PlanUsageReader().read())
     }
 
     private func filesRead(_ input: StatusInput) {

@@ -7,10 +7,13 @@ OUT="$(cd "$(dirname "$0")/.." && pwd)/patches/cat-office.patch"
 FILES=(
   server/agent-bridge/cat-assignments.ts
   server/agent-bridge/index.ts
+  server/agent-bridge/plan-usage.ts
   server/agent-bridge/types.ts
+  server/agent-bridge/workers.ts
   src/agents/live/actions.ts
   src/agents/live/useAgentCats.ts
   tests/sim/cat-assignments.test.ts
+  tests/sim/plan-usage-workers.test.ts
 )
 : > "$OUT"
 for f in "${FILES[@]}"; do

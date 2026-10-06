@@ -37,7 +37,8 @@ Data comes from three sources, and each covers what the others don't:
 
 | Data | Source |
 |---|---|
-| context %, 5h %, 7d %, reset times | status line snapshots (the only source) |
+| context % | status line snapshots (the only source) |
+| 5h %, 7d %, reset times | the newer of the status line snapshots and `~/.cat-office/plan-usage.json` (written by the status line and, with the patch, by Cat Office's headless workers from each turn's `rate_limit_event`) |
 | model | status line snapshots; also the Cat Office feed when it's running |
 | status (working / waiting / idle / ended) | Cat Office feed; otherwise `~/.claude/sessions` |
 | branch | `git` for pinned folders; the feed's `branch` for office agents |
@@ -144,6 +145,7 @@ The patch lives in this repo as `patches/cat-office.patch` and is applied by `sc
    - The feed adds `cat?: string` to each `LiveAgent` (`types.ts`).
    - Agents whose id isn't in the map have no `cat` field.
 3. **The server writes its address, token and folder to a file.** Once the dev server is listening, it writes `~/.cat-office/bridge.json` = `{url, token, dir, pid}`, readable only by the owner (mode `0600`), and deletes the file when the server closes. The file lives in the home folder, not in Cat Office's folder, so ClaudeBar finds it wherever Cat Office is moved. `CAT_OFFICE_BRIDGE_FILE` overrides the path for tests.
+4. **Workers save the plan usage.** Headless workers never run a status line, so with only them running the 5h / 7d reading went stale. Each turn's stream-json `rate_limit_event` (`rate_limit_info.unifiedWindows.{five_hour,seven_day}.{utilization 0..1, resetsAt}`) is saved to `~/.cat-office/plan-usage.json` in the status line's format (`used_percentage` = utilization × 100), which Cat Office's own `PlanUsageWatch` and ClaudeBar both read.
 - **Tests:** add tests for the new route (valid and invalid body, auth required) and for the `cat` field in snapshots, using Cat Office's existing test setup in `tests/`.
 - **The patch script:**
   - checks that the folder looks like Cat Office

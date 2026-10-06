@@ -66,10 +66,12 @@ public struct StatusInput: Sendable {
     public var attention: Set<String>
     /// Session key → when its current status began (as far as ClaudeBar has seen).
     public var statusSince: [String: Date]
+    /// The shared ~/.cat-office/plan-usage.json reading; the newer of it and the snapshots wins.
+    public var planUsage: UsageSummary?
 
     public init(projects: [Project], snapshots: [Snapshot] = [], fallbackSessions: [LiveSession] = [],
                 office: OfficeSnapshot? = nil, branches: [String: String] = [:], existing: Set<String> = [],
-                attention: Set<String> = [], statusSince: [String: Date] = [:]) {
+                attention: Set<String> = [], statusSince: [String: Date] = [:], planUsage: UsageSummary? = nil) {
         self.projects = projects
         self.snapshots = snapshots
         self.fallbackSessions = fallbackSessions
@@ -78,6 +80,7 @@ public struct StatusInput: Sendable {
         self.existing = existing
         self.attention = attention
         self.statusSince = statusSince
+        self.planUsage = planUsage
     }
 }
 
@@ -188,10 +191,13 @@ public enum StatusModel {
         let usageSnap = input.snapshots
             .filter { $0.fiveHourPct != nil || $0.sevenDayPct != nil }
             .max { $0.updatedAt < $1.updatedAt }
-        let usage = UsageSummary(
-            fiveHourPct: usageSnap?.fiveHourPct, fiveHourResetsAt: usageSnap?.fiveHourResetsAt,
-            sevenDayPct: usageSnap?.sevenDayPct, sevenDayResetsAt: usageSnap?.sevenDayResetsAt,
-            asOf: usageSnap?.updatedAt, workingCount: live.filter { $0.status == .working }.count)
+        let fromSnapshot = usageSnap.map {
+            UsageSummary(fiveHourPct: $0.fiveHourPct, fiveHourResetsAt: $0.fiveHourResetsAt,
+                         sevenDayPct: $0.sevenDayPct, sevenDayResetsAt: $0.sevenDayResetsAt, asOf: $0.updatedAt, workingCount: 0)
+        }
+        var usage = [fromSnapshot, input.planUsage].compactMap { $0 }
+            .max { ($0.asOf ?? .distantPast) < ($1.asOf ?? .distantPast) } ?? .empty
+        usage.workingCount = live.filter { $0.status == .working }.count
 
         let officeRows = input.office.map { snapshot in
             snapshot.agents

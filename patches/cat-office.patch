@@ -224,6 +224,62 @@
      offWins();
      clearInterval(ping);
    });
+--- a/server/agent-bridge/plan-usage.ts
++++ b/server/agent-bridge/plan-usage.ts
+@@ -4,13 +4,15 @@
+  *
+  *   { "at": <epoch ms>, "session_id": "…", "rate_limits": { "five_hour": { "used_percentage": 68, "resets_at": … }, "seven_day": { … } } }
+  *
+- * This reads that file when it changes and sends it with every snapshot as `plan`. Only terminal sessions run a
+- * status line (office workers are headless), so a reading is as fresh as the last terminal turn: a window drops
++ * Office workers are headless (no status line), but their stream-json carries the same numbers in each turn's
++ * `rate_limit_event`: savePlanFromRateLimit saves those to PLAN_FILE too, so the reading stays fresh while only
++ * workers run. This reads that file when it changes and sends it with every snapshot as `plan`. A window drops
+  * out once it has reset, or, when Claude Code gave no reset time, once it is older than the window itself.
+  */
++import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
+ import { readFile, stat } from 'node:fs/promises';
+ import { homedir } from 'node:os';
+-import { join } from 'node:path';
++import { dirname, join } from 'node:path';
+ import type { PlanUsage, PlanWindow } from './types.ts';
+ 
+ export const PLAN_FILE = process.env.CAT_OFFICE_PLAN_FILE ?? join(homedir(), '.cat-office', 'plan-usage.json');
+@@ -116,3 +118,34 @@
+     for (const fn of this.listeners) fn();
+   }
+ }
++
++/**
++ * Saves an office worker's `rate_limit_event` (its `rate_limit_info.unifiedWindows`, utilization 0..1 and reset
++ * times in epoch seconds) to `path` in the status line's format. False, and nothing written, when it carries no
++ * usable window or the file can't be written.
++ */
++export function savePlanFromRateLimit(info: unknown, sessionId: string | null, path = PLAN_FILE, now = Date.now()): boolean {
++  const windows = (info as { unifiedWindows?: unknown } | null)?.unifiedWindows;
++  if (!windows || typeof windows !== 'object') return false;
++  const limits: Record<string, { used_percentage: number; resets_at?: number }> = {};
++  for (const key of ['five_hour', 'seven_day'] as const) {
++    const w = (windows as Json)[key];
++    if (!w || typeof w !== 'object') continue;
++    const { utilization, resetsAt } = w as Json;
++    if (typeof utilization !== 'number' || !Number.isFinite(utilization)) continue;
++    limits[key] = {
++      used_percentage: Math.round(Math.min(1, Math.max(0, utilization)) * 1000) / 10,
++      ...(typeof resetsAt === 'number' && Number.isFinite(resetsAt) && resetsAt > 0 ? { resets_at: resetsAt } : {}),
++    };
++  }
++  if (Object.keys(limits).length === 0) return false;
++  try {
++    mkdirSync(dirname(path), { recursive: true });
++    const tmp = `${path}.${process.pid}.tmp`;
++    writeFileSync(tmp, JSON.stringify({ at: now, session_id: sessionId, source: 'office-worker', rate_limits: limits }));
++    renameSync(tmp, path);
++    return true;
++  } catch {
++    return false;
++  }
++}
 --- a/server/agent-bridge/types.ts
 +++ b/server/agent-bridge/types.ts
 @@ -184,6 +184,8 @@
@@ -235,6 +291,26 @@
    startedAt: number;
    updatedAt: number;
    /** Office workers only (null for external): the conversation, last 60 entries, oldest first. */
+--- a/server/agent-bridge/workers.ts
++++ b/server/agent-bridge/workers.ts
+@@ -32,6 +32,7 @@
+ import type { RepoRef } from './project-infer.ts';
+ import { parseAttachments, publicRef, saveAttachments, workerContent, type SavedAttachment } from './attachments.ts';
+ import { isEffort, MODEL_ID } from './models.ts';
++import { savePlanFromRateLimit } from './plan-usage.ts';
+ import { QUESTION_BRIEF } from './question-brief.ts';
+ import type { ChatEntry, Effort, HandoffResponse, ModelResponse } from './types.ts';
+ 
+@@ -334,6 +335,9 @@
+             void this.manager.projects.observe(this.rec.id, c.name, input);
+           }
+         }
++        break;
++      case 'rate_limit_event': // the account's 5h / 7d usage, which no status line saves for a headless worker
++        savePlanFromRateLimit(m.rate_limit_info, typeof m.session_id === 'string' ? m.session_id : this.rec.sessionId ?? null);
+         break;
+       case 'user': // tool results echo back as user turns; only failures are worth a chat line
+         // An interrupt rejects the running tool: that is the interrupt, not a failure (onResult says "Interrupted").
 --- a/src/agents/live/actions.ts
 +++ b/src/agents/live/actions.ts
 @@ -54,6 +54,10 @@
@@ -390,4 +466,114 @@
 +    await server.close();
 +  }
 +  assert.equal(existsSync(bridgeFile), false, 'bridge.json goes with the server');
++});
+--- a/tests/sim/plan-usage-workers.test.ts
++++ b/tests/sim/plan-usage-workers.test.ts
+@@ -0,0 +1,107 @@
++// Office workers are headless, so no status line saves the plan usage while only they run. Their stream-json
++// carries it instead: each turn's `rate_limit_event` (rate_limit_info.unifiedWindows) is saved to the plan file in
++// the status line's format. Unit checks, then a real worker (a stand-in `claude`) through the bridge.
++import assert from 'node:assert/strict';
++import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import { after, test } from 'node:test';
++
++const TMP = realpathSync(mkdtempSync(join(tmpdir(), 'cat-office-plan-workers-')));
++const PLAN = join(TMP, 'home', '.cat-office', 'plan-usage.json');
++process.env.CLAUDE_CONFIG_DIR = join(TMP, 'claude');
++process.env.CAT_OFFICE_STATE_DIR = join(TMP, 'state');
++process.env.CAT_OFFICE_PLAN_FILE = PLAN;
++process.env.CAT_OFFICE_CLAUDE = join(TMP, 'bin', 'claude');
++mkdirSync(join(TMP, 'claude', 'sessions'), { recursive: true });
++mkdirSync(join(TMP, 'bin'), { recursive: true });
++after(() => rmSync(TMP, { recursive: true, force: true }));
++
++const { readPlanUsage, savePlanFromRateLimit } = await import('../../server/agent-bridge/plan-usage.ts');
++
++const INFO = {
++  status: 'allowed',
++  rateLimitType: 'five_hour',
++  unifiedWindows: { five_hour: { utilization: 0.25, resetsAt: 4_102_444_800 }, seven_day: { utilization: 0.05, resetsAt: 4_103_000_000 } },
++};
++
++test('a rate_limit_event becomes a status-line-style plan reading', () => {
++  const file = join(TMP, 'unit', 'plan.json');
++  assert.equal(savePlanFromRateLimit(INFO, 'sess-1', file, 1_791_266_000_000), true);
++  const saved = JSON.parse(readFileSync(file, 'utf8'));
++  assert.deepEqual(saved, {
++    at: 1_791_266_000_000,
++    session_id: 'sess-1',
++    source: 'office-worker',
++    rate_limits: { five_hour: { used_percentage: 25, resets_at: 4_102_444_800 }, seven_day: { used_percentage: 5, resets_at: 4_103_000_000 } },
++  });
++  const plan = readPlanUsage(readFileSync(file, 'utf8'), 1_791_266_000_000);
++  assert.equal(plan?.fiveHour?.usedPct, 25);
++  assert.equal(plan?.sevenDay?.usedPct, 5);
++});
++
++test('events without windows, or with bad numbers, are ignored', () => {
++  const file = join(TMP, 'unit', 'none.json');
++  for (const bad of [null, {}, { status: 'allowed' }, { unifiedWindows: {} }, { unifiedWindows: { five_hour: { utilization: 'x' } } }]) {
++    assert.equal(savePlanFromRateLimit(bad, null, file), false, JSON.stringify(bad));
++  }
++  assert.equal(existsSync(file), false);
++});
++
++test('one window is enough; utilization is clamped to 0..100%', () => {
++  const file = join(TMP, 'unit', 'one.json');
++  assert.equal(savePlanFromRateLimit({ unifiedWindows: { seven_day: { utilization: 1.4, resetsAt: 4_103_000_000 } } }, null, file, 1), true);
++  assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')).rate_limits, { seven_day: { used_percentage: 100, resets_at: 4_103_000_000 } });
++});
++
++test('a worker turn saves the plan usage (stand-in claude through the bridge)', { timeout: 60_000 }, async () => {
++  writeFileSync(
++    process.env.CAT_OFFICE_CLAUDE!,
++    `#!/usr/bin/env node
++const args = process.argv.slice(2);
++const sid = args[args.indexOf('--session-id') + 1] || 'stand-in';
++const out = (o) => process.stdout.write(JSON.stringify(o) + '\\n');
++require('readline').createInterface({ input: process.stdin }).on('line', () => {
++  out({ type: 'system', subtype: 'init', session_id: sid, model: 'claude-stand-in' });
++  out({ type: 'rate_limit_event', rate_limit_info: ${JSON.stringify(INFO)}, uuid: 'u1', session_id: sid });
++  out({ type: 'assistant', message: { content: [{ type: 'text', text: 'ok' }] } });
++  out({ type: 'result', subtype: 'success', is_error: false, num_turns: 1, duration_ms: 1, total_cost_usd: 0 });
++});
++`,
++  );
++  chmodSync(process.env.CAT_OFFICE_CLAUDE!, 0o755);
++  const { createServer } = await import('vite');
++  const { agentBridge } = await import('../../server/agent-bridge/index.ts');
++  const root = join(TMP, 'site');
++  const project = join(TMP, 'project');
++  mkdirSync(root, { recursive: true });
++  mkdirSync(project, { recursive: true });
++  writeFileSync(join(root, 'index.html'), '<!doctype html><title>t</title>');
++  const server = await createServer({ configFile: false, root, logLevel: 'silent', server: { port: 0, host: '127.0.0.1', hmr: false, watch: null }, plugins: [agentBridge()] });
++  await server.listen();
++  try {
++    const base = `http://localhost:${(server.httpServer!.address() as { port: number }).port}`;
++    const token = /__CAT_OFFICE_TOKEN__\s*=\s*"([^"]+)"/.exec(await (await fetch(`${base}/`)).text())?.[1] ?? '';
++    const res = await fetch(`${base}/__agents/launch`, {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json', 'x-cat-office-token': token },
++      body: JSON.stringify({ cwd: project, prompt: 'hello', name: 'stand-in' }),
++    });
++    assert.equal(res.status < 300, true, `launch answered ${res.status}`);
++    const deadline = Date.now() + 15_000;
++    while (!existsSync(PLAN) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 100));
++    const saved = JSON.parse(readFileSync(PLAN, 'utf8'));
++    assert.equal(saved.rate_limits.five_hour.used_percentage, 25);
++    assert.equal(saved.source, 'office-worker');
++    const snap = await (await fetch(`${base}/__agents`, { headers: { 'x-cat-office-token': token } })).json();
++    const deadline2 = Date.now() + 10_000;
++    let plan = snap.plan;
++    while (!plan && Date.now() < deadline2) {
++      await new Promise((r) => setTimeout(r, 200));
++      plan = (await (await fetch(`${base}/__agents`, { headers: { 'x-cat-office-token': token } })).json()).plan;
++    }
++    assert.equal(plan?.fiveHour?.usedPct, 25, 'the snapshot carries it as `plan`');
++  } finally {
++    await server.close();
++  }
 +});
