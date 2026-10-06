@@ -2,10 +2,13 @@ import AppKit
 import ClaudeBarCore
 import ServiceManagement
 
-/// Everything the menu bar shows, refreshed every 5 seconds.
+/// Everything the menu bar shows: files and git re-read every 5 seconds, Cat Office's feed as it arrives.
 @MainActor
 final class AppState: ObservableObject {
     @Published private(set) var output = StatusOutput.empty
+    @Published private(set) var office: OfficeSnapshot?
+    @Published private(set) var needsAttention = false
+    @Published private(set) var statusSince: [String: Date] = [:]
     @Published private(set) var configError: String?
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
 
@@ -13,11 +16,19 @@ final class AppState: ObservableObject {
     private let snapshots = SnapshotReader()
     private let sessions = LiveSessionReader()
     private let git = GitBranchReader()
+    private let officeSettings = LockedBox(CatOfficeSettings())
+    private(set) lazy var officeClient = CatOfficeClient(settings: officeSettings) { [weak self] snapshot in
+        Task { @MainActor in self?.officeUpdated(snapshot) }
+    }
+    private let notifier = Notifier()
+    private var tracker = AttentionTracker()
+    private var files: StatusInput?
     private var timer: Timer?
     private var refreshing = false
 
     func start() {
         refresh()
+        officeClient.start()
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
@@ -29,11 +40,12 @@ final class AppState: ObservableObject {
         refreshing = true
         config.reload()
         configError = config.error
+        officeSettings.set(config.config.catOffice)
         let projects = config.config.projects
         let snapshots = snapshots, sessions = sessions, git = git
         Task.detached(priority: .utility) {
             let input = Self.readFiles(projects: projects, snapshots: snapshots, sessions: sessions, git: git)
-            await self.apply(input)
+            await self.filesRead(input)
         }
     }
 
@@ -51,9 +63,35 @@ final class AppState: ObservableObject {
                            branches: branches, existing: existing)
     }
 
-    private func apply(_ input: StatusInput) {
-        output = StatusModel.build(input)
+    private func filesRead(_ input: StatusInput) {
+        files = input
         refreshing = false
+        recompute()
+    }
+
+    private func officeUpdated(_ snapshot: OfficeSnapshot?) {
+        guard snapshot != office else { return }
+        office = snapshot
+        recompute()
+    }
+
+    private func recompute() {
+        guard var input = files else { return }
+        input.office = office
+        let tracked = StatusModel.trackedSessions(fallback: input.fallbackSessions, office: office)
+        let finished = tracker.update(tracked, now: Date())
+        if config.config.notifications { finished.forEach(notifier.post) }
+        input.attention = tracker.attention
+        input.statusSince = tracker.since
+        statusSince = tracker.since
+        needsAttention = !tracker.attention.isEmpty
+        output = StatusModel.build(input)
+    }
+
+    /// The user opened the dropdown or the peek.
+    func acknowledge() {
+        tracker.acknowledge()
+        recompute()
     }
 
     func addFolders(_ urls: [URL]) {
@@ -71,6 +109,10 @@ final class AppState: ObservableObject {
         p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         p.arguments = ["-t", config.file.path]
         try? p.run()
+    }
+
+    func openCatOffice() {
+        NSWorkspace.shared.open(officeClient.baseURL)
     }
 
     func setLaunchAtLogin(_ on: Bool) {

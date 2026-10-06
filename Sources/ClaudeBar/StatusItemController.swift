@@ -20,13 +20,13 @@ final class StatusItemController: NSObject {
         dropdown.contentViewController = host
         item.button?.target = self
         item.button?.action = #selector(toggleDropdown)
-        state.$output
-            .sink { [weak self] output in self?.updateTitle(output) }
+        state.$output.combineLatest(state.$needsAttention)
+            .sink { [weak self] output, attention in self?.updateTitle(output, attention: attention) }
             .store(in: &subscriptions)
     }
 
-    private func updateTitle(_ output: StatusOutput) {
-        item.button?.attributedTitle = MenuBarTitle.make(usage: output.usage, attention: false)
+    private func updateTitle(_ output: StatusOutput, attention: Bool) {
+        item.button?.attributedTitle = MenuBarTitle.make(usage: output.usage, attention: attention)
     }
 
     @objc private func toggleDropdown() {
@@ -37,6 +37,7 @@ final class StatusItemController: NSObject {
         guard let button = item.button else { return }
         NSApp.activate(ignoringOtherApps: true)
         dropdown.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        state.acknowledge()
     }
 }
 
