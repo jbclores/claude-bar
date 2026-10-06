@@ -19,6 +19,8 @@ final class AppState: ObservableObject {
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
     @Published private(set) var officeLaunch = OfficeLaunch.none
     @Published private(set) var catIds: [String] = []
+    /// The cat for the menu bar icon (nil: show the plain cat symbol).
+    @Published private(set) var menuCat: MenuBarCat?
 
     let config = ConfigStore()
     private let snapshots = SnapshotReader()
@@ -148,12 +150,20 @@ final class AppState: ObservableObject {
         statusSince = tracker.since
         needsAttention = !tracker.attention.isEmpty
         output = StatusModel.build(input)
+        let cat = office.flatMap {
+            MenuBarCat.pick(agents: $0.agents, attention: tracker.attention, catIds: catIds,
+                            since: tracker.since, current: menuCat?.agentId)
+        }
+        if cat != menuCat { menuCat = cat }
     }
 
     /// Cat ids for picking each agent's cat (from Cat Office, or the copy cached last time).
     private func loadCatalog() {
         Task { @MainActor in
-            if let catalog = await art.catalog(), catalog.catIds != catIds { catIds = catalog.catIds }
+            if let catalog = await art.catalog(), catalog.catIds != catIds {
+                catIds = catalog.catIds
+                recompute()
+            }
         }
     }
 

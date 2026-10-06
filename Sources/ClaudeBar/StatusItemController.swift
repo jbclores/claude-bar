@@ -16,6 +16,8 @@ final class StatusItemController: NSResponder {
     private var hideTimer: Timer?
     private var overIcon = false
     private var overPeek = false
+    private var iconCache: [String: NSImage] = [:]
+    private var iconTask: Task<Void, Never>?
 
     init(state: AppState) {
         self.state = state
@@ -38,6 +40,8 @@ final class StatusItemController: NSResponder {
         peek.contentSize = OfficePeekView.size
 
         if let button = item.button {
+            button.imagePosition = .imageLeft
+            button.image = MenuBarIcon.fallback
             button.target = self
             button.action = #selector(toggleDropdown)
             button.addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
@@ -46,6 +50,30 @@ final class StatusItemController: NSResponder {
         state.$output.combineLatest(state.$needsAttention)
             .sink { [weak self] output, attention in self?.updateTitle(output, attention: attention) }
             .store(in: &subscriptions)
+        state.$menuCat.removeDuplicates()
+            .sink { [weak self] cat in self?.updateIcon(cat) }
+            .store(in: &subscriptions)
+    }
+
+    /// The menu bar cat: from the icon cache, else trimmed from the art cache; the plain cat symbol meanwhile.
+    private func updateIcon(_ cat: MenuBarCat?) {
+        iconTask?.cancel()
+        guard let cat else {
+            item.button?.image = MenuBarIcon.fallback
+            return
+        }
+        let key = "\(cat.cat)-\(cat.pose.rawValue)"
+        if let cached = iconCache[key] {
+            item.button?.image = cached
+            return
+        }
+        iconTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let image = await MenuBarIcon.load(cat, art: self.state.art)
+            guard !Task.isCancelled, self.state.menuCat == cat else { return }
+            if let image { self.iconCache[key] = image }
+            self.item.button?.image = image ?? MenuBarIcon.fallback
+        }
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -136,12 +164,43 @@ final class PeekContainerView: NSView {
     }
 }
 
+@MainActor
+enum MenuBarIcon {
+    /// Shown while Cat Office is offline or nobody is in the office.
+    static let fallback: NSImage = {
+        let image = NSImage(systemSymbolName: "cat", accessibilityDescription: "ClaudeBar")!
+            .withSymbolConfiguration(.init(pointSize: 14, weight: .medium))!
+        image.isTemplate = true
+        return image
+    }()
+
+    /// Fits every pose into the same box, so a sleeping cat isn't smaller than a standing one.
+    static let box = NSSize(width: 22, height: 18)
+
+    static func load(_ cat: MenuBarCat, art: ArtCache) async -> NSImage? {
+        guard let data = await art.catImage(cat: cat.cat, pose: cat.pose),
+              let trimmed = ArtCache.trimmed(data), let image = NSImage(data: trimmed) else { return nil }
+        return fitted(image)
+    }
+
+    /// Aspect-fit and centered on a canvas of exactly `box`, so the text after it never shifts between poses.
+    static func fitted(_ image: NSImage) -> NSImage {
+        let scale = min(box.width / image.size.width, box.height / image.size.height)
+        let size = NSSize(width: image.size.width * scale, height: image.size.height * scale)
+        return NSImage(size: box, flipped: false) { _ in
+            image.draw(in: NSRect(x: ((box.width - size.width) / 2).rounded(), y: 0, width: size.width, height: size.height))
+            return true
+        }
+    }
+}
+
 enum MenuBarTitle {
-    /// "◆ 42% · 18%" (5h · 7d), each colored by level; "◆•" when something needs the user; "◆ —" with no data.
+    /// "42% · 18%" (5h · 7d) after the icon, each colored by level; a leading amber "•" when something needs
+    /// the user; "—" with no data.
     static func make(usage: UsageSummary, attention: Bool) -> NSAttributedString {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
         let plain: [NSAttributedString.Key: Any] = [.font: font]
-        let s = NSMutableAttributedString(string: "◆", attributes: plain)
+        let s = NSMutableAttributedString(string: "", attributes: plain)
         if attention {
             s.append(NSAttributedString(string: "•", attributes: [.font: font, .foregroundColor: NSColor(Theme.waiting)]))
         }
