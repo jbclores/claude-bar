@@ -1,0 +1,359 @@
+--- a/server/agent-bridge/cat-assignments.ts
++++ b/server/agent-bridge/cat-assignments.ts
+@@ -0,0 +1,110 @@
++/**
++ * The cat the page shows for each agent (POST /__agents/cats), kept in <stateDir>/cat-assignments.json by agent
++ * id, so other local apps (ClaudeBar's menu bar office) show the same cats. Every snapshot carries an agent's
++ * `cat` once the page has given it one. Also: <stateDir>/bridge.json, telling those apps where the bridge is.
++ */
++import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
++import { dirname } from 'node:path';
++import type { AgentSnapshot } from './types.ts';
++
++const ID = /^[\w@.-]{1,128}$/;
++const CAT = /^[\w-]{1,64}$/;
++/** The file keeps at most this many agents; the oldest go first. */
++const KEEP_MAX = 2000;
++
++type ChangeListener = () => void;
++
++export class CatAssignmentStore {
++  private cats = new Map<string, string>();
++  private listeners = new Set<ChangeListener>();
++  readonly file: string;
++
++  constructor(file: string) {
++    this.file = file;
++    this.load();
++  }
++
++  onChange(fn: ChangeListener): () => void {
++    this.listeners.add(fn);
++    return () => this.listeners.delete(fn);
++  }
++
++  get(id: string): string | null {
++    return this.cats.get(id) ?? null;
++  }
++
++  /** Takes the page's `{ assignments: { [agentId]: catId } }`. False (and nothing kept) for a bad body. */
++  merge(body: unknown): boolean {
++    const raw = (body as { assignments?: unknown } | null)?.assignments;
++    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
++    const entries = Object.entries(raw as Record<string, unknown>);
++    if (!entries.every(([id, cat]) => ID.test(id) && typeof cat === 'string' && CAT.test(cat))) return false;
++    let changed = false;
++    for (const [id, cat] of entries as [string, string][]) {
++      if (this.cats.get(id) === cat) continue;
++      this.cats.delete(id); // re-inserted last: the newest
++      this.cats.set(id, cat);
++      changed = true;
++    }
++    while (this.cats.size > KEEP_MAX) this.cats.delete(this.cats.keys().next().value as string);
++    if (!changed) return true;
++    this.save();
++    for (const fn of this.listeners) {
++      try {
++        fn();
++      } catch {
++        // A broken listener must not stop the others.
++      }
++    }
++    return true;
++  }
++
++  /** The snapshot with each agent's cat, for the agents the page has given one. */
++  apply(snapshot: AgentSnapshot): AgentSnapshot {
++    return {
++      ...snapshot,
++      agents: snapshot.agents.map((a) => {
++        const cat = this.cats.get(a.id);
++        return cat ? { ...a, cat } : a;
++      }),
++    };
++  }
++
++  private load(): void {
++    try {
++      const d = JSON.parse(readFileSync(this.file, 'utf8')) as { cats?: Record<string, unknown> };
++      for (const [id, cat] of Object.entries(d.cats ?? {})) {
++        if (ID.test(id) && typeof cat === 'string' && CAT.test(cat)) this.cats.set(id, cat);
++      }
++    } catch {
++      // None yet (or unreadable): start empty.
++    }
++  }
++
++  private save(): void {
++    mkdirSync(dirname(this.file), { recursive: true });
++    const tmp = `${this.file}.tmp`;
++    writeFileSync(tmp, JSON.stringify({ cats: Object.fromEntries(this.cats) }, null, 2) + '\n');
++    renameSync(tmp, this.file);
++  }
++}
++
++/**
++ * Writes `{ url, token, pid }` to `file` (owner-only: it holds the token) for local apps to find the bridge.
++ * Returns a remover that deletes it, unless another server has written its own since.
++ */
++export function writeBridgeInfo(file: string, url: string, token: string): () => void {
++  mkdirSync(dirname(file), { recursive: true });
++  const tmp = `${file}.tmp`;
++  writeFileSync(tmp, JSON.stringify({ url, token, pid: process.pid }) + '\n', { mode: 0o600 });
++  chmodSync(tmp, 0o600);
++  renameSync(tmp, file);
++  return () => {
++    try {
++      const d = JSON.parse(readFileSync(file, 'utf8')) as { pid?: unknown };
++      if (d.pid === process.pid) rmSync(file);
++    } catch {
++      // Already gone.
++    }
++  };
++}
+--- a/server/agent-bridge/index.ts
++++ b/server/agent-bridge/index.ts
+@@ -12,6 +12,7 @@
+  *                                and idle, gets `/exit` typed (409 mid-turn or with a dialog open), then the next
+  *                                message resumes it here   {} → 200 { ok: true }
+  *   POST /__agents/:id/reply    type at an external session's prompt (its Orca terminal)   { text, attachments? } → 200 { ok: true }
++ *   POST /__agents/cats        the cat the page shows per agent { assignments: { [id]: catId } } → 200 { ok: true }
+  *   POST /__agents/:id/answer   answer its open question / permission / plan dialog        → 200 { ok: true }
+  *   GET  /__agents/:id/files/:file   a file sent with a message (attachments.ts): images inline, the rest as downloads
+  *   …plus the drawer's routes (drawer.ts): models, skills, reveal, screenshot, transcript, export, repo-files,
+@@ -32,6 +33,7 @@
+ import { ATTACHMENT_BODY_BYTES, serveAttachment } from './attachments.ts';
+ import { AgentBridge } from './bridge.ts';
+ import { ClaudeStatusMonitor, withClaude } from './claude-status.ts';
++import { CatAssignmentStore, writeBridgeInfo } from './cat-assignments.ts';
+ import { drawerRoute } from './drawer.ts';
+ import { PlanUsageWatch } from './plan-usage.ts';
+ import { readJson, send } from './http.ts';
+@@ -80,8 +82,17 @@
+       // The account's 5h / 7d usage, as the terminal status line saved it: sent with every snapshot as `plan`.
+       const plan = new PlanUsageWatch();
+       plan.start();
+-      const extras: Extras = { claude, plan };
++      // The cat the page shows for each agent (POST /__agents/cats): sent in every snapshot as the agent's `cat`.
++      const cats = new CatAssignmentStore(join(w.stateDir, 'cat-assignments.json'));
++      const extras: Extras = { claude, plan, cats };
++      // Where the bridge is and its token, for other local apps (ClaudeBar); removed when the server closes.
++      let removeBridgeInfo = (): void => {};
++      server.httpServer?.once('listening', () => {
++        const addr = server.httpServer?.address();
++        if (addr && typeof addr === 'object') removeBridgeInfo = writeBridgeInfo(join(w.stateDir, 'bridge.json'), `http://localhost:${addr.port}`, token);
++      });
+       server.httpServer?.once('close', () => {
++        removeBridgeInfo();
+         claude.stop();
+         plan.stop();
+         b.stop();
+@@ -99,6 +110,14 @@
+           void snapshotNow(b).then(
+             (snapshot) => send(res, 200, withExtras(snapshot, extras)),
+             (e: unknown) => send(res, 500, { error: String(e) }),
++          );
++          return;
++        }
++        if (url.pathname === '/__agents/cats') {
++          if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' });
++          void readJson(req).then(
++            (body) => (cats.merge(body) ? send(res, 200, { ok: true }) : send(res, 400, { error: 'bad assignments' })),
++            (e: unknown) => send(res, e instanceof WorkerError ? e.status : 400, { error: e instanceof Error ? e.message : String(e) }),
+           );
+           return;
+         }
+@@ -236,14 +255,15 @@
+   return s.at === 0 ? bridge.refresh() : s;
+ }
+ 
+-/** What every snapshot carries besides the agents: Claude's health and the plan usage. */
++/** What every snapshot carries besides the agents: Claude's health, the plan usage and each agent's cat. */
+ interface Extras {
+   claude: ClaudeStatusMonitor;
+   plan: PlanUsageWatch;
++  cats: CatAssignmentStore;
+ }
+ 
+ function withExtras(snapshot: AgentSnapshot, extras: Extras): AgentSnapshot {
+-  return { ...withClaude(snapshot, extras.claude), plan: extras.plan.current() };
++  return extras.cats.apply({ ...withClaude(snapshot, extras.claude), plan: extras.plan.current() });
+ }
+ 
+ function stream(req: IncomingMessage, res: ServerResponse, bridge: AgentBridge, extras: Extras): void {
+@@ -262,13 +282,14 @@
+   });
+   const off = bridge.subscribe((snapshot) => write({ type: 'snapshot', snapshot: withExtras(snapshot, extras) }));
+   // Claude's health changed: the latest snapshot again, with the new health (once there is a first snapshot).
+-  // The same when the plan usage changed.
++  // The same when the plan usage or the page's cats changed.
+   const resend = (): void => {
+     const snapshot = bridge.current();
+     if (!closed && snapshot.at > 0) write({ type: 'snapshot', snapshot: withExtras(snapshot, extras) });
+   };
+   const offClaude = extras.claude.onChange(resend);
+   const offPlan = extras.plan.onChange(resend);
++  const offCats = extras.cats.onChange(resend);
+   // A Kairos or Hermes run just finished successfully: sent to the pages open now, once (never in a snapshot).
+   const offWins = bridge.onWin((win) => {
+     if (!closed) write({ type: 'win', win });
+@@ -279,6 +300,7 @@
+     off();
+     offClaude();
+     offPlan();
++    offCats();
+     offWins();
+     clearInterval(ping);
+   });
+--- a/server/agent-bridge/types.ts
++++ b/server/agent-bridge/types.ts
+@@ -184,6 +184,8 @@
+    * /clear (the id stays the worker's). Helpers: null.
+    */
+   sessionId: string | null;
++  /** The cat (sprite set) the page shows for this agent, once the page has reported it (POST /__agents/cats). */
++  cat?: string;
+   startedAt: number;
+   updatedAt: number;
+   /** Office workers only (null for external): the conversation, last 60 entries, oldest first. */
+--- a/src/agents/live/actions.ts
++++ b/src/agents/live/actions.ts
+@@ -54,6 +54,10 @@
+   return value === null ? { ok: false, error: 'The bridge answered without the expected result.' } : { ok: true, value };
+ }
+ 
++/** Tells the bridge which cat each live session is shown as, so other local apps (ClaudeBar) show the same one. */
++export const reportCats = (assignments: Record<string, string>): Promise<ActionResult<true>> =>
++  post('/__agents/cats', { assignments }, () => true);
++
+ const agentPath = (id: string, action: string): string => `/__agents/${encodeURIComponent(id)}/${action}`;
+ 
+ /** Start a worker in `cwd` with a first prompt. */
+--- a/src/agents/live/useAgentCats.ts
++++ b/src/agents/live/useAgentCats.ts
+@@ -1,4 +1,5 @@
+-import { useCallback, useEffect, useMemo, useState } from 'react';
++import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
++import { reportCats } from './actions';
+ import { assignCats, claimCatMemory, claimPendingCat, loadCatMemory, memoryHas, portraitCat, rememberCats, saveCatMemory, spareCats, switchCatMemory, type PendingCat } from './cat-assignment';
+ import { SAMPLE_ID_PREFIX } from './sample';
+ import type { LiveSource } from './useLiveAgents';
+@@ -80,6 +81,21 @@
+     if (source === 'live') saveCatMemory(memory);
+   }, [memory, source]);
+ 
++  // Tell the bridge which cat each live session is (a second after it settles), for other local apps.
++  const reported = useRef('');
++  useEffect(() => {
++    if (source !== 'live' || assignment.size === 0) return;
++    const assignments = Object.fromEntries(assignment);
++    const body = JSON.stringify(assignments);
++    if (body === reported.current) return;
++    const timer = window.setTimeout(() => {
++      void reportCats(assignments).then((r) => {
++        if (r.ok) reported.current = body;
++      });
++    }, 1000);
++    return () => window.clearTimeout(timer);
++  }, [assignment, source]);
++
+   const agents = snapshot?.agents;
+   const catIds = useMemo(() => cats.map((c) => c.catId), [cats]);
+   const spare = useMemo(() => (source === 'live' ? spareCats(agents ?? [], catIds, assignment) : []), [source, agents, catIds, assignment]);
+--- a/tests/sim/cat-assignments.test.ts
++++ b/tests/sim/cat-assignments.test.ts
+@@ -0,0 +1,94 @@
++// The cats the page shows, shared with other local apps (ClaudeBar): POST /__agents/cats keeps them in
++// <stateDir>/cat-assignments.json and every snapshot carries each agent's `cat`; <stateDir>/bridge.json tells
++// local apps where the bridge is. Unit checks of the store, then the routes on a real dev server with a temp
++// state folder and a temp Claude home holding one stand-in session (this test process's pid).
++import assert from 'node:assert/strict';
++import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import { after, test } from 'node:test';
++
++const TMP = realpathSync(mkdtempSync(join(tmpdir(), 'cat-office-cats-')));
++const HOME = join(TMP, 'claude');
++const STATE = join(TMP, 'state');
++process.env.CLAUDE_CONFIG_DIR = HOME;
++process.env.CAT_OFFICE_STATE_DIR = STATE;
++mkdirSync(join(HOME, 'sessions'), { recursive: true });
++after(() => rmSync(TMP, { recursive: true, force: true }));
++
++const { CatAssignmentStore, writeBridgeInfo } = await import('../../server/agent-bridge/cat-assignments.ts');
++
++test('store: merges valid assignments, refuses bad ones, keeps them across restarts', () => {
++  const file = join(TMP, 'unit', 'cat-assignments.json');
++  const store = new CatAssignmentStore(file);
++  let changes = 0;
++  store.onChange(() => changes++);
++  assert.equal(store.merge({ assignments: { a1: 'orange', 'b@2.x': 'fluffy-gray' } }), true);
++  assert.equal(store.get('a1'), 'orange');
++  assert.equal(changes, 1);
++  assert.equal(store.merge({ assignments: { a1: 'orange' } }), true);
++  assert.equal(changes, 1, 'no change, no event');
++  for (const bad of [null, {}, { assignments: [] }, { assignments: { 'a/b': 'orange' } }, { assignments: { a1: 'x y' } }, { assignments: { a1: 7 } }]) {
++    assert.equal(store.merge(bad), false, JSON.stringify(bad));
++  }
++  assert.equal(store.get('a1'), 'orange', 'a refused body changes nothing');
++  assert.equal(new CatAssignmentStore(file).get('b@2.x'), 'fluffy-gray');
++  const snap = { agents: [{ id: 'a1' }, { id: 'zz' }], repos: [], at: 1 } as never;
++  const applied = store.apply(snap) as { agents: { id: string; cat?: string }[] };
++  assert.equal(applied.agents[0].cat, 'orange');
++  assert.equal('cat' in applied.agents[1], false);
++});
++
++test('bridge info: owner-only file, removed only by its own process', () => {
++  const file = join(TMP, 'unit', 'bridge.json');
++  const remove = writeBridgeInfo(file, 'http://localhost:5173', 'tok');
++  assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { url: 'http://localhost:5173', token: 'tok', pid: process.pid });
++  assert.equal(statSync(file).mode & 0o777, 0o600);
++  remove();
++  assert.equal(existsSync(file), false);
++  writeFileSync(file, JSON.stringify({ url: 'x', token: 't', pid: 1 }));
++  remove();
++  assert.equal(existsSync(file), true, "another server's file stays");
++});
++
++test('routes: POST /__agents/cats, `cat` in snapshots, bridge.json while serving', { timeout: 60_000 }, async () => {
++  const sessionId = '11111111-2222-3333-4444-555555555555';
++  const cwd = join(TMP, 'project');
++  mkdirSync(cwd, { recursive: true });
++  writeFileSync(join(HOME, 'sessions', `${process.pid}.json`), JSON.stringify({ pid: process.pid, sessionId, cwd, startedAt: Date.now(), kind: 'interactive', status: 'idle', name: 'stand-in' }));
++  const { createServer } = await import('vite');
++  const { agentBridge } = await import('../../server/agent-bridge/index.ts');
++  const root = join(TMP, 'site');
++  mkdirSync(root, { recursive: true });
++  writeFileSync(join(root, 'index.html'), '<!doctype html><title>t</title>');
++  const server = await createServer({ configFile: false, root, logLevel: 'silent', server: { port: 0, host: '127.0.0.1', hmr: false, watch: null }, plugins: [agentBridge()] });
++  await server.listen();
++  const bridgeFile = join(STATE, 'bridge.json');
++  try {
++    const addr = server.httpServer!.address() as { port: number };
++    const base = `http://localhost:${addr.port}`;
++    const token = /__CAT_OFFICE_TOKEN__\s*=\s*"([^"]+)"/.exec(await (await fetch(`${base}/`)).text())?.[1] ?? '';
++    assert.ok(token);
++    const info = JSON.parse(readFileSync(bridgeFile, 'utf8'));
++    assert.deepEqual(info, { url: base, token, pid: process.pid });
++    assert.equal(statSync(bridgeFile).mode & 0o777, 0o600);
++
++    const post = (body: unknown, headers: Record<string, string> = { 'x-cat-office-token': token }) =>
++      fetch(`${base}/__agents/cats`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
++    assert.equal((await post({ assignments: {} }, {})).status, 401, 'no token');
++    assert.equal((await post({ assignments: {} }, { 'x-cat-office-token': token, Origin: 'http://evil.example' })).status, 403, 'another origin');
++    assert.equal((await fetch(`${base}/__agents/cats`, { headers: { 'x-cat-office-token': token } })).status, 405);
++    assert.equal((await post({ assignments: { [sessionId]: 'not a cat!' } })).status, 400);
++
++    const agents = async () => ((await (await fetch(`${base}/__agents`, { headers: { 'x-cat-office-token': token } })).json()).agents as { id: string; cat?: string }[]);
++    const deadline = Date.now() + 15_000;
++    while (!(await agents()).some((a) => a.id === sessionId) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 200));
++    assert.ok((await agents()).some((a) => a.id === sessionId), 'the stand-in session shows up');
++    assert.equal((await post({ assignments: { [sessionId]: 'tuxedo' } })).status, 200);
++    assert.equal((await agents()).find((a) => a.id === sessionId)?.cat, 'tuxedo');
++    assert.deepEqual(JSON.parse(readFileSync(join(STATE, 'cat-assignments.json'), 'utf8')).cats, { [sessionId]: 'tuxedo' });
++  } finally {
++    await server.close();
++  }
++  assert.equal(existsSync(bridgeFile), false, 'bridge.json goes with the server');
++});
