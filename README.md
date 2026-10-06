@@ -8,8 +8,13 @@ context, status), and a hover peek of Cat Office's cats. Design: `docs/superpowe
 ```sh
 scripts/install-statusline.sh          # status line also saves snapshots (backs up the old script)
 scripts/build.sh                       # → build/ClaudeBar.app
-cp -R build/ClaudeBar.app /Applications/ && open /Applications/ClaudeBar.app
+mkdir -p ~/Applications && rm -rf ~/Applications/ClaudeBar.app && cp -R build/ClaudeBar.app ~/Applications/
+~/Applications/ClaudeBar.app/Contents/MacOS/ClaudeBar --launch-at-login on   # or tick it in the dropdown
+open ~/Applications/ClaudeBar.app
 ```
+
+`~/Applications` needs no admin rights (use `/Applications` if you have them). After a rebuild, quit ClaudeBar
+and copy the new build over the old one.
 
 Config: `~/.config/claude-bar/projects.json` (Add Folder… / Edit Config in the dropdown).
 
