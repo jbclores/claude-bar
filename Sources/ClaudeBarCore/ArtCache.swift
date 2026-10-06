@@ -189,9 +189,10 @@ public final class ArtCache: @unchecked Sendable {
         return await image(path: path)
     }
 
-    /// A shrunken PNG of the asset at `path`, from memory, then disk, then Cat Office.
-    public func image(path: String, maxPixelSize: Int = 128) async -> Data? {
-        let key = path.replacingOccurrences(of: "/", with: "_")
+    /// A shrunken PNG of the asset at `path`, from memory, then disk, then Cat Office. The default size keeps
+    /// sprites sharp in the office zoomed to 3× on a Retina screen.
+    public func image(path: String, maxPixelSize: Int = 384) async -> Data? {
+        let key = "\(maxPixelSize)_" + path.replacingOccurrences(of: "/", with: "_")
         if let data = memory.get()[key] { return data }
         let file = dir.appendingPathComponent(key)
         if let data = try? Data(contentsOf: file) {

@@ -12,6 +12,7 @@ final class StatusItemController: NSResponder {
     private lazy var dropdownController = DropdownController(state: state)
     private let peek = NSPopover()
     private let pointer = PeekPointer()
+    private let peekZoom = RoomZoom()
     private var subscriptions = Set<AnyCancellable>()
     private var showTimer: Timer?
     private var hideTimer: Timer?
@@ -30,8 +31,8 @@ final class StatusItemController: NSResponder {
         peek.behavior = .applicationDefined
         peek.animates = false
         let peekView = PeekContainerView(
-            content: OfficePeekView().environmentObject(state).environmentObject(pointer),
-            size: OfficePeekView.size)
+            content: OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(peekZoom),
+            size: OfficePeekView.size, zoom: peekZoom)
         peekView.onPointer = { [weak self] point in self?.peekPointer(point) }
         let peekController = NSViewController()
         peekController.view = peekView
@@ -91,6 +92,7 @@ final class StatusItemController: NSResponder {
         }
         guard let button = item.button else { return }
         NSApp.activate(ignoringOtherApps: true)
+        dropdownController.resetZoom()
         dropdown.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         state.acknowledge()
     }
@@ -132,6 +134,7 @@ final class StatusItemController: NSResponder {
 
     private func showPeek() {
         guard overIcon, !dropdown.isShown, !peek.isShown, let button = item.button else { return }
+        peekZoom.reset()
         peek.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         state.acknowledge()
     }
@@ -140,10 +143,14 @@ final class StatusItemController: NSResponder {
 /// Hosts the peek and reports the pointer (top-left origin, nil when it leaves), even while ClaudeBar is inactive.
 final class PeekContainerView: NSView {
     var onPointer: ((CGPoint?) -> Void)?
+    private let zoom: RoomZoom
+    private var host: NSView!
 
-    init<Content: View>(content: Content, size: CGSize) {
+    init<Content: View>(content: Content, size: CGSize, zoom: RoomZoom) {
+        self.zoom = zoom
         super.init(frame: NSRect(origin: .zero, size: size))
-        let host = NSHostingView(rootView: content)
+        let host = ClickThroughHostingView(rootView: content)
+        self.host = host
         host.frame = bounds
         host.autoresizingMask = [.width, .height]
         addSubview(host)
@@ -162,6 +169,28 @@ final class PeekContainerView: NSView {
     private func report(_ event: NSEvent) {
         onPointer?(convert(event.locationInWindow, from: nil))
     }
+
+    // Zoom and pan over the room (pinch, ⌘-scroll, scroll, drag, double-click), even while ClaudeBar isn't active.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard frame.contains(point) else { return nil }
+        return zoom.contains(convert(point, from: superview)) ? self : super.hitTest(point)
+    }
+
+    // Unused events go up the responder chain (super), never down to the host: its default passes them
+    // back up to this view, which looped until the stack overflowed.
+    private func officePoint(_ event: NSEvent) -> CGPoint {
+        // Events without a window (e.g. built from a CGEvent) carry screen coordinates.
+        let inWindow = event.window == nil ? (window?.convertPoint(fromScreen: event.locationInWindow) ?? event.locationInWindow) : event.locationInWindow
+        return self.convert(inWindow, from: nil)
+    }
+
+    override func magnify(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.magnify(with: event) } }
+    override func scrollWheel(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.scrollWheel(with: event) } }
+    override func mouseDown(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.mouseDown(with: event) } }
+    override func mouseDragged(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.mouseDragged(with: event) } }
+    override func mouseUp(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.mouseUp(with: event) } }
 }
 
 @MainActor

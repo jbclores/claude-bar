@@ -9,6 +9,7 @@ enum RenderPeek {
     static func runIfRequested(state: AppState) -> Bool {
         if RenderLabel.runIfRequested(state: state) { return true }
         if TestTabs.runIfRequested(state: state) { return true }
+        if TestZoom.runIfRequested(state: state) { return true }
         if let tab = flag("--render-dropdown").flatMap({ DropdownTab(rawValue: $0.1 ?? "") }), let out = flag("--render-dropdown")?.0 {
             renderWindow(DropdownView(forcedTab: tab).environmentObject(state).environmentObject(PeekPointer()), width: 500, to: out)
             return true
@@ -22,7 +23,7 @@ enum RenderPeek {
             if xy.count == 2 { pointer.location = CGPoint(x: xy[0], y: xy[1]) }
         }
         let size = OfficePeekView.size
-        let host = NSHostingView(rootView: OfficePeekView().environmentObject(state).environmentObject(pointer)
+        let host = NSHostingView(rootView: OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(RoomZoom())
             .background(renderLight ? Color(white: 0.93) : Color(white: 0.16))
             .environment(\.colorScheme, renderLight ? .light : .dark))
         host.frame = NSRect(origin: .zero, size: size)
@@ -34,7 +35,12 @@ enum RenderPeek {
         window.orderFrontRegardless()
         DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
             // SwiftUI's own renderer: the window capture misses colour multiply and blend modes (the night room).
-            let content = OfficePeekView().environmentObject(state).environmentObject(pointer)
+            let zoom = RoomZoom()
+            if let factor = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_ZOOM"].flatMap(Double.init) {
+                zoom.roomRect = CGRect(x: 12, y: 36, width: OfficePeekView.size.width - 24, height: OfficeRoomView.height)
+                zoom.renderZoom(CGFloat(factor), at: CGPoint(x: 120, y: 110))
+            }
+            let content = OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(zoom)
                 .background(renderLight ? Color(white: 0.93) : Color(white: 0.16))
                 .environment(\.colorScheme, renderLight ? .light : .dark)
             let renderer = ImageRenderer(content: content.frame(width: size.width, height: size.height))
@@ -212,3 +218,56 @@ final class KeyWindow: NSWindow {
     override var canBecomeMain: Bool { true }
 }
 
+
+/// `ClaudeBar --test-zoom`: opens the live dropdown offscreen on the Office tab and sends zoom gestures to the room
+/// only (double-click, drag, ⌘-scroll, a click on the "1×" pill), printing the zoom after each. Clicks nothing else.
+@MainActor
+enum TestZoom {
+    static func runIfRequested(state: AppState) -> Bool {
+        guard CommandLine.arguments.contains("--test-zoom") else { return false }
+        UserDefaults.standard.set("office", forKey: TabSelection.key)
+        let controller = DropdownController(state: state)
+        let window = KeyWindow(contentViewController: controller)
+        window.styleMask = [.borderless]
+        window.setFrameOrigin(NSPoint(x: -10_000, y: -10_000))
+        window.orderFrontRegardless()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { MainActor.assumeIsolated {
+            if controller.preferredContentSize.height > 0 { window.setContentSize(controller.preferredContentSize) }
+            let zoom = controller.roomZoom
+            guard zoom.roomRect.width > 0, let host = findHost(in: window.contentView!) else { print("room not found"); exit(1) }
+            // Window points for room points (the host is flipped: top-left origin, like the office space).
+            @MainActor func windowPoint(_ office: CGPoint) -> NSPoint { host.convert(office, to: nil) }
+            let centre = CGPoint(x: zoom.roomRect.midX, y: zoom.roomRect.midY)
+            @MainActor func mouse(_ type: NSEvent.EventType, _ p: CGPoint, clicks: Int = 1) {
+                window.sendEvent(NSEvent.mouseEvent(with: type, location: windowPoint(p), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: clicks, pressure: 1)!)
+            }
+            @MainActor func report(_ step: String) { print(step, "→ scale", String(format: "%.2f", zoom.view.scale), "offset", zoom.view.offset) }
+            print("room:", zoom.roomRect)
+            mouse(.leftMouseDown, centre, clicks: 2); mouse(.leftMouseUp, centre, clicks: 2)
+            report("double-click")
+            mouse(.leftMouseDown, centre); mouse(.leftMouseDragged, CGPoint(x: centre.x + 40, y: centre.y + 20)); mouse(.leftMouseUp, CGPoint(x: centre.x + 40, y: centre.y + 20))
+            report("drag right/down")
+            if let cg = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: 40, wheel2: 0, wheel3: 0) {
+                cg.flags = .maskCommand
+                // CGEvent locations have a top-left origin on the main display; AppKit's are bottom-left.
+                let screen = window.convertPoint(toScreen: windowPoint(centre))
+                cg.location = CGPoint(x: screen.x, y: (NSScreen.screens.first?.frame.height ?? 0) - screen.y)
+                // Straight to the room's container: an offscreen window doesn't route synthetic scrolls.
+                if let e = NSEvent(cgEvent: cg), let container = host.superview { container.scrollWheel(with: e) }
+            }
+            report("⌘-scroll")
+            let pill = CGPoint(x: zoom.pillRect.midX, y: zoom.pillRect.midY)
+            mouse(.leftMouseDown, pill); mouse(.leftMouseUp, pill)
+            report("click 1× pill")
+            exit(0)
+        } }
+        return true
+    }
+
+    private static func findHost(in view: NSView) -> NSView? {
+        if view is ZoomingContainer { return view.subviews.first }
+        for sub in view.subviews { if let found = findHost(in: sub) { return found } }
+        return nil
+    }
+}

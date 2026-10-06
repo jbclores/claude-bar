@@ -36,14 +36,17 @@ struct OfficeSummary: View {
 struct OfficeRoomView: View {
     @EnvironmentObject var state: AppState
     @EnvironmentObject var pointer: PeekPointer
+    @EnvironmentObject var zoom: RoomZoom
     @Environment(\.colorScheme) private var colorScheme
     @State private var catFrames: [String: CGRect] = [:]
 
     static let height: CGFloat = 180
 
     private var hovered: OfficeAgent? {
-        guard let point = pointer.location, let office = state.office else { return nil }
-        guard let id = catFrames.first(where: { $0.value.contains(point) })?.key else { return nil }
+        guard let point = pointer.location, let office = state.office, zoom.contains(point) else { return nil }
+        // The pointer is over the zoomed drawing: find the room point under it.
+        let room = zoom.view.unzoom(CGPoint(x: point.x - zoom.roomRect.minX, y: point.y - zoom.roomRect.minY))
+        guard let id = catFrames.first(where: { $0.value.contains(room) })?.key else { return nil }
         return office.agents.first { $0.id == id }
     }
 
@@ -57,10 +60,26 @@ struct OfficeRoomView: View {
                     offline
                 }
             }
+            // Cat frames are measured here, before the zoom: in the room's own points.
+            .coordinateSpace(name: "roomContent")
+            .scaleEffect(zoom.view.scale, anchor: .topLeading)
+            .offset(x: zoom.view.offset.x, y: zoom.view.offset.y)
             .clipShape(RoundedRectangle(cornerRadius: 10))
+            if zoom.view.isZoomed {
+                Text("1×").font(.system(size: 10, weight: .semibold)).foregroundStyle(.white)
+                    .frame(width: RoomZoom.pillSize.width, height: RoomZoom.pillSize.height)
+                    .background(Capsule().fill(.black.opacity(0.55)))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(8)
+                    .help("Show the whole room (or double-click)")
+            }
             if let agent = hovered { CatCard(agent: agent, since: state.statusSince[agent.key]).padding(6) }
         }
         .frame(height: Self.height)
+        .background(GeometryReader { proxy in
+            Color.clear.onAppear { zoom.roomRect = proxy.frame(in: .named("office")) }
+                .onChange(of: proxy.frame(in: .named("office"))) { _, rect in zoom.roomRect = rect }
+        })
         // Clicks only inside the visible room: the backdrop and cats extend past it, and took the tabs' clicks.
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
@@ -111,17 +130,17 @@ struct RoomBackdrop: View {
         let night = colorScheme == .dark
         ZStack(alignment: .topLeading) {
             VStack(spacing: 0) {
-                roomArt("assets/room/walls/plaster.png", size: 512, mode: .fill).frame(height: 46).clipped()
+                roomArt("assets/room/walls/plaster.png", size: 1024, mode: .fill).frame(height: 46).clipped()
                 Rectangle().fill(Color(hex: 0x73503F)).frame(height: 3)
                 roomArt("assets/room/floors/birch.png", size: 1024, mode: .tile).frame(maxHeight: .infinity)
             }
             .background(Color(hex: 0xEADBC8)) // until the art has loaded, or if it can't
             // Night: walls and floor shift to a deep blue (a colour shift, not a grey veil); the furniture stays lit.
             .colorMultiply(night ? Night.room : .white)
-            roomArt("assets/room/props/tall-plant.png", size: 160, mode: .fit).frame(height: 70).offset(x: 6, y: 12)
+            roomArt("assets/room/props/tall-plant.png", size: 480, mode: .fit).frame(height: 70).offset(x: 6, y: 12)
                 .colorMultiply(night ? Night.furniture : .white)
             if night { LampLight() }
-            roomArt("assets/room/props/floor-lamp.png", size: 160, mode: .fit).frame(height: 64)
+            roomArt("assets/room/props/floor-lamp.png", size: 480, mode: .fit).frame(height: 64)
                 .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 14).offset(y: 12)
         }
     }
@@ -179,10 +198,10 @@ struct Lounge: View {
     var body: some View {
         VStack(spacing: 4) {
             ZStack {
-                art("assets/room/rugs/round-cream.png", 512).frame(width: 150).scaleEffect(x: 1, y: 0.45)
-                art("assets/room/props/sofa-round.png", 256).frame(width: 96).offset(x: 34, y: -26)
-                art("assets/room/props/cat-bed-blue.png", 160).frame(width: 52).offset(x: -40, y: 14)
-                art("assets/room/props/bean-bag-cream.png", 160).frame(width: 40).offset(x: -50, y: -24)
+                art("assets/room/rugs/round-cream.png", 1024).frame(width: 150).scaleEffect(x: 1, y: 0.45)
+                art("assets/room/props/sofa-round.png", 512).frame(width: 96).offset(x: 34, y: -26)
+                art("assets/room/props/cat-bed-blue.png", 384).frame(width: 52).offset(x: -40, y: 14)
+                art("assets/room/props/bean-bag-cream.png", 384).frame(width: 40).offset(x: -50, y: -24)
                 ForEach(Array(cats.prefix(Self.spots.count).enumerated()), id: \.element.id) { i, agent in
                     CatView(agent: agent, atDesk: false, width: i == 0 ? 46 : 38, plain: true)
                         .catFrame(agent.id)
@@ -272,7 +291,7 @@ struct OfficePeekView: View {
 private extension View {
     func catFrame(_ id: String) -> some View {
         background(GeometryReader { proxy in
-            Color.clear.preference(key: CatFramesKey.self, value: [id: proxy.frame(in: .named("office"))])
+            Color.clear.preference(key: CatFramesKey.self, value: [id: proxy.frame(in: .named("roomContent"))])
         })
     }
 }

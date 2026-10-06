@@ -49,7 +49,7 @@ import Testing
 
     @Test func servesFromDiskCacheWithoutNetwork() async {
         let dir = makeTempDir()
-        write("cached-bytes", to: dir.appendingPathComponent("assets_cats_orange_sleep.png"))
+        write("cached-bytes", to: dir.appendingPathComponent("384_assets_cats_orange_sleep.png"))
         let cache = ArtCache(dir: dir, baseURL: { URL(string: "http://localhost:1")! })
         let data = await cache.image(path: "assets/cats/orange/sleep.png")
         #expect(data == Data("cached-bytes".utf8))

@@ -92,7 +92,7 @@ struct DropdownView: View {
 
     var body: some View {
         let selection = TabSelection(forcedTab)
-        VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 10) {
             DropdownHeader()
             Picker("", selection: .constant(selection.tab)) {
                 ForEach(DropdownTab.allCases, id: \.self) { Label($0.title, systemImage: $0.symbol).tag($0) }
@@ -103,6 +103,7 @@ struct DropdownView: View {
         }
         .padding(DropdownLayout.padding)
         .frame(width: DropdownLayout.width)
+        .environmentObject(RoomZoom())
     }
 }
 
@@ -111,6 +112,7 @@ struct DropdownView: View {
 final class DropdownController: NSViewController {
     private let state: AppState
     private let selection = TabSelection()
+    let roomZoom = RoomZoom()
     private var header: ClickThroughHostingView<AnyView>!
     private var tabs: FirstClickSegmentedControl!
     private var content: ClickThroughHostingView<AnyView>!
@@ -124,7 +126,7 @@ final class DropdownController: NSViewController {
 
     override func loadView() {
         header = ClickThroughHostingView(rootView: AnyView(DropdownHeader().environmentObject(state)))
-        content = ClickThroughHostingView(rootView: AnyView(DropdownBody(selection: selection).environmentObject(state)))
+        content = ClickThroughHostingView(rootView: AnyView(DropdownBody(selection: selection).environmentObject(state).environmentObject(roomZoom)))
         tabs = FirstClickSegmentedControl(labels: DropdownTab.allCases.map(\.title), trackingMode: .selectOne,
                                           target: self, action: #selector(tabChanged(_:)))
         for (i, tab) in DropdownTab.allCases.enumerated() {
@@ -137,7 +139,7 @@ final class DropdownController: NSViewController {
 
         // Each SwiftUI piece in a plain container: a hosting view claims clicks beyond its own frame when its
         // content draws outside it (the office's cats do), which took the tab control's clicks.
-        let stack = NSStackView(views: [BoundedContainer(header), tabs, BoundedContainer(content)])
+        let stack = NSStackView(views: [BoundedContainer(header), tabs, ZoomingContainer(content, zoom: roomZoom)])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
@@ -156,6 +158,9 @@ final class DropdownController: NSViewController {
         view = stack
         resize()
     }
+
+    /// The office shows the whole room each time the dropdown opens.
+    func resetZoom() { roomZoom.reset() }
 
     /// "Office •" on the Office tab when something needs the user.
     func updateAttention(_ attention: Bool) {
