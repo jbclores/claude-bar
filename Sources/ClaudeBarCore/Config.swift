@@ -30,13 +30,16 @@ public struct Config: Equatable, Sendable {
     public var projects: [Project]
     public var catOffice: CatOfficeSettings
     public var notifications: Bool
+    /// Show the office peek when the pointer rests on the menu bar icon.
+    public var hoverPeek: Bool
 
     public static let empty = Config(projects: [], catOffice: CatOfficeSettings(), notifications: true)
 
-    public init(projects: [Project], catOffice: CatOfficeSettings, notifications: Bool) {
+    public init(projects: [Project], catOffice: CatOfficeSettings, notifications: Bool, hoverPeek: Bool = true) {
         self.projects = projects
         self.catOffice = catOffice
         self.notifications = notifications
+        self.hoverPeek = hoverPeek
     }
 
     public static func parse(_ data: Data) throws -> Config {
@@ -62,6 +65,7 @@ public struct Config: Equatable, Sendable {
             if let auto = office["autoStart"] as? Bool { config.catOffice.autoStart = auto }
         }
         if let n = root["notifications"] as? Bool { config.notifications = n }
+        if let h = root["hoverPeek"] as? Bool { config.hoverPeek = h }
         return config
     }
 }
@@ -125,7 +129,33 @@ public final class ConfigStore {
         }
     }
 
+    /// Sets one setting (e.g. `["catOffice", "autoStart"]`), keeping every other key.
+    public func set(_ value: Bool, at path: [String]) throws {
+        guard !path.isEmpty else { return }
+        try editRoot { root in
+            func assign(_ dict: inout [String: Any], _ keys: ArraySlice<String>) {
+                guard let key = keys.first else { return }
+                if keys.count == 1 {
+                    dict[key] = value
+                } else {
+                    var child = dict[key] as? [String: Any] ?? [:]
+                    assign(&child, keys.dropFirst())
+                    dict[key] = child
+                }
+            }
+            assign(&root, path[...])
+        }
+    }
+
     private func editProjects(_ change: (inout [[String: Any]]) -> Void) throws {
+        try editRoot { root in
+            var projects = root["projects"] as? [[String: Any]] ?? []
+            change(&projects)
+            root["projects"] = projects
+        }
+    }
+
+    private func editRoot(_ change: (inout [String: Any]) -> Void) throws {
         var root: [String: Any] = [:]
         if let data = try? Data(contentsOf: file) {
             guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -133,9 +163,8 @@ public final class ConfigStore {
             }
             root = object
         }
-        var projects = root["projects"] as? [[String: Any]] ?? []
-        change(&projects)
-        root["projects"] = projects
+        change(&root)
+        if root["projects"] == nil { root["projects"] = [[String: Any]]() }
         let data = try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try data.write(to: file, options: .atomic)

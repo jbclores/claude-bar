@@ -8,6 +8,10 @@ import SwiftUI
 enum RenderPeek {
     static func runIfRequested(state: AppState) -> Bool {
         if RenderLabel.runIfRequested(state: state) { return true }
+        if let tab = flag("--render-dropdown").flatMap({ DropdownTab(rawValue: $0.1 ?? "") }), let out = flag("--render-dropdown")?.0 {
+            renderWindow(DropdownView(forcedTab: tab).environmentObject(state).environmentObject(PeekPointer()), width: 500, to: out)
+            return true
+        }
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--render-peek"), i + 1 < args.count else { return false }
         let out = URL(fileURLWithPath: args[i + 1])
@@ -87,6 +91,37 @@ enum RenderLabel {
             color.set()
             rect.fill(using: .sourceAtop)
             return true
+        }
+    }
+}
+
+/// `--flag <a> [b]`: the values after a flag.
+@MainActor
+private func flag(_ name: String) -> (URL, String?)? {
+    let args = CommandLine.arguments
+    guard let i = args.firstIndex(of: name), i + 1 < args.count else { return nil }
+    return (URL(fileURLWithPath: args[i + 1]), i + 2 < args.count ? args[i + 2] : nil)
+}
+
+/// Draws `view` in an offscreen dark window sized to fit, after live data has had time to arrive; saves and quits.
+@MainActor
+private func renderWindow<V: View>(_ view: V, width: CGFloat, to out: URL) {
+    let host = NSHostingView(rootView: view.background(Color(white: 0.16)).environment(\.colorScheme, .dark))
+    let window = NSWindow(contentRect: NSRect(x: -10_000, y: -10_000, width: width, height: 600),
+                          styleMask: .borderless, backing: .buffered, defer: false)
+    window.appearance = NSAppearance(named: .darkAqua)
+    window.contentView = host
+    window.orderFrontRegardless()
+    DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+        let size = host.fittingSize
+        window.setContentSize(size)
+        host.frame = NSRect(origin: .zero, size: size)
+        host.layoutSubtreeIfNeeded()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { exit(1) }
+            host.cacheDisplay(in: host.bounds, to: rep)
+            try? rep.representation(using: .png, properties: [:])?.write(to: out)
+            exit(0)
         }
     }
 }

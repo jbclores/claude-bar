@@ -96,3 +96,43 @@ import Testing
         #expect(try String(contentsOf: file, encoding: .utf8) == "{ broken")
     }
 }
+
+@Suite struct ConfigSettingsTests {
+    @Test func hoverPeekDefaultsOnAndParses() throws {
+        #expect(Config.empty.hoverPeek)
+        #expect(try Config.parse(Data(#"{"hoverPeek":false}"#.utf8)).hoverPeek == false)
+    }
+
+    @Test func setWritesOneSettingAndKeepsEverythingElse() throws {
+        let file = makeTempDir().appendingPathComponent("projects.json")
+        write(#"{"projects":[{"path":"/x","name":"X"}],"catOffice":{"url":"http://localhost:6000"},"extra":1}"#, to: file)
+        let store = ConfigStore(file: file)
+        store.reload()
+        try store.set(false, at: ["notifications"])
+        try store.set(false, at: ["catOffice", "autoStart"])
+        try store.set(false, at: ["hoverPeek"])
+        #expect(store.config.notifications == false)
+        #expect(store.config.catOffice.autoStart == false)
+        #expect(store.config.catOffice.url == URL(string: "http://localhost:6000"))
+        #expect(store.config.hoverPeek == false)
+        #expect(store.config.projects.map(\.name) == ["X"])
+        let raw = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [String: Any]
+        #expect(raw["extra"] as? Int == 1)
+        try store.set(true, at: ["hoverPeek"])
+        #expect(store.config.hoverPeek)
+    }
+
+    @Test func setCreatesTheFileAndNestedObjects() throws {
+        let file = makeTempDir().appendingPathComponent("sub/projects.json")
+        let store = ConfigStore(file: file)
+        try store.set(false, at: ["catOffice", "autoStart"])
+        #expect(store.config.catOffice.autoStart == false)
+    }
+
+    @Test func setRefusesABrokenFile() {
+        let file = makeTempDir().appendingPathComponent("projects.json")
+        write("{ broken", to: file)
+        let store = ConfigStore(file: file)
+        #expect(throws: ConfigError.self) { try store.set(false, at: ["hoverPeek"]) }
+    }
+}

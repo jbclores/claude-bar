@@ -16,12 +16,27 @@ private struct CatFramesKey: PreferenceKey {
     }
 }
 
-struct OfficePeekView: View {
+/// "5 cats · Claude OK" (or hindered), for the peek and the Office tab.
+struct OfficeSummary: View {
+    let office: OfficeSnapshot
+
+    var body: some View {
+        let count = office.agents.filter { $0.status != .ended }.count
+        HStack(spacing: 4) {
+            Text("\(count) cat\(count == 1 ? "" : "s") ·").foregroundStyle(.secondary)
+            Text(office.claudeHindered ? "Claude hindered" : "Claude OK")
+                .foregroundStyle(office.claudeHindered ? Theme.waiting : .secondary)
+        }
+    }
+}
+
+/// The tiny office: busy cats at desks, idle ones in the lounge, a card for the cat under the pointer; a sleeping
+/// cat and the Start button while Cat Office is offline. Cat frames are measured in the "office" coordinate space,
+/// which the parent sets up together with the PeekPointer it feeds.
+struct OfficeRoomView: View {
     @EnvironmentObject var state: AppState
     @EnvironmentObject var pointer: PeekPointer
     @State private var catFrames: [String: CGRect] = [:]
-
-    static let size = CGSize(width: 500, height: 236)
 
     private var hovered: OfficeAgent? {
         guard let point = pointer.location, let office = state.office else { return nil }
@@ -30,44 +45,17 @@ struct OfficePeekView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header
-            ZStack(alignment: .top) {
-                RoundedRectangle(cornerRadius: 10).fill(Color(hex: 0x2B2622).opacity(0.85))
-                if let office = state.office {
-                    room(PeekLayout.make(office.agents))
-                } else {
-                    offline
-                }
-                if let agent = hovered { CatCard(agent: agent, since: state.statusSince[agent.key]).padding(6) }
+        ZStack(alignment: .top) {
+            RoundedRectangle(cornerRadius: 10).fill(Color(hex: 0x2B2622).opacity(0.85))
+            if let office = state.office {
+                room(PeekLayout.make(office.agents))
+            } else {
+                offline
             }
-            .frame(height: 158)
-            HStack {
-                Spacer()
-                if state.office != nil {
-                    Button("Open Cat Office ↗") { state.openCatOffice() }.buttonStyle(.link).font(.caption)
-                }
-            }
+            if let agent = hovered { CatCard(agent: agent, since: state.statusSince[agent.key]).padding(6) }
         }
-        .padding(12)
-        .frame(width: Self.size.width, height: Self.size.height, alignment: .top)
-        .coordinateSpace(name: "peek")
+        .frame(height: 158)
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
-    }
-
-    @ViewBuilder private var header: some View {
-        if let office = state.office {
-            let count = office.agents.filter { $0.status != .ended }.count
-            HStack(spacing: 4) {
-                Text("Cat Office").font(.headline)
-                Text("· \(count) cat\(count == 1 ? "" : "s") ·").foregroundStyle(.secondary)
-                Text(office.claudeHindered ? "Claude hindered" : "Claude OK")
-                    .foregroundStyle(office.claudeHindered ? Theme.waiting : .secondary)
-            }
-            .font(.callout)
-        } else {
-            Text("Cat Office").font(.headline)
-        }
     }
 
     private func room(_ layout: PeekLayout) -> some View {
@@ -116,10 +104,36 @@ struct OfficePeekView: View {
     }
 }
 
+/// The hover peek: title, the office, and a link to Cat Office.
+struct OfficePeekView: View {
+    @EnvironmentObject var state: AppState
+
+    static let size = CGSize(width: 500, height: 236)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Text("Cat Office").font(.headline)
+                if let office = state.office { OfficeSummary(office: office).font(.callout) }
+            }
+            OfficeRoomView()
+            HStack {
+                Spacer()
+                if state.office != nil {
+                    Button("Open Cat Office ↗") { state.openCatOffice() }.buttonStyle(.link).font(.caption)
+                }
+            }
+        }
+        .padding(12)
+        .frame(width: Self.size.width, height: Self.size.height, alignment: .top)
+        .coordinateSpace(name: "office")
+    }
+}
+
 private extension View {
     func catFrame(_ id: String) -> some View {
         background(GeometryReader { proxy in
-            Color.clear.preference(key: CatFramesKey.self, value: [id: proxy.frame(in: .named("peek"))])
+            Color.clear.preference(key: CatFramesKey.self, value: [id: proxy.frame(in: .named("office"))])
         })
     }
 }

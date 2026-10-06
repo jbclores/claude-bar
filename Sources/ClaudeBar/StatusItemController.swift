@@ -100,7 +100,7 @@ final class StatusItemController: NSResponder {
     override func mouseEntered(with event: NSEvent) {
         overIcon = true
         hideTimer?.invalidate()
-        guard !peek.isShown, !dropdown.isShown else { return }
+        guard state.settings.hoverPeek, !peek.isShown, !dropdown.isShown else { return }
         showTimer?.invalidate()
         showTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
             Task { @MainActor in self?.showPeek() }

@@ -16,6 +16,8 @@ final class AppState: ObservableObject {
     @Published private(set) var needsAttention = false
     @Published private(set) var statusSince: [String: Date] = [:]
     @Published private(set) var configError: String?
+    /// The current config, for the Settings tab.
+    @Published private(set) var settings = Config.empty
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
     @Published private(set) var officeLaunch = OfficeLaunch.none
     @Published private(set) var catIds: [String] = []
@@ -101,6 +103,7 @@ final class AppState: ObservableObject {
         refreshing = true
         config.reload()
         configError = config.error
+        if settings != config.config { settings = config.config }
         officeSettings.set(config.config.catOffice)
         let projects = config.config.projects
         let snapshots = snapshots, sessions = sessions, git = git
@@ -181,6 +184,15 @@ final class AppState: ObservableObject {
     func remove(_ row: ProjectRow) {
         do { try config.remove(path: row.path) } catch let e as ConfigError { configError = e.message } catch {}
         refresh()
+    }
+
+    func setNotifications(_ on: Bool) { setSetting(on, at: ["notifications"]) }
+    func setAutoStart(_ on: Bool) { setSetting(on, at: ["catOffice", "autoStart"]) }
+    func setHoverPeek(_ on: Bool) { setSetting(on, at: ["hoverPeek"]) }
+
+    private func setSetting(_ value: Bool, at path: [String]) {
+        do { try config.set(value, at: path) } catch let e as ConfigError { configError = e.message } catch {}
+        settings = config.config
     }
 
     func editConfig() {
