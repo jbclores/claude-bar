@@ -30,7 +30,7 @@ Claude Code ──stdin JSON──▶ statusline-command.sh ──▶ terminal s
 ~/.claude/sessions/<pid>.json ─────────── reads (fallback status) ─────────────────▶ ClaudeBar.app
 <project>/.git ─────────────────────────── git rev-parse ──────────────────────────▶   │
 Cat Office (localhost:5173) ── SSE /__agents/stream, /assets/*, /data/*.json ──────▶   │
-<cat-office>/.cat-office/bridge.json ──── port + token ────────────────────────────▶ ──┘
+~/.cat-office/bridge.json ─────────────── port + token + folder ───────────────────▶ ──┘
 ```
 
 Data comes from three sources, and each covers what the others don't:
@@ -93,7 +93,7 @@ On every status line redraw, the script also writes one JSON file per session:
 ```
 
 - `path` is required, and `~` is expanded. `name` is optional and defaults to the folder's base name.
-- `catOffice.dir` points to the Cat Office folder, so the app can find `.cat-office/bridge.json`. `catOffice.url` is used when `bridge.json` doesn't exist. Both are optional.
+- `catOffice.dir` is an optional override for the folder to start Cat Office from; without it (or when it no longer exists) ClaudeBar uses the folder the patched Cat Office last reported in `~/.cat-office/bridge.json`, remembered in ClaudeBar's preferences. `catOffice.url` is used when no running Cat Office has written `bridge.json`. Both are optional.
 - The app creates the file with an empty project list if it doesn't exist.
 - The app re-reads the file when its modification time changes, checked on each 5-second poll.
 - If the file can't be parsed, the app keeps the last good config and shows a warning row: "Config error — using last good list".
@@ -101,7 +101,7 @@ On every status line redraw, the script also writes one JSON file per session:
 
 ### 3. Cat Office client
 
-- **Finding the server:** read `<catOffice.dir>/.cat-office/bridge.json` (`{url, token, pid}`, written by the patch in §5).
+- **Finding the server:** read `~/.cat-office/bridge.json` (`{url, token, dir, pid}`, written by the patch in §5). Each connection made through it records `dir` as the remembered Cat Office folder.
   - The file only counts if its `pid` process is still running.
   - Without a usable `bridge.json` (for example, an unpatched Cat Office), fall back to `GET <url>/` and pull the token out of `window.__CAT_OFFICE_TOKEN__ = "…"` in the page.
 - **Live feed:** connect to `GET <url>/__agents/stream` with the `x-cat-office-token` header and parse server-sent events. A `snapshot` event replaces the current agent list; `ping` events are ignored.
@@ -113,7 +113,7 @@ On every status line redraw, the script also writes one JSON file per session:
 ### 3a. Starting Cat Office
 
 - **When:** once, a few seconds after ClaudeBar launches, if `catOffice.autoStart` (default `true`) is on and Cat Office can't be reached. After that, only when the user clicks **Start Cat Office**, which the Office section and the peek show while Cat Office is offline. ClaudeBar never restarts it on its own after it stops.
-- **How:** run `npm run dev` in `catOffice.dir` as a background process.
+- **How:** run `npm run dev` as a background process in `catOffice.dir` if that folder exists, else in the folder Cat Office was last seen running from.
   - `PATH` gets the folder holding `npm`/`node`, found by checking `/opt/homebrew/bin`, `/usr/local/bin`, `~/.volta/bin` and the newest `~/.nvm/versions/node/*/bin`, because apps opened from Finder don't inherit the shell's `PATH`.
   - Output is appended to `~/Library/Logs/ClaudeBar/cat-office.log`.
   - stdin is `/dev/null`.
@@ -146,7 +146,7 @@ The patch lives in this repo as `patches/cat-office.patch` and is applied by `sc
    - The server keeps the map in memory and saves it to `.cat-office/cat-assignments.json`, loading it again on start.
    - The feed adds `cat?: string` to each `LiveAgent` (`types.ts`).
    - Agents whose id isn't in the map have no `cat` field.
-3. **The server writes its address and token to a file.** Once the dev server is listening, it writes `.cat-office/bridge.json` = `{url, token, pid}`, readable only by the owner (mode `0600`), and deletes the file when the server closes.
+3. **The server writes its address, token and folder to a file.** Once the dev server is listening, it writes `~/.cat-office/bridge.json` = `{url, token, dir, pid}`, readable only by the owner (mode `0600`), and deletes the file when the server closes. The file lives in the home folder, not in Cat Office's folder, so ClaudeBar finds it wherever Cat Office is moved. `CAT_OFFICE_BRIDGE_FILE` overrides the path for tests.
 - **Tests:** add tests for the new route (valid and invalid body, auth required) and for the `cat` field in snapshots, using Cat Office's existing test setup in `tests/`.
 - **The patch script:**
   - checks that the folder looks like Cat Office

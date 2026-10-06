@@ -25,9 +25,17 @@ final class AppState: ObservableObject {
     private let sessions = LiveSessionReader()
     private let git = GitBranchReader()
     private let officeSettings = LockedBox(CatOfficeSettings())
-    private(set) lazy var officeClient = CatOfficeClient(settings: officeSettings) { [weak self] snapshot in
-        Task { @MainActor in self?.officeUpdated(snapshot) }
-    }
+    private(set) lazy var officeClient = CatOfficeClient(
+        settings: officeSettings,
+        onBridge: { info in
+            guard let dir = info.dir else { return }
+            Task { @MainActor in UserDefaults.standard.set(dir, forKey: AppState.rememberedDirKey) }
+        },
+        onUpdate: { [weak self] snapshot in
+            Task { @MainActor in self?.officeUpdated(snapshot) }
+        })
+    /// The folder Cat Office was last seen running from (so a moved folder is found without editing the config).
+    static let rememberedDirKey = "catOfficeDir"
     private let notifier = Notifier()
     private let launcher = CatOfficeLauncher()
     private(set) lazy var art: ArtCache = { [officeClient] in ArtCache(baseURL: { officeClient.baseURL }) }()
@@ -55,7 +63,9 @@ final class AppState: ObservableObject {
         if case .starting = officeLaunch { return }
         let started = Date()
         officeLaunch = .starting(since: started)
-        let settings = config.config.catOffice
+        var settings = config.config.catOffice
+        settings.dir = CatOfficeDiscovery.folderToStart(
+            configured: settings.dir, remembered: UserDefaults.standard.string(forKey: Self.rememberedDirKey))
         Task { @MainActor in
             switch await launcher.start(settings: settings) {
             case .started, .alreadyRunning:
@@ -68,7 +78,7 @@ final class AppState: ObservableObject {
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 if office == nil, officeLaunch == .starting(since: started) { officeLaunch = .failed("Couldn't start Cat Office") }
             case .notConfigured:
-                officeLaunch = .failed("Set catOffice.dir in the config")
+                officeLaunch = .failed("Cat Office's folder isn't known: set catOffice.dir in the config")
             case .npmNotFound:
                 officeLaunch = .failed("npm not found")
             case .failed(let message):

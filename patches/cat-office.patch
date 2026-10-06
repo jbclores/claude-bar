@@ -1,14 +1,19 @@
 --- a/server/agent-bridge/cat-assignments.ts
 +++ b/server/agent-bridge/cat-assignments.ts
-@@ -0,0 +1,110 @@
+@@ -0,0 +1,115 @@
 +/**
 + * The cat the page shows for each agent (POST /__agents/cats), kept in <stateDir>/cat-assignments.json by agent
 + * id, so other local apps (ClaudeBar's menu bar office) show the same cats. Every snapshot carries an agent's
-+ * `cat` once the page has given it one. Also: <stateDir>/bridge.json, telling those apps where the bridge is.
++ * `cat` once the page has given it one. Also: ~/.cat-office/bridge.json, telling those apps where the bridge is
++ * and which folder Cat Office runs from (so they find it after the folder moves).
 + */
 +import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-+import { dirname } from 'node:path';
++import { homedir } from 'node:os';
++import { dirname, join } from 'node:path';
 +import type { AgentSnapshot } from './types.ts';
++
++/** Where local apps look for the running bridge; CAT_OFFICE_BRIDGE_FILE overrides it (tests). */
++export const BRIDGE_FILE = process.env.CAT_OFFICE_BRIDGE_FILE ?? join(homedir(), '.cat-office', 'bridge.json');
 +
 +const ID = /^[\w@.-]{1,128}$/;
 +const CAT = /^[\w-]{1,64}$/;
@@ -93,13 +98,13 @@
 +}
 +
 +/**
-+ * Writes `{ url, token, pid }` to `file` (owner-only: it holds the token) for local apps to find the bridge.
-+ * Returns a remover that deletes it, unless another server has written its own since.
++ * Writes `{ url, token, dir, pid }` to `file` (owner-only: it holds the token) for local apps to find the bridge
++ * and Cat Office's folder. Returns a remover that deletes it, unless another server has written its own since.
 + */
-+export function writeBridgeInfo(file: string, url: string, token: string): () => void {
++export function writeBridgeInfo(file: string, info: { url: string; token: string; dir: string }): () => void {
 +  mkdirSync(dirname(file), { recursive: true });
 +  const tmp = `${file}.tmp`;
-+  writeFileSync(tmp, JSON.stringify({ url, token, pid: process.pid }) + '\n', { mode: 0o600 });
++  writeFileSync(tmp, JSON.stringify({ url: info.url, token: info.token, dir: info.dir, pid: process.pid }) + '\n', { mode: 0o600 });
 +  chmodSync(tmp, 0o600);
 +  renameSync(tmp, file);
 +  return () => {
@@ -125,11 +130,11 @@
  import { ATTACHMENT_BODY_BYTES, serveAttachment } from './attachments.ts';
  import { AgentBridge } from './bridge.ts';
  import { ClaudeStatusMonitor, withClaude } from './claude-status.ts';
-+import { CatAssignmentStore, writeBridgeInfo } from './cat-assignments.ts';
++import { BRIDGE_FILE, CatAssignmentStore, writeBridgeInfo } from './cat-assignments.ts';
  import { drawerRoute } from './drawer.ts';
  import { PlanUsageWatch } from './plan-usage.ts';
  import { readJson, send } from './http.ts';
-@@ -80,8 +82,17 @@
+@@ -80,8 +82,19 @@
        // The account's 5h / 7d usage, as the terminal status line saved it: sent with every snapshot as `plan`.
        const plan = new PlanUsageWatch();
        plan.start();
@@ -137,18 +142,20 @@
 +      // The cat the page shows for each agent (POST /__agents/cats): sent in every snapshot as the agent's `cat`.
 +      const cats = new CatAssignmentStore(join(w.stateDir, 'cat-assignments.json'));
 +      const extras: Extras = { claude, plan, cats };
-+      // Where the bridge is and its token, for other local apps (ClaudeBar); removed when the server closes.
++      // Where the bridge is, its token and this folder, for other local apps (ClaudeBar); removed on close.
 +      let removeBridgeInfo = (): void => {};
 +      server.httpServer?.once('listening', () => {
 +        const addr = server.httpServer?.address();
-+        if (addr && typeof addr === 'object') removeBridgeInfo = writeBridgeInfo(join(w.stateDir, 'bridge.json'), `http://localhost:${addr.port}`, token);
++        if (addr && typeof addr === 'object') {
++          removeBridgeInfo = writeBridgeInfo(BRIDGE_FILE, { url: `http://localhost:${addr.port}`, token, dir: server.config.root });
++        }
 +      });
        server.httpServer?.once('close', () => {
 +        removeBridgeInfo();
          claude.stop();
          plan.stop();
          b.stop();
-@@ -99,6 +110,14 @@
+@@ -99,6 +112,14 @@
            void snapshotNow(b).then(
              (snapshot) => send(res, 200, withExtras(snapshot, extras)),
              (e: unknown) => send(res, 500, { error: String(e) }),
@@ -163,7 +170,7 @@
            );
            return;
          }
-@@ -236,14 +255,15 @@
+@@ -236,14 +257,15 @@
    return s.at === 0 ? bridge.refresh() : s;
  }
  
@@ -181,7 +188,7 @@
  }
  
  function stream(req: IncomingMessage, res: ServerResponse, bridge: AgentBridge, extras: Extras): void {
-@@ -262,13 +282,14 @@
+@@ -262,13 +284,14 @@
    });
    const off = bridge.subscribe((snapshot) => write({ type: 'snapshot', snapshot: withExtras(snapshot, extras) }));
    // Claude's health changed: the latest snapshot again, with the new health (once there is a first snapshot).
@@ -197,7 +204,7 @@
    // A Kairos or Hermes run just finished successfully: sent to the pages open now, once (never in a snapshot).
    const offWins = bridge.onWin((win) => {
      if (!closed) write({ type: 'win', win });
-@@ -279,6 +300,7 @@
+@@ -279,6 +302,7 @@
      off();
      offClaude();
      offPlan();
@@ -262,11 +269,11 @@
    const spare = useMemo(() => (source === 'live' ? spareCats(agents ?? [], catIds, assignment) : []), [source, agents, catIds, assignment]);
 --- a/tests/sim/cat-assignments.test.ts
 +++ b/tests/sim/cat-assignments.test.ts
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,96 @@
 +// The cats the page shows, shared with other local apps (ClaudeBar): POST /__agents/cats keeps them in
-+// <stateDir>/cat-assignments.json and every snapshot carries each agent's `cat`; <stateDir>/bridge.json tells
-+// local apps where the bridge is. Unit checks of the store, then the routes on a real dev server with a temp
-+// state folder and a temp Claude home holding one stand-in session (this test process's pid).
++// <stateDir>/cat-assignments.json and every snapshot carries each agent's `cat`; ~/.cat-office/bridge.json tells
++// local apps where the bridge (and this folder) is. Unit checks of the store, then the routes on a real dev server with a temp
++// state folder, a temp bridge file and a temp Claude home holding one stand-in session (this test's pid).
 +import assert from 'node:assert/strict';
 +import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
 +import { tmpdir } from 'node:os';
@@ -278,6 +285,8 @@
 +const STATE = join(TMP, 'state');
 +process.env.CLAUDE_CONFIG_DIR = HOME;
 +process.env.CAT_OFFICE_STATE_DIR = STATE;
++const BRIDGE_FILE = join(TMP, 'home', '.cat-office', 'bridge.json');
++process.env.CAT_OFFICE_BRIDGE_FILE = BRIDGE_FILE;
 +mkdirSync(join(HOME, 'sessions'), { recursive: true });
 +after(() => rmSync(TMP, { recursive: true, force: true }));
 +
@@ -306,8 +315,8 @@
 +
 +test('bridge info: owner-only file, removed only by its own process', () => {
 +  const file = join(TMP, 'unit', 'bridge.json');
-+  const remove = writeBridgeInfo(file, 'http://localhost:5173', 'tok');
-+  assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { url: 'http://localhost:5173', token: 'tok', pid: process.pid });
++  const remove = writeBridgeInfo(file, { url: 'http://localhost:5173', token: 'tok', dir: '/x/cat-office' });
++  assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { url: 'http://localhost:5173', token: 'tok', dir: '/x/cat-office', pid: process.pid });
 +  assert.equal(statSync(file).mode & 0o777, 0o600);
 +  remove();
 +  assert.equal(existsSync(file), false);
@@ -328,14 +337,14 @@
 +  writeFileSync(join(root, 'index.html'), '<!doctype html><title>t</title>');
 +  const server = await createServer({ configFile: false, root, logLevel: 'silent', server: { port: 0, host: '127.0.0.1', hmr: false, watch: null }, plugins: [agentBridge()] });
 +  await server.listen();
-+  const bridgeFile = join(STATE, 'bridge.json');
++  const bridgeFile = BRIDGE_FILE;
 +  try {
 +    const addr = server.httpServer!.address() as { port: number };
 +    const base = `http://localhost:${addr.port}`;
 +    const token = /__CAT_OFFICE_TOKEN__\s*=\s*"([^"]+)"/.exec(await (await fetch(`${base}/`)).text())?.[1] ?? '';
 +    assert.ok(token);
 +    const info = JSON.parse(readFileSync(bridgeFile, 'utf8'));
-+    assert.deepEqual(info, { url: base, token, pid: process.pid });
++    assert.deepEqual(info, { url: base, token, dir: root, pid: process.pid });
 +    assert.equal(statSync(bridgeFile).mode & 0o777, 0o600);
 +
 +    const post = (body: unknown, headers: Record<string, string> = { 'x-cat-office-token': token }) =>

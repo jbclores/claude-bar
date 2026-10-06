@@ -39,10 +39,13 @@ public enum CatOfficeEvent: Equatable, Sendable {
 public struct BridgeInfo: Equatable, Sendable {
     public var url: URL
     public var token: String
+    /// Cat Office's folder, when the patched Cat Office reported it.
+    public var dir: String?
 
-    public init(url: URL, token: String) {
+    public init(url: URL, token: String, dir: String? = nil) {
         self.url = url
         self.token = token
+        self.dir = dir
     }
 }
 
@@ -57,14 +60,25 @@ public enum CatOfficeDiscovery {
         return String(rest[..<close])
     }
 
-    /// `<dir>/.cat-office/bridge.json` (written by the patched Cat Office), only while its process runs.
-    public static func bridgeInfo(catOfficeDir: String, isAlive: (Int32) -> Bool) -> BridgeInfo? {
-        let file = URL(fileURLWithPath: Paths.normalize(catOfficeDir)).appendingPathComponent(".cat-office/bridge.json")
+    /// Where the patched Cat Office says where it runs, wherever its folder is.
+    public static var bridgeFile: URL { Paths.home.appendingPathComponent(".cat-office/bridge.json") }
+
+    /// The bridge file's address, token and folder, only while the process that wrote it runs.
+    public static func bridgeInfo(file: URL = bridgeFile, isAlive: (Int32) -> Bool) -> BridgeInfo? {
         guard let data = try? Data(contentsOf: file),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let urlString = obj["url"] as? String, let url = URL(string: urlString),
               let token = obj["token"] as? String, !token.isEmpty,
               let pid = obj["pid"] as? Int, isAlive(Int32(pid)) else { return nil }
-        return BridgeInfo(url: url, token: token)
+        let dir = (obj["dir"] as? String).flatMap { $0.isEmpty ? nil : Paths.normalize($0) }
+        return BridgeInfo(url: url, token: token, dir: dir)
+    }
+
+    /// The folder to start Cat Office from: the configured one if it exists, else the one last seen running.
+    public static func folderToStart(configured: String?, remembered: String?) -> String? {
+        [configured, remembered].compactMap { $0 }.first { path in
+            var isDir: ObjCBool = false
+            return FileManager.default.fileExists(atPath: path, isDirectory: &isDir) && isDir.boolValue
+        }
     }
 }

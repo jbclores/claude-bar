@@ -4,6 +4,8 @@ import Foundation
 /// `onUpdate` gets each snapshot, and nil whenever Cat Office can't be reached.
 public final class CatOfficeClient: @unchecked Sendable {
     private let settings: LockedBox<CatOfficeSettings>
+    private let bridgeFile: URL
+    private let onBridge: @Sendable (BridgeInfo) -> Void
     private let onUpdate: @Sendable (OfficeSnapshot?) -> Void
     private let session: URLSession
     private let current = LockedBox<URL?>(nil)
@@ -12,8 +14,13 @@ public final class CatOfficeClient: @unchecked Sendable {
     /// The address Cat Office was last reached at (bridge.json may name a different port than the settings).
     public var baseURL: URL { current.get() ?? settings.get().url }
 
-    public init(settings: LockedBox<CatOfficeSettings>, onUpdate: @escaping @Sendable (OfficeSnapshot?) -> Void) {
+    /// `onBridge` hears each connection made through the bridge file (it carries Cat Office's folder).
+    public init(settings: LockedBox<CatOfficeSettings>, bridgeFile: URL = CatOfficeDiscovery.bridgeFile,
+                onBridge: @escaping @Sendable (BridgeInfo) -> Void = { _ in },
+                onUpdate: @escaping @Sendable (OfficeSnapshot?) -> Void) {
         self.settings = settings
+        self.bridgeFile = bridgeFile
+        self.onBridge = onBridge
         self.onUpdate = onUpdate
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 60 // the feed pings every 15s; silence this long means it's gone
@@ -47,10 +54,10 @@ public final class CatOfficeClient: @unchecked Sendable {
         }
     }
 
-    /// Where Cat Office is and its token: bridge.json first, else the token in its page.
+    /// Where Cat Office is and its token: the bridge file first, else the token in its page.
     func resolve() async -> BridgeInfo? {
         let s = settings.get()
-        if let dir = s.dir, let info = CatOfficeDiscovery.bridgeInfo(catOfficeDir: dir, isAlive: processIsAlive) {
+        if let info = CatOfficeDiscovery.bridgeInfo(file: bridgeFile, isAlive: processIsAlive) {
             return info
         }
         guard let result = try? await session.data(from: s.url),
@@ -67,6 +74,7 @@ public final class CatOfficeClient: @unchecked Sendable {
         guard let result = try? await session.bytes(for: request),
               (result.1 as? HTTPURLResponse)?.statusCode == 200 else { return false }
         current.set(info.url)
+        if info.dir != nil { onBridge(info) }
         var parser = SSEParser()
         var received = false
         do {

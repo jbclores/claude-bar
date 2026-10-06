@@ -51,11 +51,20 @@ import Testing
     }
 
     @Test func bridgeFileNeedsLiveProcess() {
-        let dir = makeTempDir()
-        write(#"{"url":"http://localhost:5174","token":"tok","pid":42}"#, to: dir.appendingPathComponent(".cat-office/bridge.json"))
-        #expect(CatOfficeDiscovery.bridgeInfo(catOfficeDir: dir.path, isAlive: { $0 == 42 })
-                == BridgeInfo(url: URL(string: "http://localhost:5174")!, token: "tok"))
-        #expect(CatOfficeDiscovery.bridgeInfo(catOfficeDir: dir.path, isAlive: { _ in false }) == nil)
-        #expect(CatOfficeDiscovery.bridgeInfo(catOfficeDir: makeTempDir().path, isAlive: { _ in true }) == nil)
+        let file = makeTempDir().appendingPathComponent(".cat-office/bridge.json")
+        write(#"{"url":"http://localhost:5174","token":"tok","dir":"/w/cat-office","pid":42}"#, to: file)
+        #expect(CatOfficeDiscovery.bridgeInfo(file: file, isAlive: { $0 == 42 })
+                == BridgeInfo(url: URL(string: "http://localhost:5174")!, token: "tok", dir: "/w/cat-office"))
+        #expect(CatOfficeDiscovery.bridgeInfo(file: file, isAlive: { _ in false }) == nil)
+        #expect(CatOfficeDiscovery.bridgeInfo(file: file.deletingLastPathComponent().appendingPathComponent("none.json"), isAlive: { _ in true }) == nil)
+    }
+
+    @Test func folderToStartPrefersConfigThenRemembered() {
+        let configured = makeTempDir().path
+        let remembered = makeTempDir().path
+        #expect(CatOfficeDiscovery.folderToStart(configured: configured, remembered: remembered) == configured)
+        #expect(CatOfficeDiscovery.folderToStart(configured: "/gone-\(UUID())", remembered: remembered) == remembered)
+        #expect(CatOfficeDiscovery.folderToStart(configured: nil, remembered: remembered) == remembered)
+        #expect(CatOfficeDiscovery.folderToStart(configured: nil, remembered: "/gone-\(UUID())") == nil)
     }
 }

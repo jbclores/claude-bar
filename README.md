@@ -13,12 +13,23 @@ cp -R build/ClaudeBar.app /Applications/ && open /Applications/ClaudeBar.app
 
 Config: `~/.config/claude-bar/projects.json` (Add Folder… / Edit Config in the dropdown).
 
-## Cat Office patch (same cats as the browser)
+## Cat Office patch (same cats as the browser, found wherever it lives)
+
+To move Cat Office and patch it in one go (stops it, moves it, patches it, updates the config, starts it):
 
 ```sh
-scripts/patch-cat-office.sh ~/Downloads/cat-ai-office-with-art-20261006-1038
+scripts/move-cat-office.sh ~/Downloads/cat-ai-office-with-art-20261006-1038 ~/Documents/projects/cat-ai-office-with-art-20261006-1038
+```
+
+Or patch it where it is:
+
+```sh
+scripts/patch-cat-office.sh <cat-office-folder>
 # then restart Cat Office: stop its dev server, run `npm run dev` again
 ```
+
+The patched Cat Office writes `~/.cat-office/bridge.json` (address, token, its folder) while it runs, so ClaudeBar
+finds it on any port and remembers its folder for starting it after a move.
 
 It does a trial run first, backs up the touched files to `<cat-office>/.cat-office/patch-backup-*`, and changes
 nothing if a newer Cat Office no longer matches. To undo, copy the backed-up files back (and delete
