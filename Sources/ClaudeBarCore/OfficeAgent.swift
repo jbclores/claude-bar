@@ -1,0 +1,101 @@
+import Foundation
+
+/// One agent from Cat Office's live feed (its `LiveAgent`), reduced to what ClaudeBar shows.
+public struct OfficeAgent: Equatable, Sendable, Identifiable {
+    public var id: String
+    public var name: String
+    /// "office" for Cat Office's own workers, "external" for other sessions.
+    public var owner: String
+    public var status: AgentStatus
+    public var waitReason: String?
+    /// Normalized folder.
+    public var cwd: String
+    public var repoName: String?
+    public var branch: String?
+    public var model: String?
+    public var task: String?
+    public var lastAction: String?
+    public var waitingSince: Date?
+    public var sessionId: String?
+    /// The cat the browser shows for this agent (sent by the patched Cat Office).
+    public var cat: String?
+
+    public var isOffice: Bool { owner == "office" }
+    /// The key this agent shares with snapshots and Claude Code's session files.
+    public var key: String { sessionId ?? id }
+
+    public init(id: String, name: String, owner: String = "external", status: AgentStatus, waitReason: String? = nil,
+                cwd: String, repoName: String? = nil, branch: String? = nil, model: String? = nil, task: String? = nil,
+                lastAction: String? = nil, waitingSince: Date? = nil, sessionId: String? = nil, cat: String? = nil) {
+        self.id = id
+        self.name = name
+        self.owner = owner
+        self.status = status
+        self.waitReason = waitReason
+        self.cwd = Paths.normalize(cwd)
+        self.repoName = repoName
+        self.branch = branch
+        self.model = model
+        self.task = task
+        self.lastAction = lastAction
+        self.waitingSince = waitingSince
+        self.sessionId = sessionId
+        self.cat = cat
+    }
+}
+
+extension OfficeAgent: Decodable {
+    private struct Repo: Decodable { var name: String }
+    private struct Action: Decodable { var label: String }
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, owner, status, waitReason, cwd, repo, branch, model, task, lastAction, waitingSince, sessionId, cat
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let id = try c.decode(String.self, forKey: .id)
+        self.init(
+            id: id,
+            name: try c.decodeIfPresent(String.self, forKey: .name) ?? id,
+            owner: try c.decodeIfPresent(String.self, forKey: .owner) ?? "external",
+            status: AgentStatus(rawValue: try c.decodeIfPresent(String.self, forKey: .status) ?? "") ?? .idle,
+            waitReason: try c.decodeIfPresent(String.self, forKey: .waitReason),
+            cwd: try c.decodeIfPresent(String.self, forKey: .cwd) ?? "",
+            repoName: (try? c.decodeIfPresent(Repo.self, forKey: .repo))??.name,
+            branch: try c.decodeIfPresent(String.self, forKey: .branch),
+            model: try c.decodeIfPresent(String.self, forKey: .model),
+            task: try c.decodeIfPresent(String.self, forKey: .task),
+            lastAction: (try? c.decodeIfPresent(Action.self, forKey: .lastAction))??.label,
+            waitingSince: try c.decodeIfPresent(Double.self, forKey: .waitingSince).map { Date(timeIntervalSince1970: $0 / 1000) },
+            sessionId: try c.decodeIfPresent(String.self, forKey: .sessionId),
+            cat: try c.decodeIfPresent(String.self, forKey: .cat)
+        )
+    }
+}
+
+/// Cat Office's feed at one moment.
+public struct OfficeSnapshot: Equatable, Sendable, Decodable {
+    public var agents: [OfficeAgent]
+    public var claudeHindered: Bool
+
+    public init(agents: [OfficeAgent], claudeHindered: Bool = false) {
+        self.agents = agents
+        self.claudeHindered = claudeHindered
+    }
+
+    private struct Health: Decodable { var hindered: Bool? }
+    enum CodingKeys: String, CodingKey { case agents, claude }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        agents = try c.decode([OfficeAgent].self, forKey: .agents)
+        claudeHindered = (try? c.decodeIfPresent(Health.self, forKey: .claude))??.hindered ?? false
+    }
+}
+
+extension LiveSession {
+    public init(office a: OfficeAgent) {
+        self.init(key: a.key, cwd: a.cwd, status: a.status, name: a.name, model: a.model, isOffice: a.isOffice, task: a.task)
+    }
+}
