@@ -18,6 +18,7 @@ final class AppState: ObservableObject {
     @Published private(set) var configError: String?
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
     @Published private(set) var officeLaunch = OfficeLaunch.none
+    @Published private(set) var catIds: [String] = []
 
     let config = ConfigStore()
     private let snapshots = SnapshotReader()
@@ -29,12 +30,14 @@ final class AppState: ObservableObject {
     }
     private let notifier = Notifier()
     private let launcher = CatOfficeLauncher()
+    private(set) lazy var art: ArtCache = { [officeClient] in ArtCache(baseURL: { officeClient.baseURL }) }()
     private var tracker = AttentionTracker()
     private var files: StatusInput?
     private var timer: Timer?
     private var refreshing = false
 
     func start() {
+        loadCatalog()
         refresh()
         officeClient.start()
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
@@ -115,8 +118,10 @@ final class AppState: ObservableObject {
 
     private func officeUpdated(_ snapshot: OfficeSnapshot?) {
         guard snapshot != office else { return }
+        let cameOnline = office == nil && snapshot != nil
         office = snapshot
         if snapshot != nil { officeLaunch = .none }
+        if cameOnline { loadCatalog() }
         recompute()
     }
 
@@ -131,6 +136,13 @@ final class AppState: ObservableObject {
         statusSince = tracker.since
         needsAttention = !tracker.attention.isEmpty
         output = StatusModel.build(input)
+    }
+
+    /// Cat ids for picking each agent's cat (from Cat Office, or the copy cached last time).
+    private func loadCatalog() {
+        Task { @MainActor in
+            if let catalog = await art.catalog(), catalog.catIds != catIds { catIds = catalog.catIds }
+        }
     }
 
     /// The user opened the dropdown or the peek.

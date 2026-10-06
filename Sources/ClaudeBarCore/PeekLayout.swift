@@ -24,6 +24,11 @@ public struct CatMotion: Equatable, Sendable {
     public var offsetY: Double
     public var scale: Double
 
+    public init(offsetY: Double, scale: Double) {
+        self.offsetY = offsetY
+        self.scale = scale
+    }
+
     public static func at(status: AgentStatus, time: TimeInterval) -> CatMotion {
         switch status {
         case .working:

@@ -18,6 +18,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         state = AppState()
+        if RenderPeek.runIfRequested(state: state) {
+            state.start()
+            return
+        }
         statusItem = StatusItemController(state: state)
         state.start()
     }
