@@ -261,6 +261,13 @@ enum TestZoom {
             let pill = CGPoint(x: zoom.pillRect.midX, y: zoom.pillRect.midY)
             mouse(.leftMouseDown, pill); mouse(.leftMouseUp, pill)
             report("click 1× pill")
+            let before = state.settings.officeLighting
+            let light = CGPoint(x: zoom.lightRect.midX, y: zoom.lightRect.midY)
+            mouse(.leftMouseDown, light); mouse(.leftMouseUp, light)
+            print("click ☀️/🌙 pill → lighting", before.rawValue, "→", state.settings.officeLighting.rawValue)
+            mouse(.leftMouseDown, light); mouse(.leftMouseUp, light)
+            print("click it again → lighting", state.settings.officeLighting.rawValue)
+            state.setOfficeLighting(before)
             exit(0)
         } }
         return true

@@ -253,6 +253,17 @@ struct SettingsTabView: View {
             setting("Notify when a cat finishes", state.settings.notifications) { state.setNotifications($0) }
             setting("Start Cat Office with ClaudeBar", state.settings.catOffice.autoStart) { state.setAutoStart($0) }
             setting("Show the office on hover", state.settings.hoverPeek) { state.setHoverPeek($0) }
+            HStack {
+                Text("Office lighting").frame(maxWidth: .infinity, alignment: .leading)
+                Picker("", selection: Binding(get: { state.settings.officeLighting }, set: { state.setOfficeLighting($0) })) {
+                    Text("Auto").tag(OfficeLighting.auto)
+                    Text("☀️ Day").tag(OfficeLighting.day)
+                    Text("🌙 Night").tag(OfficeLighting.night)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 210)
+            }
             Divider()
             HStack(spacing: 14) {
                 Button("Edit Config") { state.editConfig() }

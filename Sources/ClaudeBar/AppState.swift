@@ -203,6 +203,17 @@ final class AppState: ObservableObject {
     func setAutoStart(_ on: Bool) { setSetting(on, at: ["catOffice", "autoStart"]) }
     func setHoverPeek(_ on: Bool) { setSetting(on, at: ["hoverPeek"]) }
 
+    func setOfficeLighting(_ lighting: OfficeLighting) {
+        do { try config.set(lighting.rawValue, at: ["officeLighting"]) } catch let e as ConfigError { configError = e.message } catch {}
+        settings = config.config
+    }
+
+    /// The office's ☀️/🌙 pill: the opposite of what's showing now.
+    func toggleOfficeLighting() {
+        let dark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        setOfficeLighting(settings.officeLighting.toggled(systemDark: dark))
+    }
+
     private func setSetting(_ value: Bool, at path: [String]) {
         do { try config.set(value, at: path) } catch let e as ConfigError { configError = e.message } catch {}
         settings = config.config

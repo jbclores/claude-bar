@@ -26,12 +26,31 @@ public struct CatOfficeSettings: Equatable, Sendable {
     }
 }
 
+/// The office room's lighting: follow the Mac's appearance, or always day / night.
+public enum OfficeLighting: String, Equatable, Sendable, CaseIterable {
+    case auto, day, night
+
+    public func isNight(systemDark: Bool) -> Bool {
+        switch self {
+        case .auto: systemDark
+        case .day: false
+        case .night: true
+        }
+    }
+
+    /// The office's ☀️/🌙 button: the opposite of what's showing, fixed.
+    public func toggled(systemDark: Bool) -> OfficeLighting {
+        isNight(systemDark: systemDark) ? .day : .night
+    }
+}
+
 public struct Config: Equatable, Sendable {
     public var projects: [Project]
     public var catOffice: CatOfficeSettings
     public var notifications: Bool
     /// Show the office peek when the pointer rests on the menu bar icon.
     public var hoverPeek: Bool
+    public var officeLighting: OfficeLighting = .auto
 
     public static let empty = Config(projects: [], catOffice: CatOfficeSettings(), notifications: true)
 
@@ -66,6 +85,7 @@ public struct Config: Equatable, Sendable {
         }
         if let n = root["notifications"] as? Bool { config.notifications = n }
         if let h = root["hoverPeek"] as? Bool { config.hoverPeek = h }
+        if let l = (root["officeLighting"] as? String).flatMap(OfficeLighting.init(rawValue:)) { config.officeLighting = l }
         return config
     }
 }
@@ -131,6 +151,14 @@ public final class ConfigStore {
 
     /// Sets one setting (e.g. `["catOffice", "autoStart"]`), keeping every other key.
     public func set(_ value: Bool, at path: [String]) throws {
+        try setValue(value, at: path)
+    }
+
+    public func set(_ value: String, at path: [String]) throws {
+        try setValue(value, at: path)
+    }
+
+    private func setValue(_ value: Any, at path: [String]) throws {
         guard !path.isEmpty else { return }
         try editRoot { root in
             func assign(_ dict: inout [String: Any], _ keys: ArraySlice<String>) {

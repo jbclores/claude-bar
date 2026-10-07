@@ -50,6 +50,8 @@ struct OfficeRoomView: View {
         return office.agents.first { $0.id == id }
     }
 
+    private var night: Bool { state.settings.officeLighting.isNight(systemDark: colorScheme == .dark) }
+
     var body: some View {
         ZStack(alignment: .top) {
             ZStack(alignment: .topLeading) {
@@ -65,6 +67,13 @@ struct OfficeRoomView: View {
             .scaleEffect(zoom.view.scale, anchor: .topLeading)
             .offset(x: zoom.view.offset.x, y: zoom.view.offset.y)
             .clipShape(RoundedRectangle(cornerRadius: 10))
+            .environment(\.officeNight, night)
+            Text(night ? "🌙" : "☀️").font(.system(size: 10))
+                .frame(width: RoomZoom.lightSize.width, height: RoomZoom.lightSize.height)
+                .background(Capsule().fill(.black.opacity(0.45)))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 8).padding(.top, 6)
+                .help(night ? "Switch the office to day" : "Switch the office to night")
             if zoom.view.isZoomed {
                 Text("1×").font(.system(size: 10, weight: .semibold)).foregroundStyle(.white)
                     .frame(width: RoomZoom.pillSize.width, height: RoomZoom.pillSize.height)
@@ -83,6 +92,7 @@ struct OfficeRoomView: View {
         // Clicks only inside the visible room: the backdrop and cats extend past it, and took the tabs' clicks.
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
+        .onAppear { zoom.onLightToggle = { [weak state] in state?.toggleOfficeLighting() } }
     }
 
     private func room(_ layout: PeekLayout) -> some View {
@@ -124,10 +134,10 @@ struct OfficeRoomView: View {
 /// Cat Office's own room art: a plaster back wall over a birch floor, a plant and a lamp.
 struct RoomBackdrop: View {
     @EnvironmentObject var state: AppState
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.officeNight) private var officeNight
 
     var body: some View {
-        let night = colorScheme == .dark
+        let night = officeNight
         ZStack(alignment: .topLeading) {
             VStack(spacing: 0) {
                 roomArt("assets/room/walls/plaster.png", size: 1024, mode: .fill).frame(height: 46).clipped()
@@ -147,6 +157,18 @@ struct RoomBackdrop: View {
 
     private func roomArt(_ path: String, size: Int, mode: SpriteImage.Mode) -> SpriteImage {
         SpriteImage(key: path, fallback: nil, mode: mode) { await state.art.image(path: path, maxPixelSize: size) }
+    }
+}
+
+/// Whether the office is drawn at night: the Office lighting setting (Auto follows the Mac).
+private struct OfficeNightKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var officeNight: Bool {
+        get { self[OfficeNightKey.self] }
+        set { self[OfficeNightKey.self] = newValue }
     }
 }
 
@@ -219,24 +241,24 @@ struct Lounge: View {
         return asleep == 0 ? "lounge · empty" : "lounge · \(asleep) asleep"
     }
 
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.officeNight) private var officeNight
 
     private func art(_ path: String, _ size: Int) -> some View {
         SpriteImage(key: path, fallback: nil) { await state.art.image(path: path, maxPixelSize: size) }
-            .colorMultiply(colorScheme == .dark ? Night.furniture : .white)
+            .colorMultiply(officeNight ? Night.furniture : .white)
     }
 }
 
 /// A desk whose cat is out in the lounge.
 struct FreeDesk: View {
     @EnvironmentObject var state: AppState
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.officeNight) private var officeNight
 
     var body: some View {
         VStack(spacing: 1) {
             SpriteImage(key: "desk", fallback: nil) { await state.art.deskImage() }
                 .frame(width: 60, height: 53)
-                .colorMultiply(colorScheme == .dark ? Night.furniture : .white)
+                .colorMultiply(officeNight ? Night.furniture : .white)
                 .opacity(0.75)
                 .frame(width: 64, height: 64 * 1.34, alignment: .bottom)
                 .padding(.bottom, 14)
@@ -304,7 +326,7 @@ struct CatView: View {
     /// Just the cat (lounge): no status ring, no name.
     var plain = false
     @EnvironmentObject var state: AppState
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.officeNight) private var officeNight
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -351,7 +373,7 @@ struct CatView: View {
         }
         .frame(width: 60, height: 53)
         .scaleEffect(x: scene.mirrored ? -1 : 1, y: 1)
-        .colorMultiply(colorScheme == .dark ? Night.furniture : .white)
+        .colorMultiply(officeNight ? Night.furniture : .white)
     }
 
     private func animatedCat(_ cat: String, _ scene: DeskScene) -> some View {
@@ -364,7 +386,7 @@ struct CatView: View {
                 await state.art.catImage(cat: cat, pose: pose, direction: direction)
             }
                 .frame(width: width * 0.875, height: width * 0.92)
-                .colorMultiply(colorScheme != .dark ? .white : agent.status == .idle ? Night.asleep : Night.furniture)
+                .colorMultiply(!officeNight ? .white : agent.status == .idle ? Night.asleep : Night.furniture)
                 .scaleEffect(motion.scale, anchor: .bottom)
                 .offset(y: motion.offsetY)
         }
@@ -378,7 +400,7 @@ struct DeskStation: View {
     let cat: String
     let scene: DeskScene
     @EnvironmentObject var state: AppState
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.officeNight) private var officeNight
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var geometry: DeskGeometry?
 
@@ -405,7 +427,7 @@ struct DeskStation: View {
             }
             StatusRing(status: agent.status, attention: false).scaleEffect(0.8).frame(width: 40, height: 10)
                 .offset(x: feet.x - 20, y: feet.y - 5)
-            if agent.status == .working && colorScheme == .dark {
+            if agent.status == .working && officeNight {
                 Ellipse()
                     .fill(RadialGradient(colors: [Night.screen.opacity(0.55), Night.screen.opacity(0)], center: .center, startRadius: 2, endRadius: 40))
                     .frame(width: 80, height: 50)
@@ -440,7 +462,7 @@ struct DeskStation: View {
         }
         .frame(width: r.width, height: r.height)
         .scaleEffect(x: scene.mirrored ? -1 : 1, y: 1)
-        .colorMultiply(colorScheme == .dark ? Night.furniture : .white)
+        .colorMultiply(officeNight ? Night.furniture : .white)
         .offset(x: r.minX, y: r.minY)
     }
 
@@ -453,7 +475,7 @@ struct DeskStation: View {
                 await state.art.catImage(cat: cat, pose: pose, direction: direction)
             }
             .frame(width: r.width, height: r.height)
-            .colorMultiply(colorScheme == .dark ? Night.furniture : .white)
+            .colorMultiply(officeNight ? Night.furniture : .white)
             .scaleEffect(motion.scale, anchor: .bottom)
             .offset(x: r.minX, y: r.minY + motion.offsetY)
         }

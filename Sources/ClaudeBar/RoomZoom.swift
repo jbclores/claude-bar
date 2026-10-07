@@ -11,6 +11,12 @@ final class RoomZoom: ObservableObject {
     /// The room, in the "office" coordinate space (top-left origin, same as the hosting view's).
     var roomRect: CGRect = .zero
     private var dragFrom: CGPoint?
+    /// The ☀️/🌙 pill: flips the office between day and night.
+    var onLightToggle: (() -> Void)?
+    static let lightSize = CGSize(width: 26, height: 16)
+    var lightRect: CGRect {
+        CGRect(x: roomRect.minX + 8, y: roomRect.minY + 6, width: Self.lightSize.width, height: Self.lightSize.height)
+    }
 
     /// The "1×" pill shown while zoomed: clicking it shows the whole room again.
     static let pillSize = CGSize(width: 34, height: 18)
@@ -47,6 +53,10 @@ final class RoomZoom: ObservableObject {
             return true
         case .leftMouseDown:
             guard contains(point) else { return false }
+            if lightRect.contains(point) {
+                onLightToggle?()
+                return true
+            }
             if view.isZoomed && pillRect.contains(point) {
                 view.reset()
                 return true
