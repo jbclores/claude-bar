@@ -6,6 +6,8 @@ enum ClaudeBarMain {
     @MainActor static func main() {
         // `ClaudeBar --launch-at-login on|off`: same as the dropdown's checkbox, for scripts; prints the result.
         let args = CommandLine.arguments
+        // `ClaudeBar --undo [--remove]`: undo ClaudeBar's changes from Terminal (see UndoCommand).
+        if args.contains("--undo") { UndoCommand.run(remove: args.contains("--remove")) }
         if let i = args.firstIndex(of: "--launch-at-login"), i + 1 < args.count {
             do {
                 if args[i + 1] == "on" { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
