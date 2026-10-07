@@ -10,6 +10,19 @@ public enum StatusLineState: Equatable, Sendable {
 
 public struct StatusLineError: Error, Equatable { public let message: String }
 
+/// What `restore()` did: brought the user's own status line back, or removed ClaudeBar's (they had none before).
+public enum StatusLineRestore: Equatable, Sendable {
+    case restored
+    case removed
+
+    public var message: String {
+        switch self {
+        case .restored: "Your old status line is back."
+        case .removed: "ClaudeBar's status line is off, as before."
+        }
+    }
+}
+
 /// Claude Code's status line (~/.claude/settings.json "statusLine") as ClaudeBar sets it up: install ClaudeBar's script,
 /// or wrap the user's own command so ClaudeBar's data is saved quietly and their output is unchanged; every change
 /// backed up and restorable.
@@ -234,7 +247,8 @@ public struct StatusLineSetup: Sendable {
     }
 
     /// Back to what the user had before ClaudeBar changed it. Checks everything first; nothing of the user's is deleted.
-    public func restore() throws {
+    @discardableResult
+    public func restore() throws -> StatusLineRestore {
         guard (try? readSettings()) != nil else {
             throw StatusLineError(message: "~/.claude/settings.json isn't valid JSON; nothing was changed")
         }
@@ -274,5 +288,6 @@ public struct StatusLineSetup: Sendable {
         }
         try writeSettings(settings)
         try FileManager.default.removeItem(at: file(Self.originalName))
+        return restored == nil ? .removed : .restored
     }
 }

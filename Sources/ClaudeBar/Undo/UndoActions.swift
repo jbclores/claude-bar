@@ -47,11 +47,11 @@ enum UndoActions {
         }
         if ticked.contains(.statusLine) {
             do {
-                try SetupActions.statusLine(env: env).restore()
-                results[.statusLine] = StepResult(ok: true, text: "Your old status line is back.")
+                let done = try SetupActions.statusLine(env: env).restore()
+                results[.statusLine] = StepResult(ok: true, text: done.message)
             } catch {
                 let message = (error as? StatusLineError)?.message ?? error.localizedDescription
-                results[.statusLine] = StepResult(ok: false, text: UndoText.failedSafe + " " + message
+                results[.statusLine] = StepResult(ok: false, text: UndoText.failedSafe + " " + UndoText.sentence(message)
                     + " See What ClaudeBar changes for how to do it by hand.")
             }
         }

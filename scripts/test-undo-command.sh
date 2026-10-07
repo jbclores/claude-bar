@@ -27,7 +27,7 @@ out=$(CLAUDEBAR_UNDO_ROOT="$root" "$BIN" --undo < /dev/null 2>&1); code=$?
 
 out=$(echo y | CLAUDEBAR_UNDO_ROOT="$root" "$BIN" --undo 2>&1); code=$?
 has=$(plutil -extract statusLine raw "$c/settings.json" >/dev/null 2>&1 && echo yes || echo no)
-[ $code = 0 ] && [[ "$out" == *"✓ Your old status line is back."* ]] && [[ "$out" == *"All done."* ]] && [ "$has" = no ] \
+[ $code = 0 ] && [[ "$out" == *"✓ ClaudeBar's status line is off, as before."* ]] && [[ "$out" == *"All done."* ]] && [ "$has" = no ] \
   && [ "$(plutil -extract model raw "$c/settings.json")" = opus ] && [ -d "$root/home/.config/claude-bar" ] \
   && ok "y restores the status line and keeps ClaudeBar's folders" || bad "y ($code, statusLine $has): $out"
 rm -rf "$root"

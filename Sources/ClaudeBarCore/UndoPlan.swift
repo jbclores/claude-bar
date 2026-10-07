@@ -106,6 +106,13 @@ public enum UndoText {
     public static let nothingChanged = "Nothing was changed."
     public static let question = "Undo these? [y/N] "
 
+    /// `text` trimmed, with a full stop added unless it already ends with punctuation (for joining messages).
+    public static func sentence(_ text: String) -> String {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let last = t.last, !".!?".contains(last) else { return t }
+        return t + "."
+    }
+
     /// The closing lines: removed; or all done (every change undone and worked) and the way back; or just the way back.
     public static func doneLines(results: [UndoRow.Kind: Bool], leftOut: Bool) -> [String] {
         if results[.remove] == true { return [removed] }

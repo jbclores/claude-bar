@@ -663,6 +663,8 @@ enum TestUndo {
                 print("temp folders left:", left, "of 4")
                 if Set(model.results.keys) != [.statusLine] { fail("results were for \(model.results.keys.map(\.rawValue).sorted())") }
                 if model.results[.statusLine]?.ok != true { fail("status line restore didn't succeed") }
+                // The temp home had no status line before ClaudeBar's: say it's off, never that an old one is back.
+                if model.results[.statusLine]?.text != StatusLineRestore.removed.message { fail("status line result text was wrong") }
                 guard let settings else { fail("temp settings.json is unreadable") }
                 if settings["statusLine"] != nil { fail("temp settings.json still has a statusLine") }
                 if settings["model"] as? String != "opus" { fail("temp settings.json lost model") }

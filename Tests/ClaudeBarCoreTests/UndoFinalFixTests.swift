@@ -74,3 +74,31 @@ extension UndoPlanTests {
         #expect(UndoText.doneLines(results: [.remove: false], leftOut: false) == [UndoText.extrasBack])
     }
 }
+
+extension StatusLineSetupTests {
+    @Test func restoreSaysWhetherItBroughtALineBackOrRemovedOurs() throws {
+        let (none, _) = try setup(#"{"model":"opus"}"#)
+        try none.useClaudeBar()
+        #expect(try none.restore() == .removed)
+        let (theirs, _) = try setup(theirsCmd)
+        try theirs.useClaudeBar()
+        #expect(try theirs.restore() == .restored)
+        let (wrapped, _) = try setup(theirsCmd)
+        try wrapped.wrap()
+        #expect(try wrapped.restore() == .restored)
+    }
+
+    @Test func restoredWording() {
+        #expect(StatusLineRestore.removed.message == "ClaudeBar's status line is off, as before.")
+        #expect(StatusLineRestore.restored.message == "Your old status line is back.")
+    }
+}
+
+extension UndoPlanTests {
+    @Test func failureMessagesEndAsSentences() {
+        #expect(UndoText.sentence("~/.claude/settings.json isn't valid JSON; nothing was changed") == "~/.claude/settings.json isn't valid JSON; nothing was changed.")
+        #expect(UndoText.sentence("Already ends.") == "Already ends.")
+        #expect(UndoText.sentence("Really? ") == "Really?")
+        #expect(UndoText.sentence("Wow!") == "Wow!")
+    }
+}

@@ -302,8 +302,7 @@ struct SettingsTabView: View {
             if SetupActions.statusLine(env: .real).canRestore {
                 Button("Restore my old status line") {
                     do {
-                        try SetupActions.statusLine(env: .real).restore()
-                        restoreMessage = "Your old status line is back."
+                        restoreMessage = try SetupActions.statusLine(env: .real).restore().message
                         // Usage is off now: a full setup is reduced (the Settings line and Office card tell the truth).
                         state.setSetup(state.settings.setup.afterStatusLineRestore())
                     } catch {
