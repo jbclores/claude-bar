@@ -99,7 +99,42 @@ it: **What will ClaudeBar change?** opens the guide at that section.
   `settings.json.claude-bar-backup-*` and, if there is one, `statusline-command.sh.claude-bar-backup-*`), ClaudeBar's
   own files (the four folders in section 3), and Launch at Login (System Settings → General → Login Items).
 
-## 6. Units
+## 6. Wording
+
+Calm and friendly: say what's safe, never blame the user, and leave the door open. Exact text:
+
+**Undo window**
+
+- Title: **Undo ClaudeBar's changes**
+- Intro: "Pick what to undo. Everything is backed up first, and nothing of yours is deleted."
+- Under "Also remove ClaudeBar": "Its own files go to the Trash, so you can still get them back."
+- Done, everything worked: "All done. Your Mac is back the way it was before ClaudeBar."
+- Done, nothing removed: "Want the extras back later? Settings → Set up ClaudeBar… puts them back in a minute."
+- Done, after "Also remove": "ClaudeBar is removed. Thanks for trying it! Come back anytime. ClaudeBar will be right
+  here."
+- A row that failed: "Nothing was changed here, so your setup is safe." plus what to do next (the backup folder, or
+  the guide's manual steps).
+- Greyed status line row: "ClaudeBar has no record of your earlier status line, so it won't guess. Here's how to
+  change it by hand."
+
+**Terminal (`--undo`)**
+
+- Before the question: "Everything is backed up first, and nothing of yours is deleted."
+- Answer not `y`: "Nothing was changed."
+- At the end, the same done lines as the window.
+
+**The "What ClaudeBar changes" page**
+
+- Opening: "ClaudeBar is built to be safe to try. Here's exactly what it changes, and how to undo each change."
+- Closing: "Changed your mind? You can undo everything in a minute, and set it up again whenever you like. Questions?
+  Ask the teammate who shared ClaudeBar with you."
+
+**Setup's Welcome step**
+
+- Under the buttons: "Nothing changes until you say so, and you can undo everything later." with the link **What will
+  ClaudeBar change?**
+
+## 7. Units
 
 | Unit | Role |
 |---|---|
@@ -111,7 +146,7 @@ it: **What will ClaudeBar change?** opens the guide at that section.
 | `--undo` (app, `ClaudeBarMain`) | Section 2 |
 | Guide section, README section, Welcome link | Section 5 |
 
-## 7. Testing
+## 8. Testing
 
 All against temporary folders and an injected home; never the real `~/.claude`, Cat Office or ClaudeBar config.
 
