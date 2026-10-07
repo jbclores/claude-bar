@@ -38,7 +38,8 @@ enum RenderPeek {
             let zoom = RoomZoom()
             if let factor = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_ZOOM"].flatMap(Double.init) {
                 zoom.roomRect = CGRect(x: 12, y: 36, width: OfficePeekView.size.width - 24, height: OfficeRoomView.height)
-                zoom.renderZoom(CGFloat(factor), at: CGPoint(x: 120, y: 110))
+                let at = (ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_ZOOM_AT"] ?? "120,110").split(separator: ",").compactMap { Double($0) }
+                zoom.renderZoom(CGFloat(factor), at: CGPoint(x: at.first ?? 120, y: at.last ?? 110))
             }
             let content = OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(zoom)
                 .background(renderLight ? Color(white: 0.93) : Color(white: 0.16))

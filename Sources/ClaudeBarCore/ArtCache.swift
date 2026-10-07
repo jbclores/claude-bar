@@ -57,6 +57,7 @@ public struct DeskCatalog: Equatable, Sendable {
         var id: String
         var image: String
         var rearImage: String?
+        var geometry: DeskGeometry?
     }
 
     var entries: [Entry]
@@ -66,8 +67,14 @@ public struct DeskCatalog: Equatable, Sendable {
         let desks = obj?["desks"] as? [[String: Any]] ?? []
         return DeskCatalog(entries: desks.compactMap { d in
             guard let id = d["id"] as? String, let image = d["image"] as? String else { return nil }
-            return Entry(id: id, image: image, rearImage: (d["rear"] as? [String: Any])?["image"] as? String)
+            let rear = d["rear"] as? [String: Any]
+            return Entry(id: id, image: image, rearImage: rear?["image"] as? String, geometry: DeskGeometry(json: d))
         })
+    }
+
+    /// Where a design's anchor and stand point are, for placing its cat; the first design when unknown.
+    public func geometry(for id: String?) -> DeskGeometry? {
+        (entries.first(where: { $0.id == id }) ?? entries.first)?.geometry
     }
 
     /// The sprite for a design (its rear view when turned, if it has one); the first design when unknown.
@@ -99,7 +106,7 @@ public struct DeskScene: Equatable, Sendable {
     public init(_ agent: OfficeAgent) {
         guard let desk = agent.desk else {
             self.init(deskId: nil, mirrored: false, rear: false, pose: CatPose(status: agent.status),
-                      direction: agent.status == .working ? "back-left" : "front-left")
+                      direction: agent.status == .working ? "back-right" : "front-left")
             return
         }
         let side = desk.flip ? "right" : "left"
@@ -163,6 +170,12 @@ public final class ArtCache: @unchecked Sendable {
     public func catImage(cat: String, pose: CatPose, direction: String? = nil) async -> Data? {
         guard let catalog = await catalog() else { return nil }
         return await image(path: catalog.path(cat: cat, pose: pose, direction: direction))
+    }
+
+    /// A desk design's geometry (anchor, stand point); the default desk's when `id` is nil or unknown.
+    public func deskGeometry(id: String?) async -> DeskGeometry? {
+        if deskCatalogBox.get() == nil, let data = await json("data/desks.json") { deskCatalogBox.set(DeskCatalog.parse(data)) }
+        return deskCatalogBox.get()?.geometry(for: id)
     }
 
     /// A desk design's sprite (its rear view when turned); the default desk when `id` is nil or unknown.
@@ -262,5 +275,80 @@ public final class ArtCache: @unchecked Sendable {
         guard let dest = CGImageDestinationCreateWithData(out, "public.png" as CFString, 1, nil) else { return nil }
         CGImageDestinationAddImage(dest, image, nil)
         return CGImageDestinationFinalize(dest) ? out as Data : nil
+    }
+}
+
+/// A desk design's sprite geometry from desks.json: size, anchor (the point placed on the floor) and the stand
+/// offset from the anchor where its working cat's feet go; the same for its rear (turned) sprite.
+public struct DeskGeometry: Equatable, Sendable {
+    public struct Sprite: Equatable, Sendable {
+        public var width: CGFloat
+        public var height: CGFloat
+        public var anchor: CGPoint
+
+        public init(width: CGFloat, height: CGFloat, anchor: CGPoint) {
+            self.width = width
+            self.height = height
+            self.anchor = anchor
+        }
+    }
+
+    public var front: Sprite
+    public var stand: CGVector
+    public var rear: Sprite?
+
+    public init(width: CGFloat, height: CGFloat, anchor: CGPoint, stand: CGVector, rear: Sprite?) {
+        front = Sprite(width: width, height: height, anchor: anchor)
+        self.stand = stand
+        self.rear = rear
+    }
+
+    init?(json d: [String: Any]) {
+        func sprite(_ o: [String: Any]?) -> Sprite? {
+            guard let o, let w = (o["width"] as? NSNumber)?.doubleValue, let h = (o["height"] as? NSNumber)?.doubleValue,
+                  let a = o["anchor"] as? [String: Any], let ax = (a["x"] as? NSNumber)?.doubleValue,
+                  let ay = (a["y"] as? NSNumber)?.doubleValue else { return nil }
+            return Sprite(width: w, height: h, anchor: CGPoint(x: ax, y: ay))
+        }
+        guard let front = sprite(d), let s = d["stand"] as? [String: Any],
+              let dx = (s["dx"] as? NSNumber)?.doubleValue, let dy = (s["dy"] as? NSNumber)?.doubleValue else { return nil }
+        self.front = front
+        stand = CGVector(dx: dx, dy: dy)
+        rear = sprite(d["rear"] as? [String: Any])
+    }
+}
+
+/// A desk and its working cat laid out the way Cat Office places them (src/world/desks.ts), in floor pixels with the
+/// desk's anchor at the origin: the desk sprite (mirrored about the anchor when flipped), the cat's feet on the
+/// stand point (mirrored too), the cat facing the desk; a turned desk puts the cat on the far side, facing us.
+public struct DeskComposition: Equatable, Sendable {
+    /// Cats are drawn at catHeight / bodyHeight (building.json 160, cats.json 210) of their 360×380 canvas, feet at (180, 300).
+    public static let catScale: CGFloat = 160.0 / 210.0
+    static let catCanvas = CGSize(width: 360, height: 380)
+    static let catFeet = CGPoint(x: 180, y: 300)
+
+    public var desk: CGRect
+    public var cat: CGRect
+    /// Front desk: the cat stands at the front edge, drawn over the desk. Turned desk: behind it.
+    public var catInFront: Bool
+    public var facing: String
+    public var bounds: CGRect { desk.union(cat) }
+
+    public init(_ g: DeskGeometry, flip: Bool, rear: Bool) {
+        let sprite = rear ? (g.rear ?? g.front) : g.front
+        let left = flip ? -(sprite.width - sprite.anchor.x) : -sprite.anchor.x
+        desk = CGRect(x: left, y: -sprite.anchor.y, width: sprite.width, height: sprite.height)
+        var feet = CGPoint(x: flip ? -g.stand.dx : g.stand.dx, y: g.stand.dy)
+        if rear {
+            // Turned round its middle: the stand point goes to the far side. Cat Office does this on the floor's
+            // axes; mirroring through the desk's middle (a little above the anchor, in depth) comes close.
+            let middle = CGPoint(x: desk.midX, y: -sprite.anchor.y * 0.3)
+            feet = CGPoint(x: 2 * middle.x - feet.x, y: 2 * middle.y - feet.y)
+        }
+        let s = Self.catScale
+        cat = CGRect(x: feet.x - Self.catFeet.x * s, y: feet.y - Self.catFeet.y * s,
+                     width: Self.catCanvas.width * s, height: Self.catCanvas.height * s)
+        catInFront = !rear
+        facing = rear ? (flip ? "front-right" : "front-left") : (flip ? "back-left" : "back-right")
     }
 }

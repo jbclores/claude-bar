@@ -136,6 +136,16 @@ final class AppState: ObservableObject {
     }
 
     private func officeUpdated(_ snapshot: OfficeSnapshot?) {
+        var snapshot = snapshot
+        // Renders only (CLAUDEBAR_RENDER_DESK="design,flip,rear"): try a desk on the working cats.
+        if !sideEffects, let spec = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_DESK"], snapshot != nil {
+            let p = spec.split(separator: ",").map(String.init)
+            if p.count == 3 {
+                for i in snapshot!.agents.indices where snapshot!.agents[i].status == .working {
+                    snapshot!.agents[i].desk = AgentDesk(id: p[0], flip: p[1] == "1", rear: p[2] == "1")
+                }
+            }
+        }
         guard snapshot != office else { return }
         let cameOnline = office == nil && snapshot != nil
         office = snapshot

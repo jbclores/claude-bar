@@ -312,7 +312,7 @@ struct CatView: View {
         let scene = DeskScene(agent)
         VStack(spacing: 1) {
             ZStack(alignment: .bottom) {
-                if agent.status == .waiting && !plain {
+                if agent.status == .waiting && !plain && !atDesk {
                     // B's spotlight: a soft amber glow under a cat that needs you.
                     Ellipse()
                         .fill(RadialGradient(colors: [Theme.waiting.opacity(0.6), Theme.waiting.opacity(0)],
@@ -320,36 +320,19 @@ struct CatView: View {
                         .frame(width: 96, height: 30)
                         .offset(y: 10)
                 }
-                if !plain { StatusRing(status: agent.status, attention: false).scaleEffect(width / 64).offset(y: 3) }
-                if atDesk && agent.status == .working && colorScheme == .dark {
-                    // Night: the monitors light the desk.
-                    Ellipse()
-                        .fill(RadialGradient(colors: [Night.screen.opacity(0.55), Night.screen.opacity(0)], center: .center, startRadius: 2, endRadius: 40))
-                        .frame(width: 80, height: 50)
-                        .offset(y: -36)
-                        .blendMode(.screen)
-                }
-                if atDesk && scene.rear {
-                    // A turned desk: the cat works on the far side, facing us, behind the desk.
-                    animatedCat(cat, scene).offset(y: -12)
-                    desk(scene).offset(y: -2)
-                } else if atDesk && agent.status == .working {
-                    desk(scene).offset(y: -14)
-                    animatedCat(cat, scene).offset(y: 2)
-                } else if atDesk {
-                    // Waiting: up beside the desk, on the open side.
-                    desk(scene).offset(x: scene.mirrored ? 8 : -8, y: -10)
-                    animatedCat(cat, scene).offset(x: scene.mirrored ? -10 : 10, y: 2)
+                if !plain && !atDesk { StatusRing(status: agent.status, attention: false).scaleEffect(width / 64).offset(y: 3) }
+                if atDesk {
+                    DeskStation(agent: agent, cat: cat, scene: scene)
                 } else {
                     animatedCat(cat, scene)
                 }
-                if agent.status == .waiting {
+                if agent.status == .waiting && !atDesk {
                     Text("!").font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
                         .frame(width: 16, height: 16).background(Circle().fill(Color(hex: 0xE5484D)))
                         .offset(x: 18, y: -60)
                 }
             }
-            .frame(width: width, height: plain ? width * 0.95 : width * 1.34)
+            .frame(width: atDesk ? nil : width, height: plain ? width * 0.95 : (atDesk ? nil : width * 1.34))
             if !plain {
                 let needsYou = agent.status == .waiting || state.attention.contains(agent.key)
                 RoomPill(text: agent.label,
@@ -384,6 +367,95 @@ struct CatView: View {
                 .colorMultiply(colorScheme != .dark ? .white : agent.status == .idle ? Night.asleep : Night.furniture)
                 .scaleEffect(motion.scale, anchor: .bottom)
                 .offset(y: motion.offsetY)
+        }
+    }
+}
+
+/// A cat at its desk, laid out the way Cat Office places them (DeskComposition): the desk's own design, mirrored
+/// or turned as reported, the cat's feet on the desk's stand point, facing the screen; ring and glow at its feet.
+struct DeskStation: View {
+    let agent: OfficeAgent
+    let cat: String
+    let scene: DeskScene
+    @EnvironmentObject var state: AppState
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var geometry: DeskGeometry?
+
+    /// Floor pixels to points: a desk about 60pt wide.
+    static let scale: CGFloat = 0.22
+    /// Cat Office's walnut desk, until the real geometry has loaded.
+    static let fallback = DeskGeometry(width: 276, height: 242, anchor: CGPoint(x: 186.5, y: 239.2), stand: CGVector(dx: -110, dy: -20),
+                                       rear: DeskGeometry.Sprite(width: 282, height: 228, anchor: CGPoint(x: 189.5, y: 223.7)))
+
+    var body: some View {
+        let k = Self.scale
+        let c = DeskComposition(geometry ?? Self.fallback, flip: scene.mirrored, rear: scene.rear)
+        let b = c.bounds
+        let desk = place(c.desk, in: b)
+        let catRect = place(c.cat, in: b)
+        let feet = CGPoint(x: (c.cat.minX + 180 * DeskComposition.catScale - b.minX) * k,
+                           y: (c.cat.minY + 300 * DeskComposition.catScale - b.minY) * k)
+        ZStack(alignment: .topLeading) {
+            if agent.status == .waiting {
+                Ellipse()
+                    .fill(RadialGradient(colors: [Theme.waiting.opacity(0.6), Theme.waiting.opacity(0)], center: .center, startRadius: 3, endRadius: 46))
+                    .frame(width: 96, height: 30)
+                    .offset(x: feet.x - 48, y: feet.y - 15)
+            }
+            StatusRing(status: agent.status, attention: false).scaleEffect(0.8).frame(width: 40, height: 10)
+                .offset(x: feet.x - 20, y: feet.y - 5)
+            if agent.status == .working && colorScheme == .dark {
+                Ellipse()
+                    .fill(RadialGradient(colors: [Night.screen.opacity(0.55), Night.screen.opacity(0)], center: .center, startRadius: 2, endRadius: 40))
+                    .frame(width: 80, height: 50)
+                    .offset(x: desk.midX - 40, y: desk.minY - 6)
+                    .blendMode(.screen)
+            }
+            if c.catInFront {
+                deskImage(desk)
+                catImage(catRect)
+            } else {
+                catImage(catRect)
+                deskImage(desk)
+            }
+            if agent.status == .waiting {
+                Text("!").font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
+                    .frame(width: 16, height: 16).background(Circle().fill(Color(hex: 0xE5484D)))
+                    .offset(x: feet.x + 8, y: catRect.minY + 2)
+            }
+        }
+        .frame(width: b.width * k, height: b.height * k, alignment: .topLeading)
+        .task(id: scene.deskId) { geometry = await state.art.deskGeometry(id: scene.deskId) }
+    }
+
+    private func place(_ r: CGRect, in b: CGRect) -> CGRect {
+        let k = Self.scale
+        return CGRect(x: (r.minX - b.minX) * k, y: (r.minY - b.minY) * k, width: r.width * k, height: r.height * k)
+    }
+
+    private func deskImage(_ r: CGRect) -> some View {
+        SpriteImage(key: "desk-\(scene.deskId ?? "default")-\(scene.rear)", fallback: nil) {
+            await state.art.deskImage(id: scene.deskId, rear: scene.rear)
+        }
+        .frame(width: r.width, height: r.height)
+        .scaleEffect(x: scene.mirrored ? -1 : 1, y: 1)
+        .colorMultiply(colorScheme == .dark ? Night.furniture : .white)
+        .offset(x: r.minX, y: r.minY)
+    }
+
+    private func catImage(_ r: CGRect) -> some View {
+        let pose = scene.pose, direction = scene.direction
+        return TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || agent.status == .waiting)) { context in
+            let motion = reduceMotion ? CatMotion(offsetY: 0, scale: 1)
+                : CatMotion.at(status: agent.status, time: context.date.timeIntervalSinceReferenceDate)
+            SpriteImage(key: "\(cat)-\(pose.rawValue)-\(direction)", fallback: Theme.color(agent.status)) {
+                await state.art.catImage(cat: cat, pose: pose, direction: direction)
+            }
+            .frame(width: r.width, height: r.height)
+            .colorMultiply(colorScheme == .dark ? Night.furniture : .white)
+            .scaleEffect(motion.scale, anchor: .bottom)
+            .offset(x: r.minX, y: r.minY + motion.offsetY)
         }
     }
 }

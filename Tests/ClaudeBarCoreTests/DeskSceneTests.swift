@@ -31,7 +31,7 @@ import Testing
     @Test func withoutAReportedDeskKeepsTheDefault() {
         let scene = DeskScene(agent(.working, desk: nil))
         #expect(scene.deskId == nil && !scene.mirrored && !scene.rear)
-        #expect(scene.pose == .typing && scene.direction == "back-left")
+        #expect(scene.pose == .typing && scene.direction == "back-right", "the default desk, unmirrored")
     }
 
     @Test func catalogPathsForDirectionsAndDesks() throws {
