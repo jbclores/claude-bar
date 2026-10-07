@@ -1,7 +1,7 @@
 # ClaudeBar Floors — Design
 
 **Date:** 2026-10-07
-**Status:** Draft, awaiting review
+**Status:** Implemented
 **Builds on:** `2026-10-06-claude-bar-design.md` (the office room, desks, walking)
 
 ## Goal

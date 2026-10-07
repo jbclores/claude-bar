@@ -40,6 +40,12 @@ It does a trial run first, backs up the touched files to `<cat-office>/.cat-offi
 nothing if a newer Cat Office no longer matches. To undo, copy the backed-up files back (and delete
 `server/agent-bridge/cat-assignments.ts` and `tests/sim/cat-assignments.test.ts`).
 
+## Floors
+
+The Office tab and the hover peek show Cat Office's building one floor at a time: idle cats in the Lounge, working
+cats on their project's floor (else the Desk pool), helpers beside their parent. The floor menu, ▲▼ and the strip pick
+a floor; Follow (on whenever the dropdown opens) shows where things happen. Cats ride the elevator between floors.
+
 ## Tests
 
 ```sh
