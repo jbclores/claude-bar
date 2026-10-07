@@ -114,6 +114,9 @@ struct DropdownView: View {
 final class DropdownController: NSViewController {
     private let state: AppState
     private let selection = TabSelection()
+    /// The dropdown is showing its Office tab (for the office's music); `onTabChange` reports switches.
+    var showsOffice: Bool { selection.tab == .office }
+    var onTabChange: (() -> Void)?
     let roomZoom = RoomZoom()
     let floorSelection = FloorSelection()
     private var header: ClickThroughHostingView<AnyView>!
@@ -176,6 +179,7 @@ final class DropdownController: NSViewController {
     @objc private func tabChanged(_ sender: NSSegmentedControl) {
         guard DropdownTab.allCases.indices.contains(sender.selectedSegment) else { return }
         selection.tab = DropdownTab.allCases[sender.selectedSegment]
+        onTabChange?()
         // Measure once SwiftUI has laid out the new tab.
         DispatchQueue.main.async { [weak self] in self?.resize() }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in self?.resize() }

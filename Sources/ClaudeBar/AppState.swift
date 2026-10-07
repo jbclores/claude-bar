@@ -76,6 +76,19 @@ final class AppState: ObservableObject {
     private var soundGate = SoundGate()
     /// The office is on screen (the hover peek, or the dropdown): the click meow and elevator ding only play then.
     var officeVisible = false
+    private lazy var lofi = LofiPlayer()
+    /// The dropdown is open on its Office tab.
+    var officeTabShown = false { didSet { if officeTabShown != oldValue { updateMusic() } } }
+    /// When the hover popup opened (nil while closed): the music waits OfficeMusic.popupDelay before starting.
+    var peekShownSince: Date? {
+        didSet {
+            guard peekShownSince != oldValue else { return }
+            updateMusic()
+            if peekShownSince != nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + OfficeMusic.popupDelay + 0.05) { [weak self] in self?.updateMusic() }
+            }
+        }
+    }
     private let launcher = CatOfficeLauncher()
     private(set) lazy var art: ArtCache = { [officeClient] in ArtCache(baseURL: { officeClient.baseURL }) }()
     /// Cat Office's Bongo Cat cursor over the office room (dropdown and peek).
@@ -304,11 +317,25 @@ final class AppState: ObservableObject {
         soundPlayer.play(sound, volume: settings.sounds.volume)
     }
 
-    func setSound(_ key: String, _ on: Bool) { setSetting(on, at: ["sounds", key]) }
+    func setSound(_ key: String, _ on: Bool) {
+        setSetting(on, at: ["sounds", key])
+        updateMusic()
+    }
+
+    /// The 🎵 button.
+    func toggleMusic() { setSound("music", !settings.sounds.music) }
+
+    /// The lofi loop plays while the office is on screen and the 🎵 button is on (OfficeMusic).
+    func updateMusic() {
+        guard sideEffects else { return }
+        let play = OfficeMusic.shouldPlay(on: settings.sounds.music, officeTab: officeTabShown, peekShownSince: peekShownSince, now: Date())
+        lofi.set(playing: play, volume: OfficeMusic.volume(sounds: settings.sounds.volume))
+    }
 
     func setSoundVolume(_ volume: Double) {
         do { try config.set(min(1, max(0, volume)), at: ["sounds", "volume"]) } catch let e as ConfigError { configError = e.message } catch {}
         settings = config.config
+        updateMusic()
     }
 
     /// The volume slider plays a meow (outside the gate) so you hear the level you picked.

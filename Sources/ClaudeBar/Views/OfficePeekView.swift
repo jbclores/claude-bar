@@ -746,6 +746,8 @@ struct OfficePeekView: View {
                 let f = state.building.floor(id: state.followFloor)
                 Text("· \(f?.id ?? 1) \(f?.name ?? "Lounge")").font(.callout.weight(.semibold))
                 if let office = state.office { OfficeSummary(office: office).font(.callout) }
+                Spacer(minLength: 6)
+                MusicButton()
             }
             OfficeRoomView()
             HStack {

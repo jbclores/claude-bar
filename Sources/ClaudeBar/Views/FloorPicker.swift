@@ -43,6 +43,7 @@ struct FloorPicker: View {
                         .buttonStyle(.borderless).help("Up a floor").target("floor-up", in: floors)
                     Button { floors.choice.step(-1, from: shown, floors: ids) } label: { Image(systemName: "chevron.down") }
                         .buttonStyle(.borderless).help("Down a floor").target("floor-down", in: floors)
+                    MusicButton()
                     Button { floors.choice.resumeFollow() } label: {
                         Label("Follow", systemImage: "scope").font(.caption)
                             .padding(.horizontal, 8).padding(.vertical, 3)

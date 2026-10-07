@@ -94,6 +94,7 @@ public struct Config: Equatable, Sendable {
             if let v = s["finished"] as? Bool { config.sounds.finished = v }
             if let v = s["click"] as? Bool { config.sounds.click = v }
             if let v = s["elevator"] as? Bool { config.sounds.elevator = v }
+            if let v = s["music"] as? Bool { config.sounds.music = v }
             if let v = (s["volume"] as? NSNumber)?.doubleValue { config.sounds.volume = min(1, max(0, v)) }
         }
         return config

@@ -18,13 +18,17 @@ public struct SoundSettings: Equatable, Sendable {
     public var click: Bool
     public var elevator: Bool
     public var volume: Double
+    /// The office's lofi loop (the 🎵 button).
+    public var music: Bool
 
-    public init(needsYou: Bool = true, finished: Bool = true, click: Bool = true, elevator: Bool = false, volume: Double = 0.6) {
+    public init(needsYou: Bool = true, finished: Bool = true, click: Bool = true, elevator: Bool = false, volume: Double = 0.6,
+                music: Bool = true) {
         self.needsYou = needsYou
         self.finished = finished
         self.click = click
         self.elevator = elevator
         self.volume = volume
+        self.music = music
     }
 }
 

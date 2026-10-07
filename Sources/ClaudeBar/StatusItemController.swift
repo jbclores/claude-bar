@@ -41,13 +41,11 @@ final class StatusItemController: NSResponder {
         peekController.view = peekView
         peek.contentViewController = peekController
         peek.contentSize = OfficePeekView.size
+        dropdownController.onTabChange = { [weak self] in self?.officeOnScreenChanged() }
         // The click meow and the elevator ding only play while the office is on screen.
         for name in [NSPopover.didShowNotification, NSPopover.didCloseNotification] {
             NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    guard let self else { return }
-                    self.state.officeVisible = self.peek.isShown || self.dropdown.isShown
-                }
+                MainActor.assumeIsolated { self?.officeOnScreenChanged() }
             }
         }
 
@@ -115,6 +113,13 @@ final class StatusItemController: NSResponder {
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
+
+    /// The popup or the dropdown opened or closed, or the dropdown switched tabs: sounds and music follow.
+    private func officeOnScreenChanged() {
+        state.officeVisible = peek.isShown || dropdown.isShown
+        state.peekShownSince = peek.isShown ? (state.peekShownSince ?? Date()) : nil
+        state.officeTabShown = dropdown.isShown && dropdownController.showsOffice
+    }
 
     private func updateTitle(_ output: StatusOutput, attention: Bool) {
         item.button?.attributedTitle = MenuBarTitle.make(usage: output.usage, attention: attention)
