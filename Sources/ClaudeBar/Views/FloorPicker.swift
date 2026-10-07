@@ -1,3 +1,4 @@
+import AppKit
 // Sources/ClaudeBar/Views/FloorPicker.swift
 import ClaudeBarCore
 import SwiftUI
@@ -6,6 +7,8 @@ import SwiftUI
 struct FloorPicker: View {
     @EnvironmentObject var state: AppState
     @EnvironmentObject var floors: FloorSelection
+    /// The ▲▼ + Follow group's width, to fit the floor menu into the rest of the row.
+    @State private var controlsWidth: CGFloat = 0
 
     var body: some View {
         let shown = floors.shown(state)
@@ -22,26 +25,35 @@ struct FloorPicker: View {
                         }
                     }
                 } label: {
-                    // One Text: a borderless menu draws only the first view of its label.
+                    // One Text: a borderless menu draws only the first view of its label. A long floor name is cut
+                    // with "…", keeping the floor number and the cat count.
                     let count = FloorPlan.cats(on: shown, agents: agents, in: state.building).count
-                    Text("\(shown) \(state.building.floor(id: shown)?.name ?? "Lounge") · \(count) cat\(count == 1 ? "" : "s")")
+                    Text(FitText.label(prefix: "\(shown) ", name: state.building.floor(id: shown)?.name ?? "Lounge",
+                                       suffix: " · \(count) cat\(count == 1 ? "" : "s")",
+                                       width: Double(max(60, DropdownLayout.contentWidth - 8 - controlsWidth - Self.menuChrome)), measure: Self.measure))
                         .font(.callout.weight(.semibold)).lineLimit(1)
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
-                Button { floors.choice.step(1, from: shown, floors: ids) } label: { Image(systemName: "chevron.up") }
-                    .buttonStyle(.borderless).help("Up a floor").target("floor-up", in: floors)
-                Button { floors.choice.step(-1, from: shown, floors: ids) } label: { Image(systemName: "chevron.down") }
-                    .buttonStyle(.borderless).help("Down a floor").target("floor-down", in: floors)
-                Spacer()
-                Button { floors.choice.resumeFollow() } label: {
-                    Label("Follow", systemImage: "scope").font(.caption)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Capsule().fill(floors.choice.follow ? Theme.working.opacity(0.25) : Color.primary.opacity(0.06)))
+                // (the row is the dropdown's fixed content width: it grows to fit its content, so it can't be measured)
+                Spacer(minLength: 8)
+                // ▲▼ sit with Follow on the right, so the floor menu has the rest of the row.
+                HStack(spacing: 8) {
+                    Button { floors.choice.step(1, from: shown, floors: ids) } label: { Image(systemName: "chevron.up") }
+                        .buttonStyle(.borderless).help("Up a floor").target("floor-up", in: floors)
+                    Button { floors.choice.step(-1, from: shown, floors: ids) } label: { Image(systemName: "chevron.down") }
+                        .buttonStyle(.borderless).help("Down a floor").target("floor-down", in: floors)
+                    Button { floors.choice.resumeFollow() } label: {
+                        Label("Follow", systemImage: "scope").font(.caption)
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Capsule().fill(floors.choice.follow ? Theme.working.opacity(0.25) : Color.primary.opacity(0.06)))
+                    }
+                    .buttonStyle(.plain)
+                    .target("floor-follow", in: floors)
+                    .help(floors.choice.follow ? "Following where things happen" : "Follow where things happen")
                 }
-                .buttonStyle(.plain)
-                .target("floor-follow", in: floors)
-                .help(floors.choice.follow ? "Following where things happen" : "Follow where things happen")
+                .fixedSize()
+                .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { controlsWidth = $0 }
             }
             HStack(spacing: 3) {
                 ForEach(state.building.floors) { f in
@@ -57,6 +69,14 @@ struct FloorPicker: View {
         }
         // A picked floor deleted from Cat Office: back to Follow.
         .onChange(of: state.building) { _, b in floors.choice.reconcile(floors: b.floors.map(\.id)) }
+    }
+
+    /// The menu's ⌄ and padding, next to its label.
+    static let menuChrome: CGFloat = 44
+    /// The label's width in the menu's font (callout, semibold).
+    static func measure(_ text: String) -> Double {
+        let font = NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .callout).pointSize, weight: .semibold)
+        return Double((text as NSString).size(withAttributes: [.font: font]).width)
     }
 
     private func color(_ a: FloorActivity) -> Color {
