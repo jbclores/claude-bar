@@ -18,6 +18,9 @@ public struct BuiltRoom: Equatable, Sendable {
     public var seats: [RoomSpot]
     /// The floor parallelogram and both walls' boxes, in world px.
     public var bounds: CGRect
+    /// The room's paint (RoomTint.normal): walls, floor; nil leaves the material as drawn.
+    public var wallTint: String? = nil
+    public var floorTint: String? = nil
 }
 
 extension BuiltRoom {
@@ -114,7 +117,8 @@ public enum RoomGeometry {
             floorId: floor.id, frame: frame, wallHeight: wallHeight,
             floorTexture: catalogue.floors[room.floor], wallTexture: catalogue.walls[room.wall],
             rugs: rugs, wallItems: wallItems, elevator: elevator, fixtures: fixtures,
-            desks: desks, props: props, seats: seats, bounds: bounds)
+            desks: desks, props: props, seats: seats, bounds: bounds,
+            wallTint: RoomTint.normal(room.wallTint), floorTint: RoomTint.normal(room.floorTint))
     }
 
     /// Office.tsx 209: a rough figure box (body, ears, tail, shadow) for finding the furniture it overlaps.

@@ -80,6 +80,9 @@ public struct FloorRoom: Codable, Equatable, Sendable {
     public var wallItems: [WallItemPlacement]
     public var props: [PropPlacement]
     public var desks: [DeskPlacement]
+    /// Paint for the walls and stain for the floor ('#rrggbb', room-tint.ts); absent: the materials as drawn.
+    public var wallTint: String?
+    public var floorTint: String?
 
     public init(floor: String, wall: String, wallHeight: Double? = nil, rugs: [RugPlacement] = [],
                 wallItems: [WallItemPlacement] = [], props: [PropPlacement] = [], desks: [DeskPlacement] = []) {
