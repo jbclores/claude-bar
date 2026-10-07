@@ -315,6 +315,19 @@ struct TitleRow: View {
             }
             Text("ClaudeBar").font(.headline)
             Spacer()
+            Button { state.helpShown.toggle() } label: {
+                Text("?").font(.system(size: 12, weight: .bold))
+                    .frame(width: 26, height: 18)
+                    .background(Capsule().fill(Color.primary.opacity(0.08)))
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .help("Help: what ClaudeBar shows, tips, and fixes")
+            .accessibilityLabel("Help")
+            .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { HelpButton.frame = $0 }
+            .popover(isPresented: Binding(get: { state.helpShown }, set: { state.helpShown = $0 }), arrowEdge: .bottom) {
+                HelpPanel().environmentObject(state)
+            }
             Button { state.toggleOfficeLighting() } label: {
                 Text(colorScheme == .dark ? "🌙" : "☀️").font(.system(size: 12))
                     .frame(width: 26, height: 18)

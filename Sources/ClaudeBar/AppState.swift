@@ -74,6 +74,17 @@ final class AppState: ObservableObject {
     private let notifier = Notifier()
     private let soundPlayer = CatSoundPlayer()
     private var soundGate = SoundGate()
+    /// The ❓ help panel is open.
+    @Published var helpShown = false
+
+    /// The full guide that ships inside the app (Resources/Help/guide.html).
+    var helpGuide: URL? { Bundle.main.url(forResource: "guide", withExtension: "html", subdirectory: "Help") }
+
+    func openHelpGuide() {
+        guard let url = helpGuide else { return }
+        NSWorkspace.shared.open(url)
+    }
+
     /// The office is on screen (the hover peek, or the dropdown): the click meow and elevator ding only play then.
     var officeVisible = false
     private lazy var lofi = LofiPlayer()

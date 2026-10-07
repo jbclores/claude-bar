@@ -10,6 +10,11 @@ enum RenderPeek {
         if RenderLabel.runIfRequested(state: state) { return true }
         if TestTabs.runIfRequested(state: state) { return true }
         if TestZoom.runIfRequested(state: state) { return true }
+        // `--render-help <out.png>`: the ? help panel.
+        if let out = flag("--render-help")?.0 {
+            renderWindow(HelpPanel().environmentObject(state), width: 340, to: out)
+            return true
+        }
         if let tab = flag("--render-dropdown").flatMap({ DropdownTab(rawValue: $0.1 ?? "") }), let out = flag("--render-dropdown")?.0 {
             renderWindow(DropdownView(forcedTab: tab).environmentObject(state).environmentObject(PeekPointer()), width: 500, to: out)
             return true
@@ -326,6 +331,19 @@ enum TestZoom {
                 mouse(.leftMouseUp, centre); cursor("released")
                 print("tap recorded (press and release without dragging):", zoom.tap != nil)
                 moved(CGPoint(x: centre.x, y: zoom.roomRect.minY - 20)); cursor("outside room")
+            }
+            // The ? button (its recorded frame, nothing else): the help panel opens; the guide ships in the app.
+            if HelpButton.frame.width > 0 {
+                let f = HelpButton.frame, p = NSPoint(x: f.midX, y: window.contentView!.bounds.height - f.midY)
+                for t in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                    window.sendEvent(NSEvent.mouseEvent(with: t, location: p, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                        windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
+                }
+                RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+                print("click ? → help panel shown:", state.helpShown, "· guide in app:", state.helpGuide.map { FileManager.default.fileExists(atPath: $0.path) } ?? false)
+                state.helpShown = false
+            } else {
+                print("? button not found")
             }
             let before = state.settings.officeLighting
             // The theme button: right end of the usage header's top row (the header is the stack's first view).

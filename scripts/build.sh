@@ -12,5 +12,7 @@ cp Resources/Info.plist "$APP/Contents/Info.plist"
 # The cat sounds (made by scripts/make-sounds.py).
 mkdir -p "$APP/Contents/Resources"
 cp Resources/Sounds/*.wav "$APP/Contents/Resources/"
+# The help guide (the ? panel's "Full guide").
+cp -R Resources/Help "$APP/Contents/Resources/Help"
 codesign --force --sign - "$APP"
 echo "Built $APP"

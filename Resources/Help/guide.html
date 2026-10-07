@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClaudeBar guide</title>
+<style>
+  :root { color-scheme: light dark; --muted: #6b6b70; --line: #e3e0dc; --card: #f6f3ef; --accent: #3d9a6a; }
+  @media (prefers-color-scheme: dark) { :root { --muted: #a3a3aa; --line: #3a3836; --card: #242220; --accent: #6cc797; } }
+  body { font: 16px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; max-width: 760px; margin: 40px auto; padding: 0 22px; }
+  h1 { font-size: 30px; margin-bottom: 4px; }
+  h2 { font-size: 21px; margin-top: 38px; padding-top: 14px; border-top: 1px solid var(--line); }
+  h3 { font-size: 16px; margin: 20px 0 4px; }
+  p, li { margin: 6px 0; }
+  .lead { color: var(--muted); margin-top: 0; }
+  nav { background: var(--card); border-radius: 10px; padding: 12px 18px; margin: 22px 0; }
+  nav a { margin-right: 14px; white-space: nowrap; }
+  figure { margin: 18px 0; }
+  img { max-width: 100%; border-radius: 10px; border: 1px solid var(--line); }
+  figcaption { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 15px; }
+  td, th { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  code { background: var(--card); padding: 1px 5px; border-radius: 5px; font-size: 14px; }
+  .tip { background: var(--card); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 6px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>🐈 ClaudeBar guide</h1>
+<p class="lead">A menu bar companion for Claude Code and Cat Office: your usage limits, your projects, and your
+office of cats, one click away.</p>
+
+<nav>
+  <a href="#menu-bar">Menu bar</a>
+  <a href="#office">Office</a>
+  <a href="#tips">Mouse tips</a>
+  <a href="#popup">Hover popup</a>
+  <a href="#projects">Projects</a>
+  <a href="#settings">Settings &amp; sounds</a>
+  <a href="#problems">If something's wrong</a>
+</nav>
+
+<h2 id="menu-bar">The menu bar</h2>
+<p>ClaudeBar lives in your Mac's menu bar as a small cat, with your usage beside it.</p>
+<table>
+  <tr><th>You see</th><th>It means</th></tr>
+  <tr><td>The cat</td><td>The cat that matters right now: one that needs you first, else one that's working, else one asleep.</td></tr>
+  <tr><td>5h · 7d</td><td>How much of your Claude Code usage limits you've used in the current 5-hour window and the current week, and when each resets.</td></tr>
+  <tr><td>Hovering the cat</td><td>Opens a peek at the office (see <a href="#popup">Hover popup</a>).</td></tr>
+  <tr><td>Clicking the cat</td><td>Opens the dropdown: usage at the top, then the Office, Projects and Settings tabs.</td></tr>
+</table>
+<p>The <b>?</b> button at the top right of the dropdown opens a short help panel; <b>☀️ / 🌙</b> switches ClaudeBar
+between day and night (it follows your Mac until you pick).</p>
+
+<h2 id="office">Office</h2>
+<figure>
+  <img src="images/office.png" alt="The dropdown on the Office tab: usage at the top, the floor picker, and a project floor with a cat at its desk">
+  <figcaption>The Office tab: the floor picker above one floor of your Cat Office.</figcaption>
+</figure>
+<p>The Office tab shows your Cat Office, one floor at a time, laid out exactly as your own Cat Office lays it out:
+the same desks, furniture, windows and elevator.</p>
+<h3>Floors</h3>
+<ul>
+  <li><b>Lounge (floor 1):</b> where idle cats sleep, on the sofa, beds and cushions.</li>
+  <li><b>Project floors:</b> each project you work on has its own floor; its cats sit at its desks.</li>
+  <li><b>Desk pool:</b> for work that isn't in a known project.</li>
+  <li><b>Helpers</b> (sub-agents) sit near their parent cat, or stand beside it when the desks are full.</li>
+</ul>
+<h3>Picking a floor</h3>
+<ul>
+  <li><b>The floor menu</b> (e.g. "12 claude-bar · 1 cat ⌄") lists every floor; floors with a cat that needs you are marked ●.</li>
+  <li><b>▲ ▼</b> go up or down one floor.</li>
+  <li><b>The strip</b> under the menu has one bar per floor: green = cats working, amber = a cat needs you, grey = empty; the dark bar is the floor you're on. Click a bar to go there.</li>
+  <li><b>Follow</b> shows where things are happening: a cat that needs you, else the latest start or finish, else the busiest floor. It turns on each time you open the dropdown; picking a floor yourself turns it off until you click Follow.</li>
+</ul>
+<h3>Reading the cats</h3>
+<ul>
+  <li><b>Green ring</b>: working. <b>Amber ring or red "!"</b>: needs you (a question, a permission, a plan to approve). <b>Asleep in the Lounge</b>: idle.</li>
+  <li><b>Hover a cat</b> for its card: name, status, project, branch, model and what it's doing.</li>
+  <li>When a cat changes floors it walks to the elevator, rides, and walks out on the other floor.</li>
+</ul>
+
+<h2 id="tips">Mouse tips</h2>
+<table>
+  <tr><th>Do this</th><th>To</th></tr>
+  <tr><td>Double-click the room</td><td>Zoom in on that spot (double-click again to zoom out).</td></tr>
+  <tr><td>⌘ + scroll, or pinch</td><td>Zoom in and out smoothly.</td></tr>
+  <tr><td>Drag, or scroll</td><td>Look around while zoomed in.</td></tr>
+  <tr><td>Click "1×"</td><td>Back to the whole room.</td></tr>
+  <tr><td>Click a cat</td><td>Hear it meow.</td></tr>
+  <tr><td>🎵</td><td>Lofi music while the office is open; click to turn it off (🔇) or on.</td></tr>
+</table>
+<p>Over the room the pointer becomes Cat Office's Bongo Cat, and slaps while you hold the mouse button.</p>
+
+<h2 id="popup">Hover popup</h2>
+<figure>
+  <img src="images/popup.png" alt="The hover popup: the office's busiest floor, with its name and number in the header">
+  <figcaption>The hover popup always follows where things are happening.</figcaption>
+</figure>
+<p>Hover the menu bar cat to peek at the office without opening the dropdown. It shows the floor Follow would pick,
+with the same zoom, hover cards and 🎵 button. It closes when you move away. You can turn it off in Settings.</p>
+
+<h2 id="projects">Projects</h2>
+<p>The Projects tab lists the projects you've added, each with its branch, model, how full its context is, and its
+status. Add folders from the tab, or edit the list with <b>Settings → Edit Config</b>.</p>
+
+<h2 id="settings">Settings &amp; sounds</h2>
+<figure>
+  <img src="images/settings.png" alt="The Settings tab: switches for launch at login, notifications, Cat Office, the hover popup, and the sounds with a volume slider">
+  <figcaption>Settings, including the sounds and their volume.</figcaption>
+</figure>
+<table>
+  <tr><th>Setting</th><th>What it does</th></tr>
+  <tr><td>Launch at Login</td><td>Start ClaudeBar when you log in.</td></tr>
+  <tr><td>Notify when a cat finishes</td><td>A notification when a working cat finishes its task.</td></tr>
+  <tr><td>Start Cat Office with ClaudeBar</td><td>Start Cat Office in the background if it isn't running.</td></tr>
+  <tr><td>Show the office on hover</td><td>The hover popup.</td></tr>
+  <tr><td>Meow when a cat needs you</td><td>A meow when a session starts waiting for you.</td></tr>
+  <tr><td>Purr when a cat finishes</td><td>A purr with the "finished" notification (Focus / Do Not Disturb mutes it).</td></tr>
+  <tr><td>Meow when I click a cat</td><td>The click meow.</td></tr>
+  <tr><td>Ding when a cat rides the elevator</td><td>A soft ding when a cat arrives on the floor you're watching (off at first).</td></tr>
+  <tr><td>Volume</td><td>For all the sounds; the music plays at half of it. Letting go of the slider plays a meow at the new level.</td></tr>
+</table>
+<p class="tip">Sounds never pile up: at most one every 3 seconds, and the same cat won't repeat an alert within a minute.</p>
+
+<h2 id="problems">If something's wrong</h2>
+<h3>"Cat Office isn't running"</h3>
+<p>Click <b>Start</b> in the office. If it doesn't start, open your Cat Office folder in Terminal and run
+<code>npm run dev</code>; ClaudeBar finds it on its own. <b>Settings → Open Log</b> shows what happened when ClaudeBar
+tried to start it.</p>
+<h3>No usage numbers in the menu bar</h3>
+<p>The numbers come from Claude Code's status line. Install ClaudeBar's status line hook (from the ClaudeBar folder:
+<code>scripts/install-statusline.sh</code>), then send any message in Claude Code.</p>
+<h3>A cat on the wrong floor, or a floor missing</h3>
+<p>Floors and layouts come from your Cat Office. New floors appear within a minute; reopen the dropdown to refresh.
+If you edited a room in Cat Office, save it there first.</p>
+<h3>The cats don't match the browser, or helpers don't show</h3>
+<p>Those need ClaudeBar's small patch to Cat Office. Ask whoever set up your ClaudeBar to apply it
+(<code>scripts/patch-cat-office.sh</code>).</p>
+<h3>No sound</h3>
+<p>Check <b>Settings → Sounds</b> and the volume slider, and your Mac's volume. The finished purr is muted while Focus
+or Do Not Disturb is on.</p>
+<h3>No music</h3>
+<p>Check the 🎵 button (🔇 means off) and the volume slider. The music only plays while the Office tab or the hover
+popup is open; in the popup it starts after about a second.</p>
+
+<p class="lead" style="margin-top:40px">ClaudeBar's sounds and music are generated from code, made for ClaudeBar.</p>
+</body>
+</html>
