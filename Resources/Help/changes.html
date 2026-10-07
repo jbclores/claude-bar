@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What ClaudeBar changes</title>
+<style>
+  :root { color-scheme: light dark; --muted: #6b6b70; --line: #e3e0dc; --card: #f6f3ef; --accent: #3d9a6a; }
+  @media (prefers-color-scheme: dark) { :root { --muted: #a3a3aa; --line: #3a3836; --card: #242220; --accent: #6cc797; } }
+  body { font: 16px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; max-width: 760px; margin: 40px auto; padding: 0 22px; }
+  h1 { font-size: 30px; margin-bottom: 4px; }
+  h2 { font-size: 21px; margin-top: 34px; padding-top: 14px; border-top: 1px solid var(--line); }
+  h3 { font-size: 16px; margin: 18px 0 4px; }
+  p, li { margin: 6px 0; }
+  .lead { color: var(--muted); margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 15px; }
+  td, th { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  code { background: var(--card); padding: 1px 5px; border-radius: 5px; font-size: 14px; }
+  .tip { background: var(--card); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 6px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>🐈 What ClaudeBar changes</h1>
+<p class="lead">ClaudeBar is built to be safe to try. Here's exactly what it changes, and how to undo each change.</p>
+
+<h2>What it changes</h2>
+<p>Nothing changes until you click <b>Continue</b> in setup. Everything ClaudeBar changes is in these five places:</p>
+<table>
+  <tr><th>Place</th><th>What changes</th><th>Backup</th></tr>
+  <tr><td><code>~/.config/claude-bar/</code></td><td>ClaudeBar's own settings.</td><td>Not needed: it's ClaudeBar's own.</td></tr>
+  <tr><td><code>~/.claude/claude-bar/</code></td><td>ClaudeBar's own usage files, written by the status line.</td><td>Not needed: it's ClaudeBar's own.</td></tr>
+  <tr><td><code>~/.claude/settings.json</code></td><td>Only the <code>statusLine</code> entry, so Claude Code shows usage. Every other setting stays.</td><td><code>~/.claude/settings.json.claude-bar-backup-&lt;time&gt;</code></td></tr>
+  <tr><td><code>~/.claude/statusline-command.sh</code></td><td>ClaudeBar's status line script, only if you chose ClaudeBar's status line. If you kept yours, it's untouched and ClaudeBar adds <code>claude-bar-statusline.sh</code> next to it.</td><td><code>~/.claude/statusline-command.sh.claude-bar-backup-&lt;time&gt;</code></td></tr>
+  <tr><td>Your Cat Office folder</td><td>A small patch, so cats match the browser, helpers show and usage works without a terminal.</td><td><code>&lt;Cat Office&gt;/.cat-office/patch-backup-&lt;time&gt;/</code></td></tr>
+</table>
+<p>Launch at Login is only on if you turn it on in Settings.</p>
+
+<h2>What it never does</h2>
+<ul>
+  <li>It talks only to the Cat Office on your own Mac (<code>localhost</code>), never the internet.</li>
+  <li>It never starts, stops or controls your Claude agents, and never touches your projects or git.</li>
+  <li>Nothing changes before you click Continue.</li>
+  <li>It never deletes your files. Removing ClaudeBar moves its own files to the Trash.</li>
+</ul>
+
+<h2>What can interrupt your work</h2>
+<p class="tip">Patching or unpatching Cat Office restarts it, which ends the Claude sessions running inside Cat Office.
+ClaudeBar warns you before it does. Claude Code sessions in your own terminal aren't affected.</p>
+
+<h2>How to undo</h2>
+<h3>The easy way</h3>
+<p><b>Settings → Undo ClaudeBar's changes…</b> lists what ClaudeBar changed on your Mac. Pick what to undo; everything
+is backed up first. Tick <b>Also remove ClaudeBar</b> to remove it too.</p>
+<p>From Terminal: <code>~/Applications/ClaudeBar.app/Contents/MacOS/ClaudeBar --undo</code> (add <code>--remove</code>
+to remove ClaudeBar too). If you run ClaudeBar from its project folder, use
+<code>build/ClaudeBar.app/Contents/MacOS/ClaudeBar --undo</code>.</p>
+<h3>By hand (if ClaudeBar won't run)</h3>
+<ul>
+  <li><b>Cat Office:</b> stop Cat Office, then copy the files from the newest <code>.cat-office/patch-backup-*</code>
+    folder back into your Cat Office folder (same paths), and start it again.</li>
+  <li><b>Status line:</b> copy the newest <code>~/.claude/settings.json.claude-bar-backup-*</code> back to
+    <code>~/.claude/settings.json</code>; if there's a <code>statusline-command.sh.claude-bar-backup-*</code>, copy it back
+    to <code>~/.claude/statusline-command.sh</code>. No backup? Remove the <code>statusLine</code> entry from
+    <code>settings.json</code>.</li>
+  <li><b>ClaudeBar's own files:</b> move <code>~/.config/claude-bar</code>, <code>~/.claude/claude-bar</code>,
+    <code>~/Library/Caches/ClaudeBar</code> and <code>~/Library/Logs/ClaudeBar</code> to the Trash.</li>
+  <li><b>Launch at Login:</b> System Settings → General → Login Items, remove ClaudeBar.</li>
+  <li><b>The app:</b> quit ClaudeBar and drag it to the Trash.</li>
+</ul>
+
+<p class="lead" style="margin-top:40px">Changed your mind? You can undo everything in a minute, and set it up again
+whenever you like. Questions? Ask the teammate who shared ClaudeBar with you.</p>
+</body>
+</html>

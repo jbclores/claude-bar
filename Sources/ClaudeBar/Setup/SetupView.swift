@@ -139,6 +139,14 @@ struct SetupView: View {
             Button("Skip for now") { model.skip() }
                 .buttonStyle(.link)
                 .setupTarget("setup-skip-welcome")
+            VStack(spacing: 2) {
+                Text("Nothing changes until you say so, and you can undo everything later.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("What will ClaudeBar change?") { state.openChangesPage() }
+                    .buttonStyle(.link).font(.caption)
+                    .setupTarget("setup-changes")
+            }
+            .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
     }

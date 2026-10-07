@@ -24,6 +24,29 @@ Doing it by hand: `scripts/build.sh` builds `build/ClaudeBar.app`; copy it to `~
 
 Config: `~/.config/claude-bar/projects.json` (Add Folder… / Edit Config in the dropdown).
 
+## What ClaudeBar changes (and how to undo it)
+
+ClaudeBar is built to be safe to try. Nothing changes until you click Continue in setup, every change is backed up
+first, and nothing of yours is deleted. It talks only to the Cat Office on your own Mac (`localhost`), and never
+controls your Claude agents, projects or git.
+
+| Place | What changes | Backup |
+|---|---|---|
+| `~/.config/claude-bar/` | ClaudeBar's settings | — (its own) |
+| `~/.claude/claude-bar/` | ClaudeBar's usage files | — (its own) |
+| `~/.claude/settings.json` | only the `statusLine` entry | `settings.json.claude-bar-backup-<time>` |
+| `~/.claude/statusline-command.sh` | ClaudeBar's script, only if you chose it | `statusline-command.sh.claude-bar-backup-<time>` |
+| your Cat Office folder | the patch | `.cat-office/patch-backup-<time>/` |
+
+Patching or unpatching Cat Office restarts it, which ends the Claude sessions running inside Cat Office (you're warned
+first).
+
+**Undo:** Settings → **Undo ClaudeBar's changes…**, or `ClaudeBar --undo` (`--remove` to remove ClaudeBar too) from the
+binary inside the app. The full page, with the by-hand steps: `Resources/Help/changes.html` (also in the app's guide).
+Changed your mind? You can undo everything in a minute, and set it up again whenever you like.
+
+`scripts/test-undo-command.sh` tests `--undo` against a temp folder (after `scripts/build.sh`).
+
 ## Setting up ClaudeBar
 
 On first launch ClaudeBar opens a small **Set up ClaudeBar** window (Welcome → Find Cat Office → Connect → Done). It
