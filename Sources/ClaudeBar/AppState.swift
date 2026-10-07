@@ -75,7 +75,7 @@ final class AppState: ObservableObject {
             Task { @MainActor in self?.officeUpdated(snapshot) }
         })
     /// The folder Cat Office was last seen running from (so a moved folder is found without editing the config).
-    static let rememberedDirKey = "catOfficeDir"
+    nonisolated static let rememberedDirKey = "catOfficeDir"
     private let notifier = Notifier()
     private let soundPlayer = CatSoundPlayer()
     private var soundGate = SoundGate()

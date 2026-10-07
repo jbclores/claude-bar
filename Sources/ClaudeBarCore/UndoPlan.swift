@@ -121,14 +121,15 @@ public enum UndoText {
         return [extrasBack]
     }
 
-    /// The Terminal listing: `[x]` ticked, `[ ]` not, `( )` greyed; then the warning.
-    public static func terminalList(rows: [UndoRow], ticked: Set<UndoRow.Kind>, warning: String?) -> String {
+    /// The Terminal listing: `[x]` ticked, `[ ]` not, `( )` greyed (pointing to `byHand`, the page with the by-hand
+    /// steps, when given); then the warning.
+    public static func terminalList(rows: [UndoRow], ticked: Set<UndoRow.Kind>, warning: String?, byHand: String? = nil) -> String {
         var lines = [title, promise, ""]
         for row in rows {
             if row.available {
                 lines.append("  \(ticked.contains(row.kind) ? "[x]" : "[ ]") \(row.title) — \(row.detail)")
             } else {
-                lines.append("  ( ) \(row.title) (not available) — \(row.detail)")
+                lines.append("  ( ) \(row.title) (not available) — \(row.detail)" + (byHand.map { " See: \($0)" } ?? ""))
             }
         }
         if let warning { lines.append(""); lines.append("⚠ \(warning)") }

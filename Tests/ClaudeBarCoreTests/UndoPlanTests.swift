@@ -97,5 +97,11 @@ import Testing
         #expect(text.hasSuffix("⚠ careful"))
         let greyed = UndoPlan.rows(catOfficeDir: nil, unpatch: .unknown, statusLine: .claudeBar, canRestore: false, home: home)
         #expect(UndoText.terminalList(rows: greyed, ticked: [], warning: nil).contains("( ) Restore your old status line (not available)"))
+        // A greyed row says where the by-hand steps are; available rows don't.
+        let page = "/Applications/ClaudeBar.app/Contents/Resources/Help/changes.html"
+        let withPage = UndoText.terminalList(rows: greyed, ticked: [], warning: nil, byHand: page)
+        #expect(withPage.contains("\(UndoText.noRecord) See: \(page)"))
+        #expect(UndoText.terminalList(rows: rows, ticked: [.unpatch], warning: nil, byHand: page).components(separatedBy: "See:").count == 1)
+        #expect(!UndoText.terminalList(rows: greyed, ticked: [], warning: nil).contains("See:"))
     }
 }

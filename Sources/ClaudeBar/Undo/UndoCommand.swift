@@ -39,7 +39,8 @@ enum UndoCommand {
         let answers = await env.answers(settings.catOffice.url)
         let warning = UndoPlan.warning(unpatch: ticked.contains(.unpatch), runningHere: runningHere,
                                        somethingAnswers: answers, bridgeNamesAnotherFolder: another)
-        print(UndoText.terminalList(rows: rows, ticked: ticked, warning: warning))
+        let page = Bundle.main.url(forResource: "changes", withExtension: "html", subdirectory: "Help")?.path
+        print(UndoText.terminalList(rows: rows, ticked: ticked, warning: warning, byHand: page))
         print("")
 
         if remove, testRoot == nil, otherClaudeBarRunning() {
