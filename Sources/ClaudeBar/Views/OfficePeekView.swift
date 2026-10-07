@@ -137,7 +137,7 @@ struct RoomBackdrop: View {
             .background(Color(hex: 0xEADBC8)) // until the art has loaded, or if it can't
             // Night: walls and floor shift to a deep blue (a colour shift, not a grey veil); the furniture stays lit.
             .colorMultiply(night ? Night.room : .white)
-            roomArt("assets/room/props/tall-plant.png", size: 480, mode: .fit).frame(height: 70).offset(x: 6, y: 12)
+            roomArt("assets/room/props/tall-plant.png", size: 480, mode: .fit).frame(height: 52).offset(x: 8, y: 22)
                 .colorMultiply(night ? Night.furniture : .white)
             if night { LampLight() }
             roomArt("assets/room/props/floor-lamp.png", size: 480, mode: .fit).frame(height: 64)
