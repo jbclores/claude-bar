@@ -351,6 +351,13 @@ struct ProjectRowView: View {
                         Text(row.needsAttention && status != .waiting ? "your turn" : status.rawValue)
                             .font(.caption).foregroundStyle(row.needsAttention ? Theme.waiting : Theme.color(status))
                     }
+                    if row.helpers > 0 {
+                        Text("+\(row.helpers) helper\(row.helpers == 1 ? "" : "s")")
+                            .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                            .padding(.horizontal, 6).padding(.vertical, 1)
+                            .background(Capsule().fill(Color.primary.opacity(0.08)))
+                            .help("Sub-agents working in this project")
+                    }
                     Spacer()
                     trailing.font(.caption).foregroundStyle(.secondary)
                     if hovering {

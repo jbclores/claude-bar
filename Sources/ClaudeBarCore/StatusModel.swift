@@ -16,6 +16,8 @@ public struct ProjectRow: Equatable, Sendable, Identifiable {
     public var contextPct: Double?
     public var state: RowState
     public var needsAttention: Bool
+    /// Helpers (sub-agents) running in the project, beside its sessions.
+    public var helpers: Int = 0
 }
 
 public struct OfficeRow: Equatable, Sendable, Identifiable {
@@ -31,6 +33,10 @@ public struct OfficeRow: Equatable, Sendable, Identifiable {
     /// The task, else the last action.
     public var detail: String?
     public var lastAction: String?
+    /// A helper started by `parentName` (listed under it).
+    public var isSubagent: Bool = false
+    public var parentName: String?
+    public var agentType: String?
     public var needsAttention: Bool
 }
 
@@ -172,14 +178,19 @@ public enum StatusModel {
         let rows = input.projects.map { p -> ProjectRow in
             let snaps = snapsByProject[p.path] ?? []
             let newest = snaps.max { $0.updatedAt < $1.updatedAt }
-            let sessions = liveByProject[p.path] ?? []
+            let all = liveByProject[p.path] ?? []
+            let helperCount = all.filter(\.isSubagent).count
+            // Helpers are counted beside the sessions; a project with only helpers still shows them.
+            let sessions = all.contains { !$0.isSubagent } ? all.filter { !$0.isSubagent } : all
             var row = ProjectRow(
                 path: p.path, name: p.name, branch: input.branches[p.path],
                 model: (newest?.model ?? sessions.compactMap(\.model).first).map(Format.modelName),
                 contextPct: newest?.contextPct, state: .noSessions,
                 needsAttention: sessions.contains { input.attention.contains($0.key) })
+            row.helpers = helperCount
             if !input.existing.contains(p.path) {
                 row.state = .missing
+                row.helpers = 0
                 row.branch = nil
                 row.model = nil
                 row.contextPct = nil
@@ -203,15 +214,22 @@ public enum StatusModel {
         usage.workingCount = live.filter { $0.status == .working }.count
 
         let officeRows = input.office.map { snapshot in
-            snapshot.agents
-                .filter { $0.isOffice && $0.status != .ended }
-                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            let alive = snapshot.agents.filter { $0.status != .ended }
+            let byName = { (x: OfficeAgent, y: OfficeAgent) in x.name.localizedCaseInsensitiveCompare(y.name) == .orderedAscending }
+            let parents = alive.filter(\.isOffice).sorted(by: byName)
+            let helpers = alive.filter(\.isSubagent).sorted(by: byName)
+            // Each office cat, then the helpers it started; helpers whose parent isn't listed come last.
+            var ordered: [OfficeAgent] = []
+            for p in parents { ordered.append(p); ordered += helpers.filter { $0.parentName == p.name } }
+            ordered += helpers.filter { h in !parents.contains { $0.name == h.parentName } }
+            return ordered
                 .map { a in
                     OfficeRow(
                         id: a.key, name: a.name, label: a.label, status: a.status,
                         since: a.status == .waiting ? (a.waitingSince ?? input.statusSince[a.key]) : input.statusSince[a.key],
                         place: a.repoName ?? (a.cwd as NSString).lastPathComponent,
                         branch: a.branch, detail: a.task ?? a.lastAction, lastAction: a.lastAction,
+                        isSubagent: a.isSubagent, parentName: a.parentName, agentType: a.agentType,
                         needsAttention: input.attention.contains(a.key))
                 }
         }

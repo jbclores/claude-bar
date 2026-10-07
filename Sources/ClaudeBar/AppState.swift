@@ -163,6 +163,17 @@ final class AppState: ObservableObject {
                 for i in snapshot!.agents.indices where snapshot!.agents[i].status == .working { snapshot!.agents[i].status = .idle }
             }
         }
+        // Renders only (CLAUDEBAR_RENDER_SUBAGENT=1): a stand-in helper working for the first working office cat.
+        if !sideEffects, ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_SUBAGENT"] == "1", snapshot != nil,
+           let parent = snapshot!.agents.first(where: { $0.isOffice && $0.status == .working && $0.repoRoot != nil })
+               ?? snapshot!.agents.first(where: { $0.isOffice && $0.status == .working }) {
+            var helper = OfficeAgent(id: "a69adf54739f5af29", name: "a69adf54739f5af29", status: .working, cwd: parent.cwd,
+                                     repoName: parent.repoName, repoRoot: parent.repoRoot, model: "claude-haiku-4-5",
+                                     lastAction: "Grep: walkFrame", sessionId: "a69adf54739f5af29")
+            helper.kind = "subagent"; helper.parentName = parent.name; helper.agentType = "Explore"
+            helper.agentDescription = "Review Cat Office walking"
+            snapshot!.agents.append(helper)
+        }
         guard snapshot != office else { return }
         let cameOnline = office == nil && snapshot != nil
         office = snapshot

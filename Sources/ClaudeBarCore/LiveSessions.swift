@@ -25,6 +25,8 @@ public struct LiveSession: Equatable, Sendable {
     public var model: String?
     public var isOffice: Bool
     public var task: String?
+    /// A helper (sub-agent) another session started.
+    public var isSubagent: Bool = false
 
     public init(key: String, cwd: String, status: AgentStatus, name: String, model: String? = nil, isOffice: Bool = false, task: String? = nil) {
         self.key = key

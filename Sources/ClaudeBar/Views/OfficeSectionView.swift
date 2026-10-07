@@ -13,8 +13,17 @@ struct OfficeCatList: View {
             }
             ForEach(rows) { row in
                 HStack(spacing: 8) {
+                    if row.isSubagent {
+                        // A helper its parent started, listed under it.
+                        Text("↳").font(.caption).foregroundStyle(.secondary).padding(.leading, 10)
+                    }
                     Circle().fill(row.needsAttention ? Theme.waiting : Theme.color(row.status)).frame(width: 7, height: 7)
-                    Text(row.label).font(.callout.weight(.medium)).lineLimit(1).layoutPriority(1)
+                    if row.isSubagent, let type = row.agentType {
+                        Text(type).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(Capsule().fill(Color.primary.opacity(0.08)))
+                    }
+                    Text(row.label).font(row.isSubagent ? .caption.weight(.medium) : .callout.weight(.medium)).lineLimit(1).layoutPriority(1)
                     Text(statusText(row)).font(.caption)
                         .foregroundStyle(row.needsAttention ? Theme.waiting : Theme.color(row.status))
                         .fixedSize()

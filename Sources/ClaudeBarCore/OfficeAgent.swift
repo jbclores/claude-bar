@@ -36,12 +36,22 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
     public var cat: String?
     /// The desk its cat works at in Cat Office, once the page has reported it.
     public var desk: AgentDesk?
+    /// "subagent" for a helper an agent started (Cat Office: kind), else the session kind.
+    public var kind: String?
+    /// The agent that started this helper.
+    public var parentName: String?
+    /// The helper's type, e.g. "Explore".
+    public var agentType: String?
+    /// What the helper was asked to do.
+    public var agentDescription: String?
+    public var isSubagent: Bool { kind == "subagent" }
     /// Where `task` came from: "custom" (renamed), "ai", "description", or "prompt" (the first message).
     public var titleSource: String?
 
     /// What to call the agent: a custom or AI title, else its project, else the first words of its task, else
     /// its name.
     public var label: String {
+        if isSubagent, let d = agentDescription, !d.isEmpty { return Format.shortTitle(d, max: 28) }
         if let task, !task.isEmpty, let source = titleSource, source != "prompt" { return Format.shortTitle(task, max: 28) }
         if let repoName, !repoName.isEmpty { return repoName }
         if let task, !task.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return Format.shortTitle(task, max: 24) }
@@ -82,7 +92,7 @@ extension OfficeAgent: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case id, name, owner, status, waitReason, cwd, repo, branch, model, task, lastAction, waitingSince, sessionId, cat
-        case titleSource, desk
+        case titleSource, desk, kind, parentName, agentType, description
     }
 
     public init(from decoder: Decoder) throws {
@@ -108,6 +118,10 @@ extension OfficeAgent: Decodable {
         )
         titleSource = try? c.decodeIfPresent(String.self, forKey: .titleSource)
         desk = (try? c.decodeIfPresent(AgentDesk.self, forKey: .desk)) ?? nil
+        kind = try? c.decodeIfPresent(String.self, forKey: .kind)
+        parentName = try? c.decodeIfPresent(String.self, forKey: .parentName)
+        agentType = try? c.decodeIfPresent(String.self, forKey: .agentType)
+        agentDescription = try? c.decodeIfPresent(String.self, forKey: .description)
     }
 }
 
@@ -135,5 +149,6 @@ extension LiveSession {
     public init(office a: OfficeAgent) {
         // Where the agent is really working: Cat Office's project folder when it knows one.
         self.init(key: a.key, cwd: a.repoRoot ?? a.cwd, status: a.status, name: a.name, model: a.model, isOffice: a.isOffice, task: a.task)
+        isSubagent = a.isSubagent
     }
 }
