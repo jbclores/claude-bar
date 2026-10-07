@@ -168,8 +168,18 @@ public final class ArtCache: @unchecked Sendable {
     }
 
     /// Cat Office's building (floors, desks, textures), refreshed when Cat Office answers, else the cached copy.
+    /// Only a building that parses replaces the cached copy (Cat Office can answer 200 with a page that isn't one).
     public func building() async -> Building? {
-        guard let floors = await json("data/building.json"), let parts = await json("data/room-parts.json") else { return nil }
+        let paths = ["data/building.json", "data/room-parts.json"]
+        let files = paths.map { dir.appendingPathComponent($0.replacingOccurrences(of: "/", with: "_")) }
+        if let floors = await fetch(paths[0]), let parts = await fetch(paths[1]),
+           (try? JSONSerialization.jsonObject(with: parts)) is [String: Any],
+           let building = Building.parse(building: floors, parts: parts) {
+            save(floors, to: files[0])
+            save(parts, to: files[1])
+            return building
+        }
+        guard let floors = try? Data(contentsOf: files[0]), let parts = try? Data(contentsOf: files[1]) else { return nil }
         return Building.parse(building: floors, parts: parts)
     }
 

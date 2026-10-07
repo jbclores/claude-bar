@@ -27,4 +27,9 @@ public struct FloorChoice: Equatable, Sendable {
         follow = true
         manual = nil
     }
+
+    /// The picked floor was deleted from Cat Office's building: show Follow's floor again, with Follow on.
+    public mutating func reconcile(floors: [Int]) {
+        if let manual, !floors.contains(manual) { resumeFollow() }
+    }
 }

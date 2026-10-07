@@ -196,6 +196,9 @@ final class AppState: ObservableObject {
                 (helper.agentType, helper.agentDescription) = jobs[i % jobs.count]
                 snapshot!.agents.append(helper)
             }
+            // CLAUDEBAR_RENDER_PARENT_IDLE=1: the parent has finished while its helpers work on (they stay with it, in the Lounge).
+            if ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_PARENT_IDLE"] == "1",
+               let i = snapshot!.agents.firstIndex(where: { $0.id == parent.id }) { snapshot!.agents[i].status = .idle }
         }
         guard snapshot != office else { return }
         let cameOnline = office == nil && snapshot != nil

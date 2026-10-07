@@ -84,8 +84,11 @@ extension FloorPlan {
                 unseated.append(m)
             }
         }
+        let helperIds = Set(helpers.map(\.id))
         for m in unseated {
             if let i = seats.indices.first(where: free) { seats[i] = m.id }
+            // A main agent outranks a helper kept at a desk from last time: the helper goes to stand beside its parent.
+            else if let i = seats.indices.last(where: { seats[$0].map(helperIds.contains) == true }) { seats[i] = m.id }
             else if s.queue.count < FloorSeating.queueShown { s.queue.append(m.id) } else { s.queueOverflow += 1 }
         }
         // 3. Helpers: the free desk nearest their parent's desk, else beside the parent, else the queue.

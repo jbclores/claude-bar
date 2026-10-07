@@ -67,6 +67,17 @@ import Testing
         return x
     }
 
+    @Test func aNewMainAgentTakesAHelpersDesk() {
+        // The parent and its 3 helpers fill all 4 desks; then a second main agent starts on this project.
+        let before = FloorPlan.seating(on: floor, agents: [a("p"), a("h1", parent: "p"), a("h2", parent: "p"), a("h3", parent: "p")], previous: nil)
+        #expect(before.desks.compactMap { $0 }.count == 4)
+        let after = FloorPlan.seating(on: floor, agents: [a("p"), a("q"), a("h1", parent: "p"), a("h2", parent: "p"), a("h3", parent: "p")], previous: before)
+        #expect(after.desks.contains("q"), "a main agent outranks a helper for a desk")
+        #expect(after.desks.contains("p") && after.desks.firstIndex(of: "p") == before.desks.firstIndex(of: "p"), "the parent keeps its desk")
+        #expect(after.queue.isEmpty)
+        #expect((after.nearby["p"] ?? []).count == 1, "the helper that lost its desk stands beside its parent")
+    }
+
     @Test func catsSitAtTheirReportedDeskDesign() {
         let s = FloorPlan.seating(on: floor, agents: [a("p", desk: AgentDesk(id: "s2-pink", flip: true, rear: false))], previous: nil)
         #expect(s.desks == [nil, "p", nil, nil])
@@ -170,6 +181,16 @@ import Testing
 
 @Suite struct FloorChoiceTests {
     let floors = [1, 2, 6, 12]
+
+    @Test func aDeletedFloorTurnsFollowBackOn() {
+        var c = FloorChoice()
+        c.pick(9)
+        c.reconcile(floors: floors)
+        #expect(c.follow && c.manual == nil)
+        c.pick(6)
+        c.reconcile(floors: floors)
+        #expect(!c.follow && c.manual == 6, "a floor that still exists stays picked")
+    }
 
     @Test func followShowsTheTarget() {
         #expect(FloorChoice().shown(target: 12, floors: floors) == 12)

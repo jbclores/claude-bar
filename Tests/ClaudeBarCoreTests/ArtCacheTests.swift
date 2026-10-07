@@ -56,6 +56,22 @@ import Testing
         #expect(await cache.image(path: "assets/missing.png") == nil)
     }
 
+    @Test func aBrokenBuildingKeepsTheGoodCachedCopy() async throws {
+        let dir = makeTempDir()
+        let good = BuildingTests()
+        write(good.buildingJSON, to: dir.appendingPathComponent("data_building.json"))
+        write(good.partsJSON, to: dir.appendingPathComponent("data_room-parts.json"))
+        // Cat Office answers 200 with something that isn't a building (an SPA page, a half-written file).
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [BrokenBuildingProtocol.self]
+        let cache = ArtCache(dir: dir, baseURL: { URL(string: "http://stub.test")! }, session: URLSession(configuration: config))
+        let building = try #require(await cache.building())
+        #expect(building.floors.map(\.id) == [1, 6, 12])
+        // And the good copy is still on disk for the next launch.
+        let offline = ArtCache(dir: dir, baseURL: { URL(string: "http://localhost:1")! })
+        #expect(await offline.building()?.floors.map(\.id) == [1, 6, 12])
+    }
+
     static func png(width: Int, height: Int) -> Data? {
         guard let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
@@ -117,4 +133,18 @@ import Testing
         #expect(await cache.deskImage() != nil)
         print("cached:", (try? FileManager.default.contentsOfDirectory(atPath: dir.path).sorted()) ?? [])
     }
+}
+
+
+/// Answers every request with 200 and an HTML page.
+final class BrokenBuildingProtocol: URLProtocol {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "text/html"])!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data("<!doctype html><html></html>".utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
 }

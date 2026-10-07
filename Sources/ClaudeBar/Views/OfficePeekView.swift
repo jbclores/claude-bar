@@ -68,6 +68,8 @@ struct OfficeRoomView: View {
     @State private var floorOf: [String: Int] = [:]
     /// Rides in progress, by agent id.
     @State private var rides: [String: Rider] = [:]
+    /// Arrivals whose walk out of the elevator is scheduled: agent id → its trip's start.
+    @State private var walkOuts: [String: Date] = [:]
 
     /// Changes when any agent's floor changes.
     private var floorKey: String {
@@ -177,11 +179,16 @@ struct OfficeRoomView: View {
         for (id, to) in feet {
             // Riding in: it walks out of the elevator once it has arrived, from where it appeared.
             if let ride = rides[id], ride.trip.to == floorId {
-                guard walks[id] == nil, lastFeet[id] == nil else { continue }
+                // Once per ride (layout passes repeat), and only if this floor is still the one shown when it's out.
+                guard walks[id] == nil, walkOuts[id] != ride.trip.start else { continue }
+                walkOuts[id] = ride.trip.start
                 let delay = max(0, ride.trip.doneTime.timeIntervalSince(now))
                 let door = ElevatorArt.door()
                 let place = CGPoint(x: door.x + ElevatorTrip.waitingOffset(index: ride.waitIndex), y: door.y)
+                let shownAt = floorId
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    walkOuts[id] = nil
+                    guard floors.shown(state) == shownAt, rides[id]?.trip == ride.trip else { return }
                     let walk = CatWalk(id: id, agent: ride.agent, path: WalkPath(from: place, to: to), start: Date())
                     walks[id] = walk
                     DispatchQueue.main.asyncAfter(deadline: .now() + walk.duration + CatWalk.hop) {
@@ -232,7 +239,9 @@ struct OfficeRoomView: View {
         let byId = Dictionary(floorCats.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         return Group {
             if floor.isLounge {
-                LoungeFloor(slots: seating.lounge.map { $0.flatMap { byId[$0] } }, overflow: seating.loungeOverflow)
+                LoungeFloor(slots: seating.lounge.map { $0.flatMap { byId[$0] } }, overflow: seating.loungeOverflow,
+                            nearby: seating.nearby.mapValues { $0.compactMap { byId[$0] } }, nearbyOverflow: seating.nearbyOverflow,
+                            queued: seating.queue.count + seating.queueOverflow)
             } else {
                 deskGrid(seating, byId)
             }
@@ -400,6 +409,11 @@ struct ElevatorArt: View {
 struct LoungeFloor: View {
     let slots: [OfficeAgent?]
     let overflow: Int
+    /// Helpers still working for a cat asleep here: beside its seat, by parent id.
+    var nearby: [String: [OfficeAgent]] = [:]
+    var nearbyOverflow: [String: Int] = [:]
+    /// Helpers whose parent has no seat here.
+    var queued = 0
     @EnvironmentObject var state: AppState
     @Environment(\.officeNight) private var officeNight
 
@@ -439,7 +453,19 @@ struct LoungeFloor: View {
                         .offset(x: Self.spots[i].x - Self.catWidth / 2, y: Self.spots[i].y - Self.catWidth * 0.95 * 0.9)
                 }
             }
-            RoomPill(text: overflow > 0 ? "lounge · \(slots.compactMap { $0 }.count + overflow) asleep" : "lounge")
+            ForEach(Array(slots.prefix(Self.spots.count).enumerated()), id: \.offset) { i, agent in
+                if let agent {
+                    ForEach(Array((nearby[agent.id] ?? []).enumerated()), id: \.element.id) { k, helper in
+                        let r = Self.helperRect(spot: i, index: k)
+                        NearbyHelper(agent: helper).offset(x: r.minX, y: r.minY)
+                    }
+                    if let more = nearbyOverflow[agent.id] {
+                        let r = Self.helperRect(spot: i, index: nearby[agent.id]?.count ?? 0)
+                        RoomPill(text: "+\(more)").fixedSize().offset(x: r.minX, y: r.midY)
+                    }
+                }
+            }
+            RoomPill(text: summary)
                 .offset(x: 200, y: 4 + RoomBackdrop.wallHeight + 110)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -449,6 +475,17 @@ struct LoungeFloor: View {
                 .preference(key: CatFeetKey.self, value: feet(origin))
                 .preference(key: CatFramesKey.self, value: frames(origin))
         })
+    }
+
+    private var summary: String {
+        var text = overflow > 0 ? "lounge · \(slots.compactMap { $0 }.count + overflow) asleep" : "lounge"
+        if queued > 0 { text += " · \(queued) helping" }
+        return text
+    }
+
+    /// A helper standing beside the cat at `spot` (NearbyHelper's 40 × 42), the k-th one further right.
+    static func helperRect(spot: Int, index k: Int) -> CGRect {
+        CGRect(x: spots[spot].x + 10 + CGFloat(k) * 16, y: spots[spot].y - 40, width: 40, height: 42)
     }
 
     private func feet(_ o: CGPoint) -> [String: CGPoint] {
@@ -462,6 +499,9 @@ struct LoungeFloor: View {
         let w = Self.catWidth, h = w * 0.95
         for (i, a) in slots.prefix(Self.spots.count).enumerated() {
             if let a { out[a.id] = CGRect(x: o.x + Self.spots[i].x - w / 2, y: o.y + Self.spots[i].y - h * 0.9, width: w, height: h) }
+            for (k, helper) in (a.flatMap { nearby[$0.id] } ?? []).enumerated() {
+                out[helper.id] = Self.helperRect(spot: i, index: k).offsetBy(dx: o.x, dy: o.y)
+            }
         }
         return out
     }

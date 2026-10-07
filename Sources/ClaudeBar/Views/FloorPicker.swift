@@ -55,6 +55,8 @@ struct FloorPicker: View {
                 }
             }
         }
+        // A picked floor deleted from Cat Office: back to Follow.
+        .onChange(of: state.building) { _, b in floors.choice.reconcile(floors: b.floors.map(\.id)) }
     }
 
     private func color(_ a: FloorActivity) -> Color {
