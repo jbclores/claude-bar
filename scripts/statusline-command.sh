@@ -70,6 +70,8 @@ try:
 except Exception:
     pass
 ')
+# ClaudeBar's wrapper runs this quietly before the user's own status line: data saved, nothing printed.
+[ "${CLAUDEBAR_STATUSLINE_QUIET:-}" = 1 ] && exit 0
 
 cwd=$(printf '%s' "$fields" | sed -n '1p')
 model=$(printf '%s' "$fields" | sed -n '2p')
