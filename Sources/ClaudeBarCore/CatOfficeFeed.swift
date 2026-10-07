@@ -49,6 +49,19 @@ public struct BridgeInfo: Equatable, Sendable {
     }
 }
 
+/// Which start of Cat Office wrote the bridge file: its pid and per-start token, and its folder.
+public struct BridgeStamp: Equatable, Sendable {
+    public var pid: Int32
+    public var token: String
+    public var dir: String?
+
+    public init(pid: Int32, token: String, dir: String?) {
+        self.pid = pid
+        self.token = token
+        self.dir = dir
+    }
+}
+
 public enum CatOfficeDiscovery {
     /// The per-start token Cat Office puts in its page as `window.__CAT_OFFICE_TOKEN__ = "…"`.
     public static func token(inPage html: String) -> String? {
@@ -72,6 +85,36 @@ public enum CatOfficeDiscovery {
               let pid = obj["pid"] as? Int, isAlive(Int32(pid)) else { return nil }
         let dir = (obj["dir"] as? String).flatMap { $0.isEmpty ? nil : Paths.normalize($0) }
         return BridgeInfo(url: url, token: token, dir: dir)
+    }
+
+    /// The bridge file's pid, token and folder, only while that process runs.
+    public static func bridgeStamp(file: URL = bridgeFile, isAlive: (Int32) -> Bool) -> BridgeStamp? {
+        guard let data = try? Data(contentsOf: file),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let token = obj["token"] as? String, !token.isEmpty,
+              let pid = obj["pid"] as? Int, isAlive(Int32(pid)) else { return nil }
+        return BridgeStamp(pid: Int32(pid), token: token, dir: (obj["dir"] as? String).flatMap { $0.isEmpty ? nil : Paths.normalize($0) })
+    }
+
+    /// Cat Office reloaded (after the patch changed its server files): the bridge names `dir` again, written by a new
+    /// start (another pid, or the same process with a new token).
+    public static func reloaded(before: BridgeStamp?, after: BridgeStamp?, dir: String) -> Bool {
+        guard let after, after.dir.map(Paths.normalize) == Paths.normalize(dir) else { return false }
+        guard let before else { return true }
+        return after.pid != before.pid || after.token != before.token
+    }
+
+    /// The process's executable is node (or npm): Cat Office's dev server, not a stale pid reused by something else.
+    public static func isNodeOrNpm(_ pid: Int32) -> Bool {
+        var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
+        guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return false }
+        let name = URL(fileURLWithPath: String(cString: buffer)).lastPathComponent
+        return name == "node" || name == "npm"
+    }
+
+    /// A bridge pid to trust: alive and node/npm.
+    public static func isCatOfficeProcess(_ pid: Int32) -> Bool {
+        pid > 0 && processIsAlive(pid) && isNodeOrNpm(pid)
     }
 
     /// The folder to start Cat Office from: the configured one if it exists, else the one last seen running.

@@ -29,6 +29,21 @@ public struct SetupSettings: Equatable, Sendable {
         }
     }
 
+    /// The same, for the folder ClaudeBar knows: the configured one if it exists, else the one last seen running
+    /// (CatOfficeDiscovery.folderToStart); `patched` checks that folder on disk.
+    public static func inferred(configured: String?, remembered: String?, bridgeDir: String?, statusLine: StatusLineState,
+                                patched: (String) async -> Bool?) async -> SetupSettings? {
+        let dir = CatOfficeDiscovery.folderToStart(configured: configured, remembered: remembered)
+        var isPatched: Bool?
+        if let dir { isPatched = await patched(dir) }
+        return inferred(catOfficeDir: dir, bridgeDir: bridgeDir, patched: isPatched, statusLine: statusLine)
+    }
+
+    /// After "Restore my old status line": usage is off, so a full setup is now reduced.
+    public func afterStatusLineRestore() -> SetupSettings {
+        state == .full ? SetupSettings(seen: seen, state: .reduced) : self
+    }
+
     public static func opensByItself(_ s: SetupSettings, inferred: SetupSettings?) -> Bool {
         !s.seen && inferred == nil
     }

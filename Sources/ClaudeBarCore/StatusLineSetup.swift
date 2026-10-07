@@ -25,15 +25,43 @@ public struct StatusLineSetup: Sendable {
     let claudeDir: URL
     let script: String
     let now: @Sendable () -> Date
+    /// Apple's command line tools are installed (ClaudeBar's status line and hook run python3 and git; without the
+    /// tools those are shims that pop an install dialog).
+    let toolsInstalled: @Sendable () -> Bool
 
-    public init(claudeDir: URL, script: String, now: @escaping @Sendable () -> Date = Date.init) {
+    public static let toolsMissing = "Usage needs Apple's command line tools: run xcode-select --install, then Settings → Set up ClaudeBar…"
+
+    public init(claudeDir: URL, script: String, now: @escaping @Sendable () -> Date = Date.init,
+                toolsInstalled: @escaping @Sendable () -> Bool = { true }) {
         self.claudeDir = claudeDir
         self.script = script
         self.now = now
+        self.toolsInstalled = toolsInstalled
+    }
+
+    /// Whether Apple's command line tools are installed: `xcode-select -p` exits 0.
+    public static func commandLineToolsInstalled() -> Bool {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/xcode-select")
+        p.arguments = ["-p"]
+        p.standardOutput = FileHandle.nullDevice; p.standardError = FileHandle.nullDevice
+        do { try p.run() } catch { return false }
+        p.waitUntilExit()
+        return p.terminationStatus == 0
+    }
+
+    /// Before installing or wrapping: the tools ClaudeBar's script needs, and a real ClaudeBar script to install.
+    func checkCanInstall() throws {
+        guard !script.isEmpty, script.contains(Self.marker) else {
+            throw StatusLineError(message: "ClaudeBar's status line script is missing from the app; nothing was changed")
+        }
+        guard toolsInstalled() else { throw StatusLineError(message: Self.toolsMissing) }
     }
 
     var settingsFile: URL { claudeDir.appendingPathComponent("settings.json") }
     func file(_ name: String) -> URL { claudeDir.appendingPathComponent(name) }
+    /// Where a write goes: the file a symlink points at (dotfiles setups), so the link stays a link.
+    func target(_ url: URL) -> URL { url.resolvingSymlinksInPath() }
     var stamp: String {
         let f = DateFormatter(); f.dateFormat = "yyyyMMdd-HHmmss"; f.timeZone = TimeZone(identifier: "UTC")
         return f.string(from: now())
@@ -119,7 +147,8 @@ public struct StatusLineSetup: Sendable {
         while FileManager.default.fileExists(atPath: file(candidate).path) {
             candidate = "\(name).claude-bar-backup-\(stamp)-\(n)"; n += 1
         }
-        try FileManager.default.copyItem(at: source, to: file(candidate))
+        // The content (of the file a link points at), never the link itself.
+        try FileManager.default.copyItem(at: target(source), to: file(candidate))
         return candidate
     }
 
@@ -127,7 +156,7 @@ public struct StatusLineSetup: Sendable {
         if FileManager.default.fileExists(atPath: settingsFile.path) { _ = try backUp(settingsFile, as: "settings.json") }
         try FileManager.default.createDirectory(at: claudeDir, withIntermediateDirectories: true)
         let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
-        try data.write(to: settingsFile, options: .atomic)
+        try data.write(to: target(settingsFile), options: .atomic)
     }
 
     /// Sets the command, keeping the statusLine object's other keys (e.g. "padding").
@@ -150,6 +179,7 @@ public struct StatusLineSetup: Sendable {
 
     /// ClaudeBar's status line. The user's previous status line and script (if any) are recorded and backed up first.
     public func useClaudeBar() throws {
+        try checkCanInstall()
         if case .wrapped = state() { try restore() }
         try archiveStaleRecord()
         let settings = try readSettings()
@@ -163,12 +193,13 @@ public struct StatusLineSetup: Sendable {
             try recordOriginal(Original(statusLine: try json(previous), scriptBackup: backup))
         }
         try FileManager.default.createDirectory(at: claudeDir, withIntermediateDirectories: true)
-        try Data(script.utf8).write(to: scriptFile, options: .atomic)
+        try Data(script.utf8).write(to: target(scriptFile), options: .atomic)
         try writeSettings(settingCommand(Self.claudeBarCommand, in: settings))
     }
 
     /// Keeps the user's own status line: ClaudeBar's hook saves its data quietly, then their command runs unchanged.
     public func wrap() throws {
+        try checkCanInstall()
         let unable = StatusLineError(message: "There is no status line of your own to keep (or it is already kept)")
         if case .claudeBar = state(), let record = readOriginal() {
             // Work out what restoring would give back before changing anything.
@@ -221,10 +252,12 @@ public struct StatusLineSetup: Sendable {
             if let current = try? Data(contentsOf: scriptFile), current != Data(script.utf8) {
                 _ = try backUp(scriptFile, as: Self.scriptName)   // they edited it since: keep their version too
             }
-            let temp = file(".claude-bar-restore-\(UUID().uuidString)")
+            // Next to the file it replaces (a symlinked script's target may be on another volume).
+            let destination = target(scriptFile)
+            let temp = destination.deletingLastPathComponent().appendingPathComponent(".claude-bar-restore-\(UUID().uuidString)")
             try FileManager.default.copyItem(at: file(backup), to: temp)
             if FileManager.default.fileExists(atPath: scriptFile.path) {
-                _ = try FileManager.default.replaceItemAt(scriptFile, withItemAt: temp)
+                _ = try FileManager.default.replaceItemAt(destination, withItemAt: temp)
             } else {
                 try FileManager.default.moveItem(at: temp, to: scriptFile)
             }
