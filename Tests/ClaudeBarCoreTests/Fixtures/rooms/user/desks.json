@@ -1,0 +1,1093 @@
+{
+  "desks": [
+    {
+      "id": "s1-walnut",
+      "label": "Walnut desk",
+      "image": "assets/desk-sprites/s1-walnut.png",
+      "width": 276,
+      "height": 242,
+      "anchor": {
+        "x": 186.5,
+        "y": 239.2
+      },
+      "length": 206.1,
+      "depth": 97.3,
+      "stand": {
+        "dx": -110.0,
+        "dy": -20.0
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s1-walnut-rear.png",
+        "width": 282,
+        "height": 228,
+        "anchor": {
+          "x": 189.5,
+          "y": 223.7
+        },
+        "screenBacks": "assets/emissive/s1-walnut-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s1-walnut.png"
+    },
+    {
+      "id": "s1-oak",
+      "label": "Oak desk",
+      "image": "assets/desk-sprites/s1-oak.png",
+      "width": 276,
+      "height": 244,
+      "anchor": {
+        "x": 186.4,
+        "y": 241.2
+      },
+      "length": 206.1,
+      "depth": 97.4,
+      "stand": {
+        "dx": -106.5,
+        "dy": -18.0
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s1-oak-rear.png",
+        "width": 277,
+        "height": 238,
+        "anchor": {
+          "x": 186.4,
+          "y": 235.3
+        },
+        "screenBacks": "assets/emissive/s1-oak-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s1-oak.png"
+    },
+    {
+      "id": "s1-ultrawide",
+      "label": "Ultrawide desk",
+      "image": "assets/desk-sprites/s1-ultrawide.png",
+      "width": 276,
+      "height": 249,
+      "anchor": {
+        "x": 185.9,
+        "y": 246.4
+      },
+      "length": 205.5,
+      "depth": 97.9,
+      "stand": {
+        "dx": -81.6,
+        "dy": -10.8
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s1-ultrawide-rear.png",
+        "width": 276,
+        "height": 250,
+        "anchor": {
+          "x": 186.1,
+          "y": 247.5
+        },
+        "screenBacks": "assets/emissive/s1-ultrawide-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s1-ultrawide.png"
+    },
+    {
+      "id": "s1-mint",
+      "label": "Mint desk",
+      "image": "assets/desk-sprites/s1-mint.png",
+      "width": 276,
+      "height": 248,
+      "anchor": {
+        "x": 185.6,
+        "y": 245.3
+      },
+      "length": 205.2,
+      "depth": 98.2,
+      "stand": {
+        "dx": -106.4,
+        "dy": -18.8
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s1-mint-rear.png",
+        "width": 276,
+        "height": 239,
+        "anchor": {
+          "x": 185.9,
+          "y": 236.4
+        },
+        "screenBacks": "assets/emissive/s1-mint-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s1-mint.png"
+    },
+    {
+      "id": "s1-pink",
+      "label": "Pink desk",
+      "image": "assets/desk-sprites/s1-pink.png",
+      "width": 276,
+      "height": 235,
+      "anchor": {
+        "x": 186.3,
+        "y": 232.1
+      },
+      "length": 205.9,
+      "depth": 97.5,
+      "stand": {
+        "dx": -106.6,
+        "dy": -26.9
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s1-pink-rear.png",
+        "width": 276,
+        "height": 235,
+        "anchor": {
+          "x": 186.3,
+          "y": 232.1
+        }
+      }
+    },
+    {
+      "id": "s1-fairy-light",
+      "label": "Fairy-light desk",
+      "image": "assets/desk-sprites/s1-fairy-light.png",
+      "width": 276,
+      "height": 246,
+      "anchor": {
+        "x": 186.3,
+        "y": 243.1
+      },
+      "length": 205.9,
+      "depth": 97.5,
+      "stand": {
+        "dx": -101.0,
+        "dy": -19.4
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s1-fairy-light-rear.png",
+        "width": 276,
+        "height": 246,
+        "anchor": {
+          "x": 186.5,
+          "y": 243.2
+        },
+        "lamp": "assets/emissive/s1-fairy-light-rear-lamp.png",
+        "screenBacks": "assets/emissive/s1-fairy-light-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s1-fairy-light.png",
+      "lamp": "assets/emissive/s1-fairy-light-lamp.png"
+    },
+    {
+      "id": "s1-sky",
+      "label": "Sky desk",
+      "image": "assets/desk-sprites/s1-sky.png",
+      "width": 276,
+      "height": 247,
+      "anchor": {
+        "x": 185.9,
+        "y": 244.4
+      },
+      "length": 205.5,
+      "depth": 97.9,
+      "stand": {
+        "dx": -102.1,
+        "dy": -21.1
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s1-sky-rear.png",
+        "width": 276,
+        "height": 246,
+        "anchor": {
+          "x": 185.9,
+          "y": 243.4
+        },
+        "screenBacks": "assets/emissive/s1-sky-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s1-sky.png"
+    },
+    {
+      "id": "s1-laptop",
+      "label": "Laptop desk",
+      "image": "assets/desk-sprites/s1-laptop.png",
+      "width": 276,
+      "height": 242,
+      "anchor": {
+        "x": 186.0,
+        "y": 239.0
+      },
+      "length": 205.6,
+      "depth": 97.8,
+      "stand": {
+        "dx": -116.3,
+        "dy": -22.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s1-laptop-rear.png",
+        "width": 276,
+        "height": 231,
+        "anchor": {
+          "x": 185.7,
+          "y": 228.3
+        },
+        "screenBacks": "assets/emissive/s1-laptop-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s1-laptop.png"
+    },
+    {
+      "id": "s1-book",
+      "label": "Book desk",
+      "image": "assets/desk-sprites/s1-book.png",
+      "width": 276,
+      "height": 249,
+      "anchor": {
+        "x": 185.5,
+        "y": 246.2
+      },
+      "length": 205.0,
+      "depth": 98.4,
+      "stand": {
+        "dx": -110.0,
+        "dy": -20.0
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s1-book-rear.png",
+        "width": 276,
+        "height": 248,
+        "anchor": {
+          "x": 185.5,
+          "y": 245.2
+        },
+        "lamp": "assets/emissive/s1-book-rear-lamp.png",
+        "lights": [
+          {
+            "kind": "lamp",
+            "top": {
+              "x": 50,
+              "y": 97,
+              "r": 36
+            }
+          }
+        ],
+        "screenBacks": "assets/emissive/s1-book-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s1-book.png",
+      "lamp": "assets/emissive/s1-book-lamp.png",
+      "lights": [
+        {
+          "kind": "lamp",
+          "top": {
+            "x": 196,
+            "y": 121,
+            "r": 44
+          },
+          "floor": {
+            "x": 138,
+            "y": 249,
+            "r": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "s1-gamer",
+      "label": "Gamer desk",
+      "image": "assets/desk-sprites/s1-gamer.png",
+      "width": 276,
+      "height": 260,
+      "anchor": {
+        "x": 183.5,
+        "y": 249.7
+      },
+      "length": 202.8,
+      "depth": 100.6,
+      "stand": {
+        "dx": -114.7,
+        "dy": -22.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s1-gamer-rear.png",
+        "width": 275,
+        "height": 251,
+        "anchor": {
+          "x": 183.5,
+          "y": 248.7
+        },
+        "screenBacks": "assets/emissive/s1-gamer-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s1-gamer.png"
+    },
+    {
+      "id": "s1-cat-fan",
+      "label": "Cat-fan desk",
+      "image": "assets/desk-sprites/s1-cat-fan.png",
+      "width": 276,
+      "height": 256,
+      "anchor": {
+        "x": 184.5,
+        "y": 254.2
+      },
+      "length": 203.9,
+      "depth": 99.5,
+      "stand": {
+        "dx": -115.4,
+        "dy": -22.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s1-cat-fan-rear.png",
+        "width": 276,
+        "height": 257,
+        "anchor": {
+          "x": 184.4,
+          "y": 255.2
+        },
+        "screenBacks": "assets/emissive/s1-cat-fan-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s1-cat-fan.png"
+    },
+    {
+      "id": "s1-dual-monitor",
+      "label": "Dual-monitor desk",
+      "image": "assets/desk-sprites/s1-dual-monitor.png",
+      "width": 276,
+      "height": 253,
+      "anchor": {
+        "x": 186.0,
+        "y": 250.0
+      },
+      "length": 205.6,
+      "depth": 97.8,
+      "stand": {
+        "dx": -109.2,
+        "dy": -24.4
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s1-dual-monitor-rear.png",
+        "width": 276,
+        "height": 250,
+        "anchor": {
+          "x": 186.0,
+          "y": 247.0
+        },
+        "screenBacks": "assets/emissive/s1-dual-monitor-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s1-dual-monitor.png"
+    },
+    {
+      "id": "s2-walnut",
+      "label": "Walnut desk",
+      "image": "assets/desk-sprites/s2-walnut.png",
+      "width": 276,
+      "height": 275,
+      "anchor": {
+        "x": 200.8,
+        "y": 264.1
+      },
+      "length": 222.1,
+      "depth": 81.3,
+      "stand": {
+        "dx": -134.3,
+        "dy": -35.7
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s2-walnut-rear.png",
+        "width": 287,
+        "height": 211,
+        "anchor": {
+          "x": 205.9,
+          "y": 205.5
+        },
+        "screenBacks": "assets/emissive/s2-walnut-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s2-walnut.png"
+    },
+    {
+      "id": "s2-oak",
+      "label": "Oak desk",
+      "image": "assets/desk-sprites/s2-oak.png",
+      "width": 276,
+      "height": 273,
+      "anchor": {
+        "x": 201.1,
+        "y": 262.4
+      },
+      "length": 222.3,
+      "depth": 81.1,
+      "stand": {
+        "dx": -129.3,
+        "dy": -36.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s2-oak-rear.png",
+        "width": 276,
+        "height": 258,
+        "anchor": {
+          "x": 201.4,
+          "y": 247.3
+        },
+        "screenBacks": "assets/emissive/s2-oak-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s2-oak.png"
+    },
+    {
+      "id": "s2-ultrawide",
+      "label": "Ultrawide desk",
+      "image": "assets/desk-sprites/s2-ultrawide.png",
+      "width": 276,
+      "height": 274,
+      "anchor": {
+        "x": 201.3,
+        "y": 263.3
+      },
+      "length": 222.6,
+      "depth": 80.8,
+      "stand": {
+        "dx": -126.0,
+        "dy": -22.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s2-ultrawide-rear.png",
+        "width": 282,
+        "height": 241,
+        "anchor": {
+          "x": 204.2,
+          "y": 235.5
+        },
+        "screenBacks": "assets/emissive/s2-ultrawide-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s2-ultrawide.png"
+    },
+    {
+      "id": "s2-mint",
+      "label": "Mint desk",
+      "image": "assets/desk-sprites/s2-mint.png",
+      "width": 276,
+      "height": 271,
+      "anchor": {
+        "x": 201.5,
+        "y": 260.2
+      },
+      "length": 222.8,
+      "depth": 80.6,
+      "stand": {
+        "dx": -126.1,
+        "dy": -22.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s2-mint-rear.png",
+        "width": 276,
+        "height": 261,
+        "anchor": {
+          "x": 201.5,
+          "y": 250.2
+        },
+        "screenBacks": "assets/emissive/s2-mint-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s2-mint.png"
+    },
+    {
+      "id": "s2-pink",
+      "label": "Pink desk",
+      "image": "assets/desk-sprites/s2-pink.png",
+      "width": 276,
+      "height": 250,
+      "anchor": {
+        "x": 201.3,
+        "y": 239.2
+      },
+      "length": 222.6,
+      "depth": 80.8,
+      "stand": {
+        "dx": -134.5,
+        "dy": -40.4
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s2-pink-rear.png",
+        "width": 276,
+        "height": 230,
+        "anchor": {
+          "x": 201.3,
+          "y": 219.3
+        }
+      }
+    },
+    {
+      "id": "s2-fairy-light",
+      "label": "Fairy-light desk",
+      "image": "assets/desk-sprites/s2-fairy-light.png",
+      "width": 276,
+      "height": 268,
+      "anchor": {
+        "x": 201.3,
+        "y": 257.3
+      },
+      "length": 222.6,
+      "depth": 80.8,
+      "stand": {
+        "dx": -131.7,
+        "dy": -31.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s2-fairy-light-rear.png",
+        "width": 276,
+        "height": 259,
+        "anchor": {
+          "x": 201.5,
+          "y": 248.2
+        },
+        "lamp": "assets/emissive/s2-fairy-light-rear-lamp.png",
+        "screenBacks": "assets/emissive/s2-fairy-light-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s2-fairy-light.png",
+      "lamp": "assets/emissive/s2-fairy-light-lamp.png"
+    },
+    {
+      "id": "s2-sky",
+      "label": "Sky desk",
+      "image": "assets/desk-sprites/s2-sky.png",
+      "width": 276,
+      "height": 271,
+      "anchor": {
+        "x": 201.8,
+        "y": 260.1
+      },
+      "length": 223.2,
+      "depth": 80.2,
+      "stand": {
+        "dx": -126.3,
+        "dy": -22.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s2-sky-rear.png",
+        "width": 277,
+        "height": 252,
+        "anchor": {
+          "x": 202.3,
+          "y": 241.3
+        },
+        "screenBacks": "assets/emissive/s2-sky-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s2-sky.png"
+    },
+    {
+      "id": "s2-laptop",
+      "label": "Laptop desk",
+      "image": "assets/desk-sprites/s2-laptop.png",
+      "width": 276,
+      "height": 269,
+      "anchor": {
+        "x": 201.5,
+        "y": 257.9
+      },
+      "length": 222.8,
+      "depth": 80.6,
+      "stand": {
+        "dx": -126.1,
+        "dy": -22.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s2-laptop-rear.png",
+        "width": 276,
+        "height": 244,
+        "anchor": {
+          "x": 201.3,
+          "y": 232.8
+        },
+        "screenBacks": "assets/emissive/s2-laptop-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s2-laptop.png"
+    },
+    {
+      "id": "s2-book",
+      "label": "Book desk",
+      "image": "assets/desk-sprites/s2-book.png",
+      "width": 276,
+      "height": 270,
+      "anchor": {
+        "x": 201.0,
+        "y": 259.0
+      },
+      "length": 222.3,
+      "depth": 81.1,
+      "stand": {
+        "dx": -126.9,
+        "dy": -35.1
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s2-book-rear.png",
+        "width": 276,
+        "height": 271,
+        "anchor": {
+          "x": 201.0,
+          "y": 260.0
+        },
+        "lamp": "assets/emissive/s2-book-rear-lamp.png",
+        "lights": [
+          {
+            "kind": "lamp",
+            "top": {
+              "x": 52,
+              "y": 96,
+              "r": 36
+            }
+          }
+        ],
+        "screenBacks": "assets/emissive/s2-book-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s2-book.png",
+      "lamp": "assets/emissive/s2-book-lamp.png",
+      "lights": [
+        {
+          "kind": "lamp",
+          "top": {
+            "x": 202,
+            "y": 131,
+            "r": 44
+          },
+          "floor": {
+            "x": 152,
+            "y": 262,
+            "r": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "s2-gamer",
+      "label": "Gamer desk",
+      "image": "assets/desk-sprites/s2-gamer.png",
+      "width": 251,
+      "height": 254,
+      "anchor": {
+        "x": 182.5,
+        "y": 243.7
+      },
+      "length": 201.7,
+      "depth": 73.9,
+      "stand": {
+        "dx": -114.1,
+        "dy": -22.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s2-gamer-rear.png",
+        "width": 251,
+        "height": 251,
+        "anchor": {
+          "x": 182.5,
+          "y": 240.7
+        },
+        "screenBacks": "assets/emissive/s2-gamer-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s2-gamer.png"
+    },
+    {
+      "id": "s2-cat-fan",
+      "label": "Cat-fan desk",
+      "image": "assets/desk-sprites/s2-cat-fan.png",
+      "width": 276,
+      "height": 277,
+      "anchor": {
+        "x": 200.5,
+        "y": 265.7
+      },
+      "length": 221.8,
+      "depth": 81.7,
+      "stand": {
+        "dx": -126.5,
+        "dy": -36.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s2-cat-fan-rear.png",
+        "width": 275,
+        "height": 268,
+        "anchor": {
+          "x": 200.5,
+          "y": 256.7
+        },
+        "screenBacks": "assets/emissive/s2-cat-fan-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s2-cat-fan.png"
+    },
+    {
+      "id": "s2-dual-monitor",
+      "label": "Dual-monitor desk",
+      "image": "assets/desk-sprites/s2-dual-monitor.png",
+      "width": 240,
+      "height": 247,
+      "anchor": {
+        "x": 173.9,
+        "y": 237.4
+      },
+      "length": 192.2,
+      "depth": 71.2,
+      "stand": {
+        "dx": -121.6,
+        "dy": -32.1
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s2-dual-monitor-rear.png",
+        "width": 240,
+        "height": 240,
+        "anchor": {
+          "x": 174.3,
+          "y": 230.1
+        },
+        "screenBacks": "assets/emissive/s2-dual-monitor-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s2-dual-monitor.png"
+    },
+    {
+      "id": "s3-walnut",
+      "label": "Walnut desk",
+      "image": "assets/desk-sprites/s3-walnut.png",
+      "width": 276,
+      "height": 239,
+      "anchor": {
+        "x": 191.0,
+        "y": 235.9
+      },
+      "length": 211.2,
+      "depth": 92.2,
+      "stand": {
+        "dx": -107.4,
+        "dy": -15.6
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s3-walnut-rear.png",
+        "width": 276,
+        "height": 238,
+        "anchor": {
+          "x": 191.1,
+          "y": 235.0
+        },
+        "screenBacks": "assets/emissive/s3-walnut-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s3-walnut.png"
+    },
+    {
+      "id": "s3-oak",
+      "label": "Oak desk",
+      "image": "assets/desk-sprites/s3-oak.png",
+      "width": 276,
+      "height": 242,
+      "anchor": {
+        "x": 190.5,
+        "y": 239.2
+      },
+      "length": 210.6,
+      "depth": 92.8,
+      "stand": {
+        "dx": -119.2,
+        "dy": -22.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s3-oak-rear.png",
+        "width": 276,
+        "height": 228,
+        "anchor": {
+          "x": 190.8,
+          "y": 225.3
+        },
+        "screenBacks": "assets/emissive/s3-oak-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s3-oak.png"
+    },
+    {
+      "id": "s3-ultrawide",
+      "label": "Ultrawide desk",
+      "image": "assets/desk-sprites/s3-ultrawide.png",
+      "width": 276,
+      "height": 242,
+      "anchor": {
+        "x": 191.0,
+        "y": 239.4
+      },
+      "length": 211.2,
+      "depth": 92.3,
+      "stand": {
+        "dx": -116.1,
+        "dy": -19.7
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s3-ultrawide-rear.png",
+        "width": 276,
+        "height": 242,
+        "anchor": {
+          "x": 191.0,
+          "y": 239.4
+        },
+        "screenBacks": "assets/emissive/s3-ultrawide-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s3-ultrawide.png"
+    },
+    {
+      "id": "s3-mint",
+      "label": "Mint desk",
+      "image": "assets/desk-sprites/s3-mint.png",
+      "width": 276,
+      "height": 239,
+      "anchor": {
+        "x": 191.0,
+        "y": 235.9
+      },
+      "length": 211.2,
+      "depth": 92.3,
+      "stand": {
+        "dx": -108.9,
+        "dy": -16.2
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s3-mint-rear.png",
+        "width": 277,
+        "height": 240,
+        "anchor": {
+          "x": 191.5,
+          "y": 237.1
+        },
+        "screenBacks": "assets/emissive/s3-mint-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s3-mint.png"
+    },
+    {
+      "id": "s3-pink",
+      "label": "Pink desk",
+      "image": "assets/desk-sprites/s3-pink.png",
+      "width": 276,
+      "height": 223,
+      "anchor": {
+        "x": 187.0,
+        "y": 219.9
+      },
+      "length": 206.7,
+      "depth": 96.7,
+      "stand": {
+        "dx": -112.2,
+        "dy": -29.6
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s3-pink-rear.png",
+        "width": 277,
+        "height": 233,
+        "anchor": {
+          "x": 187.5,
+          "y": 230.2
+        }
+      }
+    },
+    {
+      "id": "s3-fairy-light",
+      "label": "Fairy-light desk",
+      "image": "assets/desk-sprites/s3-fairy-light.png",
+      "width": 276,
+      "height": 245,
+      "anchor": {
+        "x": 186.5,
+        "y": 242.2
+      },
+      "length": 206.1,
+      "depth": 97.3,
+      "stand": {
+        "dx": -104.7,
+        "dy": -18.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s3-fairy-light-rear.png",
+        "width": 276,
+        "height": 248,
+        "anchor": {
+          "x": 186.3,
+          "y": 245.1
+        },
+        "lamp": "assets/emissive/s3-fairy-light-rear-lamp.png",
+        "screenBacks": "assets/emissive/s3-fairy-light-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s3-fairy-light.png",
+      "lamp": "assets/emissive/s3-fairy-light-lamp.png"
+    },
+    {
+      "id": "s3-sky",
+      "label": "Sky desk",
+      "image": "assets/desk-sprites/s3-sky.png",
+      "width": 276,
+      "height": 245,
+      "anchor": {
+        "x": 186.7,
+        "y": 242.3
+      },
+      "length": 206.3,
+      "depth": 97.1,
+      "stand": {
+        "dx": -106.1,
+        "dy": -20.3
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s3-sky-rear.png",
+        "width": 276,
+        "height": 245,
+        "anchor": {
+          "x": 186.6,
+          "y": 242.2
+        },
+        "screenBacks": "assets/emissive/s3-sky-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s3-sky.png"
+    },
+    {
+      "id": "s3-laptop",
+      "label": "Laptop desk",
+      "image": "assets/desk-sprites/s3-laptop.png",
+      "width": 276,
+      "height": 237,
+      "anchor": {
+        "x": 187.4,
+        "y": 234.2
+      },
+      "length": 207.2,
+      "depth": 96.2,
+      "stand": {
+        "dx": -117.3,
+        "dy": -22.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s3-laptop-rear.png",
+        "width": 277,
+        "height": 219,
+        "anchor": {
+          "x": 187.9,
+          "y": 215.9
+        },
+        "screenBacks": "assets/emissive/s3-laptop-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s3-laptop.png"
+    },
+    {
+      "id": "s3-book",
+      "label": "Book desk",
+      "image": "assets/desk-sprites/s3-book.png",
+      "width": 276,
+      "height": 235,
+      "anchor": {
+        "x": 187.3,
+        "y": 232.1
+      },
+      "length": 207.1,
+      "depth": 96.3,
+      "stand": {
+        "dx": -112.2,
+        "dy": -16.2
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s3-book-rear.png",
+        "width": 276,
+        "height": 236,
+        "anchor": {
+          "x": 187.2,
+          "y": 233.1
+        },
+        "lamp": "assets/emissive/s3-book-rear-lamp.png",
+        "lights": [
+          {
+            "kind": "lamp",
+            "top": {
+              "x": 60,
+              "y": 90,
+              "r": 36
+            }
+          }
+        ],
+        "screenBacks": "assets/emissive/s3-book-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s3-book.png",
+      "lamp": "assets/emissive/s3-book-lamp.png",
+      "lights": [
+        {
+          "kind": "lamp",
+          "top": {
+            "x": 196,
+            "y": 114,
+            "r": 44
+          },
+          "floor": {
+            "x": 140,
+            "y": 235,
+            "r": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "s3-gamer",
+      "label": "Gamer desk",
+      "image": "assets/desk-sprites/s3-gamer.png",
+      "width": 276,
+      "height": 252,
+      "anchor": {
+        "x": 172.9,
+        "y": 254.1
+      },
+      "length": 191.0,
+      "depth": 112.4,
+      "stand": {
+        "dx": -108.1,
+        "dy": -22.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s3-gamer-rear.png",
+        "width": 259,
+        "height": 232,
+        "anchor": {
+          "x": 172.4,
+          "y": 229.9
+        },
+        "screenBacks": "assets/emissive/s3-gamer-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s3-gamer.png"
+    },
+    {
+      "id": "s3-cat-fan",
+      "label": "Cat-fan desk",
+      "image": "assets/desk-sprites/s3-cat-fan.png",
+      "width": 276,
+      "height": 247,
+      "anchor": {
+        "x": 182.4,
+        "y": 244.7
+      },
+      "length": 201.6,
+      "depth": 101.8,
+      "stand": {
+        "dx": -114.1,
+        "dy": -22.5
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s3-cat-fan-rear.png",
+        "width": 276,
+        "height": 250,
+        "anchor": {
+          "x": 182.4,
+          "y": 247.2
+        },
+        "screenBacks": "assets/emissive/s3-cat-fan-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s3-cat-fan.png"
+    },
+    {
+      "id": "s3-dual-monitor",
+      "label": "Dual-monitor desk",
+      "image": "assets/desk-sprites/s3-dual-monitor.png",
+      "width": 268,
+      "height": 251,
+      "anchor": {
+        "x": 172.3,
+        "y": 245.8
+      },
+      "length": 187.1,
+      "depth": 100.8,
+      "stand": {
+        "dx": -101.1,
+        "dy": -17.9
+      },
+      "rear": {
+        "image": "assets/desk-sprites/s3-dual-monitor-rear.png",
+        "width": 268,
+        "height": 242,
+        "anchor": {
+          "x": 172.4,
+          "y": 237.1
+        },
+        "screenBacks": "assets/emissive/s3-dual-monitor-rear-backs.png"
+      },
+      "emissive": "assets/emissive/s3-dual-monitor.png"
+    }
+  ]
+}

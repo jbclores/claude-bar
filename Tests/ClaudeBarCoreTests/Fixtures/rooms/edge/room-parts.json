@@ -1,0 +1,1757 @@
+{
+  "wallHeight": 267,
+  "wallHeights": {
+    "1": 432,
+    "2": 267
+  },
+  "floors": [
+    {
+      "id": "oak",
+      "label": "Oak planks",
+      "color": "#e3a56c",
+      "image": "assets/room/floors/oak.png",
+      "tile": [
+        1024,
+        528
+      ]
+    },
+    {
+      "id": "walnut",
+      "label": "Walnut planks",
+      "color": "#8f5a3a",
+      "image": "assets/room/floors/walnut.png",
+      "tile": [
+        1024,
+        528
+      ]
+    },
+    {
+      "id": "tile",
+      "label": "Checker tiles",
+      "color": "#f3e3cf",
+      "image": "assets/room/floors/tile.png",
+      "tile": [
+        704,
+        704
+      ]
+    },
+    {
+      "id": "carpet",
+      "label": "Carpet",
+      "color": "#d7a491",
+      "image": "assets/room/floors/carpet.png",
+      "tile": [
+        768,
+        768
+      ]
+    },
+    {
+      "id": "birch",
+      "label": "Birch planks",
+      "color": "#eed8bc",
+      "image": "assets/room/floors/birch.png",
+      "tile": [
+        1138,
+        440
+      ]
+    },
+    {
+      "id": "greywash-oak",
+      "label": "Grey-washed oak",
+      "color": "#c0b4b1",
+      "image": "assets/room/floors/greywash-oak.png",
+      "tile": [
+        1148,
+        440
+      ]
+    },
+    {
+      "id": "cherry",
+      "label": "Cherry planks",
+      "color": "#b25226",
+      "image": "assets/room/floors/cherry.png",
+      "tile": [
+        1153,
+        440
+      ]
+    },
+    {
+      "id": "terrazzo",
+      "label": "Terrazzo",
+      "color": "#e9dbcc",
+      "image": "assets/room/floors/terrazzo.png",
+      "tile": [
+        622,
+        622
+      ]
+    },
+    {
+      "id": "marble",
+      "label": "Marble tiles",
+      "color": "#ece4e0",
+      "image": "assets/room/floors/marble.png",
+      "tile": [
+        792,
+        528
+      ]
+    },
+    {
+      "id": "hex-tile",
+      "label": "Hex tiles",
+      "color": "#afb69b",
+      "image": "assets/room/floors/hex-tile.png",
+      "tile": [
+        725,
+        659
+      ]
+    },
+    {
+      "id": "slate",
+      "label": "Slate tiles",
+      "color": "#949ca3",
+      "image": "assets/room/floors/slate.png",
+      "tile": [
+        792,
+        792
+      ]
+    },
+    {
+      "id": "carpet-sage",
+      "label": "Sage carpet",
+      "color": "#99a88b",
+      "image": "assets/room/floors/carpet-sage.png",
+      "tile": [
+        708,
+        708
+      ]
+    },
+    {
+      "id": "carpet-blue",
+      "label": "Slate-blue carpet",
+      "color": "#667a92",
+      "image": "assets/room/floors/carpet-blue.png",
+      "tile": [
+        708,
+        708
+      ]
+    },
+    {
+      "id": "cork",
+      "label": "Cork",
+      "color": "#e0a65e",
+      "image": "assets/room/floors/cork.png",
+      "tile": [
+        708,
+        708
+      ]
+    }
+  ],
+  "walls": [
+    {
+      "id": "plaster",
+      "label": "Cream plaster",
+      "color": "#fdeee0",
+      "image": "assets/room/walls/plaster.png",
+      "tile": [
+        200,
+        267
+      ],
+      "slice": {
+        "top": 30,
+        "bottom": 15
+      },
+      "floorRows": 3
+    },
+    {
+      "id": "plaster-lounge",
+      "label": "Lounge plaster",
+      "color": "#fbe8dc",
+      "image": "assets/room/walls/plaster-lounge.png",
+      "tile": [
+        200,
+        432
+      ],
+      "slice": {
+        "top": 30,
+        "bottom": 15
+      },
+      "floorRows": 3
+    }
+  ],
+  "rugs": [
+    {
+      "id": "round-cream",
+      "label": "Round cream rug",
+      "shape": "round",
+      "color": "#f6ecdc",
+      "image": "assets/room/rugs/round-cream.png",
+      "size": [
+        524,
+        526
+      ]
+    },
+    {
+      "id": "round-sage",
+      "label": "Round sage rug",
+      "shape": "round",
+      "color": "#9fb09a",
+      "image": "assets/room/rugs/round-sage.png",
+      "size": [
+        385,
+        386
+      ]
+    },
+    {
+      "id": "striped",
+      "label": "Striped rug",
+      "shape": "rect",
+      "color": "#e9c9a8",
+      "image": "assets/room/rugs/striped.png",
+      "size": [
+        306,
+        231
+      ]
+    },
+    {
+      "id": "cat-face",
+      "label": "Cat face rug",
+      "shape": "rect",
+      "color": "#e7d3c0",
+      "image": "assets/room/rugs/cat-face.png",
+      "size": [
+        306,
+        291
+      ]
+    },
+    {
+      "id": "oval-sage",
+      "label": "Oval sage rug",
+      "shape": "round",
+      "color": "#9fb09a",
+      "image": "assets/room/rugs/oval-sage.png",
+      "size": [
+        206,
+        142
+      ]
+    },
+    {
+      "id": "round-cream-painted",
+      "label": "Big cream rug",
+      "shape": "round",
+      "color": "#f6ecdc",
+      "image": "assets/room/rugs/round-cream-painted.png",
+      "size": [
+        619,
+        617
+      ],
+      "spots": [
+        {
+          "id": "rug-back",
+          "kind": "rug",
+          "label": "Rug",
+          "at": {
+            "u": -0.1676,
+            "v": -0.1664
+          },
+          "facing": "front-left",
+          "pose": "sleep",
+          "capacity": 1,
+          "optional": true
+        },
+        {
+          "id": "rug-left",
+          "kind": "rug",
+          "label": "Rug",
+          "at": {
+            "u": 0.2045,
+            "v": -0.1043
+          },
+          "facing": "front-right",
+          "pose": "sit",
+          "capacity": 1,
+          "optional": true
+        },
+        {
+          "id": "rug-right",
+          "kind": "rug",
+          "label": "Rug",
+          "at": {
+            "u": -0.0416,
+            "v": 0.2433
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "meeting-rug",
+      "label": "Meeting rug (sage)",
+      "shape": "rect",
+      "color": "#98a68e",
+      "image": "assets/room/conference/rugs/meeting-rug.png",
+      "size": [
+        377,
+        432
+      ],
+      "meetingGroup": "conference"
+    },
+    {
+      "id": "meeting-rug-round",
+      "label": "Meeting rug (round)",
+      "shape": "round",
+      "color": "#cf7960",
+      "image": "assets/room/conference/rugs/meeting-rug-round.png",
+      "size": [
+        392,
+        392
+      ],
+      "meetingGroup": "conference"
+    },
+    {
+      "id": "meeting-head-mat-round",
+      "label": "Head mat (red and gold)",
+      "shape": "round",
+      "color": "#852438",
+      "image": "assets/room/conference/rugs/meeting-head-mat-round.png",
+      "size": [
+        232,
+        232
+      ],
+      "meetingGroup": "conference",
+      "companionOnly": true
+    }
+  ],
+  "wallItems": [
+    {
+      "id": "elevator",
+      "label": "Elevator",
+      "kind": "elevator",
+      "image": "assets/room/wall-items/elevator.png",
+      "drawnFor": "left",
+      "width": 262,
+      "height": 231,
+      "bottom": 260,
+      "floorGap": -3,
+      "sill": 226,
+      "resizable": false,
+      "doorway": [
+        10,
+        190
+      ],
+      "standOut": 40,
+      "capacity": 4,
+      "clearance": 150,
+      "plate": {
+        "x": 80,
+        "y": 10,
+        "width": 68,
+        "height": 21,
+        "color": "#f4ece6"
+      },
+      "group": "elevator"
+    },
+    {
+      "id": "elevator-lounge",
+      "label": "Elevator (lounge)",
+      "kind": "elevator",
+      "image": "assets/room/wall-items/elevator-lounge.png",
+      "drawnFor": "left",
+      "width": 256,
+      "height": 360,
+      "bottom": 426,
+      "floorGap": -2,
+      "resizable": false,
+      "doorway": [
+        23,
+        177
+      ],
+      "standOut": 40,
+      "capacity": 4,
+      "clearance": 150,
+      "plate": {
+        "x": 77,
+        "y": 19,
+        "width": 58,
+        "height": 23,
+        "color": "#f4ece6"
+      },
+      "group": "elevator"
+    },
+    {
+      "id": "window",
+      "label": "Window",
+      "kind": "window",
+      "frame": "assets/room/wall-items/window-frame.png",
+      "mullion": "assets/room/wall-items/window-mullion.png",
+      "drawnFor": "left",
+      "width": 163,
+      "height": 127,
+      "bottom": 187,
+      "resizable": true,
+      "minWidth": 80,
+      "maxWidth": 480,
+      "minHeight": 90,
+      "maxHeight": 200,
+      "slice": {
+        "left": 24,
+        "right": 30,
+        "top": 20,
+        "bottom": 28
+      },
+      "paneWidth": 55,
+      "mullionWidth": 29,
+      "glassTop": 17,
+      "glassBottom": 102,
+      "glassLeft": 20,
+      "glassRight": 129,
+      "heightPair": "window-full",
+      "group": "window"
+    },
+    {
+      "id": "window-lounge",
+      "label": "Window (lounge)",
+      "kind": "window",
+      "frame": "assets/room/wall-items/window-lounge-frame.png",
+      "mullion": "assets/room/wall-items/window-lounge-mullion.png",
+      "drawnFor": "left",
+      "width": 270,
+      "height": 234,
+      "bottom": 294,
+      "resizable": true,
+      "minWidth": 140,
+      "maxWidth": 560,
+      "minHeight": 150,
+      "maxHeight": 320,
+      "slice": {
+        "left": 20,
+        "right": 25,
+        "top": 17,
+        "bottom": 24
+      },
+      "paneWidth": 60,
+      "mullionWidth": 33,
+      "glassTop": 14,
+      "glassBottom": 219,
+      "glassLeft": 16,
+      "glassRight": 241,
+      "heightPair": "window-lounge-full",
+      "group": "window"
+    },
+    {
+      "id": "window-full",
+      "label": "Full-height window",
+      "kind": "window",
+      "fullHeight": true,
+      "top": 24,
+      "drawnFor": "left",
+      "frame": "assets/room/wall-items/window-full-frame.png",
+      "mullion": "assets/room/wall-items/window-full-mullion.png",
+      "glass": "assets/room/wall-items/window-full-glass.png",
+      "skyline": "assets/room/wall-items/skyline.png",
+      "skylineHeight": 44,
+      "transom": "assets/room/wall-items/window-full-transom.png",
+      "transomHeight": 12,
+      "transomAt": 0.75,
+      "transomOptional": true,
+      "width": 163,
+      "height": 73,
+      "bottom": 0,
+      "resizable": true,
+      "minWidth": 80,
+      "maxWidth": 480,
+      "slice": {
+        "left": 24,
+        "right": 30,
+        "top": 17,
+        "bottom": 20
+      },
+      "paneWidth": 55,
+      "mullionWidth": 21,
+      "glassTop": 15,
+      "glassBottom": 55,
+      "glassLeft": 16,
+      "glassRight": 131,
+      "heightPair": "window",
+      "group": "window"
+    },
+    {
+      "id": "window-lounge-full",
+      "label": "Full-height window (lounge)",
+      "kind": "window",
+      "fullHeight": true,
+      "top": 24,
+      "drawnFor": "left",
+      "frame": "assets/room/wall-items/window-lounge-full-frame.png",
+      "mullion": "assets/room/wall-items/window-lounge-full-mullion.png",
+      "glass": "assets/room/wall-items/window-lounge-full-glass.png",
+      "skyline": "assets/room/wall-items/skyline.png",
+      "skylineHeight": 70,
+      "transom": "assets/room/wall-items/window-lounge-full-transom.png",
+      "transomHeight": 15,
+      "transomAt": 0.75,
+      "transomOptional": true,
+      "width": 270,
+      "height": 76,
+      "bottom": 0,
+      "resizable": true,
+      "minWidth": 140,
+      "maxWidth": 560,
+      "slice": {
+        "left": 20,
+        "right": 25,
+        "top": 18,
+        "bottom": 22
+      },
+      "paneWidth": 60,
+      "mullionWidth": 24,
+      "glassTop": 16,
+      "glassBottom": 56,
+      "glassLeft": 18,
+      "glassRight": 240,
+      "heightPair": "window-lounge",
+      "group": "window"
+    },
+    {
+      "id": "picture",
+      "label": "Picture",
+      "kind": "decor",
+      "image": "assets/room/wall-items/picture.png",
+      "width": 98,
+      "height": 81,
+      "bottom": 150,
+      "resizable": false,
+      "group": "wall-decor"
+    },
+    {
+      "id": "clock",
+      "label": "Clock",
+      "kind": "decor",
+      "image": "assets/room/wall-items/clock.png",
+      "width": 76,
+      "height": 76,
+      "bottom": 110,
+      "resizable": false,
+      "group": "wall-decor",
+      "mirror": false
+    },
+    {
+      "id": "sign-lounge",
+      "label": "Lounge sign",
+      "kind": "decor",
+      "image": "assets/room/wall-items/sign-lounge.png",
+      "drawnFor": "left",
+      "imageRight": "assets/room/wall-items/sign-lounge-right.png",
+      "width": 195,
+      "height": 91,
+      "bottom": 189,
+      "resizable": false,
+      "group": "wall-decor",
+      "mirror": false
+    },
+    {
+      "id": "alcove",
+      "label": "Window seat alcove",
+      "kind": "decor",
+      "image": "assets/room/wall-items/alcove.png",
+      "drawnFor": "right",
+      "width": 335,
+      "height": 378,
+      "bottom": 435,
+      "resizable": false,
+      "seat": [
+        19,
+        316
+      ],
+      "seatHeight": 72,
+      "seatDepth": 74,
+      "floorGap": -3
+    },
+    {
+      "id": "sconce",
+      "label": "Brass sconce",
+      "kind": "decor",
+      "image": "assets/room/light-props/sconce.png",
+      "width": 68,
+      "height": 84,
+      "bottom": 150,
+      "resizable": false,
+      "group": "sconce",
+      "emissiveImage": "assets/room/light-props/sconce-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.517,
+          "y": 0.451
+        },
+        "radius": 170,
+        "strength": 0.72,
+        "shape": {
+          "image": "assets/room/light-props/light/sconce.png",
+          "width": 133,
+          "height": 203,
+          "origin": {
+            "x": 66,
+            "y": 63
+          }
+        }
+      },
+      "mount": "sprite",
+      "anchor": {
+        "x": 13.6,
+        "y": 52.1
+      },
+      "reach": 22,
+      "section": "lighting",
+      "emissive": "assets/emissive/sconce.png"
+    },
+    {
+      "id": "sconce-globe",
+      "label": "Globe sconce",
+      "kind": "decor",
+      "image": "assets/room/light-props/sconce-globe.png",
+      "width": 68,
+      "height": 81,
+      "bottom": 150,
+      "resizable": false,
+      "group": "sconce",
+      "emissiveImage": "assets/room/light-props/sconce-globe-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.599,
+          "y": 0.325
+        },
+        "radius": 170,
+        "strength": 0.9,
+        "shape": {
+          "image": "assets/room/light-props/light/sconce-globe.png",
+          "width": 127,
+          "height": 115,
+          "origin": {
+            "x": 63,
+            "y": 57
+          }
+        }
+      },
+      "mount": "sprite",
+      "anchor": {
+        "x": 10.2,
+        "y": 44.6
+      },
+      "reach": 22,
+      "section": "lighting",
+      "emissive": "assets/emissive/sconce-globe.png"
+    },
+    {
+      "id": "picture-light",
+      "label": "Picture light",
+      "kind": "decor",
+      "image": "assets/room/light-props/picture-light.png",
+      "width": 78,
+      "height": 108,
+      "bottom": 160,
+      "resizable": false,
+      "emissiveImage": "assets/room/light-props/picture-light-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.644,
+          "y": 0.171
+        },
+        "radius": 190,
+        "strength": 0.75,
+        "shape": {
+          "image": "assets/room/light-props/light/picture-light.png",
+          "width": 98,
+          "height": 121,
+          "origin": {
+            "x": 51,
+            "y": -6
+          }
+        }
+      },
+      "mount": "sprite",
+      "anchor": {
+        "x": 35.1,
+        "y": 64.8
+      },
+      "reach": 10,
+      "section": "lighting",
+      "emissive": "assets/emissive/picture-light.png"
+    },
+    {
+      "id": "sconce-lantern",
+      "label": "Wall lantern",
+      "kind": "decor",
+      "image": "assets/room/light-props/sconce-lantern.png",
+      "width": 60,
+      "height": 92,
+      "bottom": 150,
+      "resizable": false,
+      "group": "sconce",
+      "emissiveImage": "assets/room/light-props/sconce-lantern-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.551,
+          "y": 0.618
+        },
+        "radius": 170,
+        "strength": 0.9,
+        "shape": {
+          "image": "assets/room/light-props/light/sconce-lantern.png",
+          "width": 107,
+          "height": 123,
+          "origin": {
+            "x": 53,
+            "y": 53
+          }
+        }
+      },
+      "mount": "sprite",
+      "anchor": {
+        "x": 9.0,
+        "y": 27.6
+      },
+      "reach": 24,
+      "section": "lighting",
+      "emissive": "assets/emissive/sconce-lantern.png"
+    },
+    {
+      "id": "sconce-porthole",
+      "label": "Porthole light",
+      "kind": "decor",
+      "image": "assets/room/light-props/sconce-porthole.png",
+      "width": 68,
+      "height": 69,
+      "bottom": 150,
+      "resizable": false,
+      "group": "sconce",
+      "emissiveImage": "assets/room/light-props/sconce-porthole-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.491,
+          "y": 0.485
+        },
+        "radius": 60,
+        "strength": 0.4,
+        "colour": "#ffd99e"
+      },
+      "section": "lighting",
+      "emissive": "assets/emissive/sconce-porthole.png"
+    },
+    {
+      "id": "led-shelf",
+      "label": "LED shelf",
+      "kind": "decor",
+      "image": "assets/room/light-props/led-shelf.png",
+      "width": 91,
+      "height": 70,
+      "bottom": 150,
+      "resizable": false,
+      "emissiveImage": "assets/room/light-props/led-shelf-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.504,
+          "y": 0.581
+        },
+        "radius": 170,
+        "strength": 0.72,
+        "shape": {
+          "image": "assets/room/light-props/light/led-shelf.png",
+          "width": 88,
+          "height": 60,
+          "origin": {
+            "x": 40,
+            "y": -3
+          }
+        }
+      },
+      "mount": "sprite",
+      "anchor": {
+        "x": 41.0,
+        "y": 31.5
+      },
+      "reach": 18,
+      "section": "lighting",
+      "emissive": "assets/emissive/led-shelf.png"
+    },
+    {
+      "id": "neon",
+      "label": "Neon cat",
+      "kind": "decor",
+      "image": "assets/room/light-props/neon.png",
+      "width": 90,
+      "height": 87,
+      "bottom": 150,
+      "resizable": false,
+      "group": "neon",
+      "emissiveImage": "assets/room/light-props/neon-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.497,
+          "y": 0.475
+        },
+        "radius": 70,
+        "strength": 0.45,
+        "colour": "#ff73cc",
+        "modes": [
+          "night",
+          "off",
+          "ambient",
+          "party"
+        ],
+        "flicker": true
+      },
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party"
+      ],
+      "animate": "flicker",
+      "section": "lighting",
+      "emissive": "assets/emissive/neon.png"
+    },
+    {
+      "id": "neon-meow",
+      "label": "Neon MEOW",
+      "kind": "decor",
+      "image": "assets/room/light-props/neon-meow.png",
+      "imageRight": "assets/room/light-props/neon-meow-right.png",
+      "emissiveImageRight": "assets/room/light-props/neon-meow-right-on.png",
+      "width": 115,
+      "height": 66,
+      "bottom": 150,
+      "resizable": false,
+      "mirror": false,
+      "group": "neon",
+      "emissiveImage": "assets/room/light-props/neon-meow-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.49,
+          "y": 0.494
+        },
+        "radius": 80,
+        "strength": 0.45,
+        "colour": "#66f2ff",
+        "modes": [
+          "night",
+          "off",
+          "ambient",
+          "party"
+        ],
+        "flicker": true
+      },
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party"
+      ],
+      "animate": "flicker",
+      "section": "lighting",
+      "emissive": "assets/emissive/neon-meow.png",
+      "emissiveRight": "assets/emissive/neon-meow-right.png"
+    },
+    {
+      "id": "neon-paw",
+      "label": "Neon paw",
+      "kind": "decor",
+      "image": "assets/room/light-props/neon-paw.png",
+      "width": 87,
+      "height": 82,
+      "bottom": 150,
+      "resizable": false,
+      "group": "neon",
+      "emissiveImage": "assets/room/light-props/neon-paw-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.489,
+          "y": 0.467
+        },
+        "radius": 70,
+        "strength": 0.45,
+        "colour": "#ff994c",
+        "modes": [
+          "night",
+          "off",
+          "ambient",
+          "party"
+        ],
+        "flicker": true
+      },
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party"
+      ],
+      "animate": "flicker",
+      "section": "lighting",
+      "emissive": "assets/emissive/neon-paw.png"
+    },
+    {
+      "id": "neon-fish",
+      "label": "Neon fish",
+      "kind": "decor",
+      "image": "assets/room/light-props/neon-fish.png",
+      "width": 106,
+      "height": 60,
+      "bottom": 150,
+      "resizable": false,
+      "group": "neon",
+      "emissiveImage": "assets/room/light-props/neon-fish-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.543,
+          "y": 0.491
+        },
+        "radius": 75,
+        "strength": 0.45,
+        "colour": "#d9ff59",
+        "modes": [
+          "night",
+          "off",
+          "ambient",
+          "party"
+        ],
+        "flicker": true
+      },
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party"
+      ],
+      "animate": "flicker",
+      "section": "lighting",
+      "emissive": "assets/emissive/neon-fish.png"
+    },
+    {
+      "id": "neon-heart",
+      "label": "Neon heart",
+      "kind": "decor",
+      "image": "assets/room/light-props/neon-heart.png",
+      "width": 87,
+      "height": 79,
+      "bottom": 150,
+      "resizable": false,
+      "group": "neon",
+      "emissiveImage": "assets/room/light-props/neon-heart-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.507,
+          "y": 0.445
+        },
+        "radius": 70,
+        "strength": 0.45,
+        "colour": "#ff5966",
+        "modes": [
+          "night",
+          "off",
+          "ambient",
+          "party"
+        ],
+        "flicker": true
+      },
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party"
+      ],
+      "animate": "flicker",
+      "section": "lighting",
+      "emissive": "assets/emissive/neon-heart.png"
+    },
+    {
+      "id": "fairy-garland",
+      "label": "Fairy garland",
+      "kind": "decor",
+      "image": "assets/room/light-props/fairy-garland.png",
+      "width": 94,
+      "height": 74,
+      "bottom": 104,
+      "resizable": false,
+      "emissiveImage": "assets/room/light-props/fairy-garland-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.524,
+          "y": 0.549
+        },
+        "radius": 90,
+        "strength": 0.35,
+        "colour": "#ffc780"
+      },
+      "section": "lighting",
+      "emissive": "assets/emissive/fairy-garland.png"
+    },
+    {
+      "id": "exit-sign",
+      "label": "Exit sign",
+      "kind": "decor",
+      "image": "assets/room/light-props/exit-sign.png",
+      "imageRight": "assets/room/light-props/exit-sign-right.png",
+      "emissiveImageRight": "assets/room/light-props/exit-sign-right-on.png",
+      "width": 64,
+      "height": 67,
+      "bottom": 97,
+      "resizable": false,
+      "mirror": false,
+      "emissiveImage": "assets/room/light-props/exit-sign-on.png",
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.478,
+          "y": 0.549
+        },
+        "radius": 140,
+        "strength": 0.35,
+        "colour": "#73ff8c",
+        "shape": {
+          "image": "assets/room/light-props/light/exit-sign.png",
+          "width": 93,
+          "height": 106,
+          "origin": {
+            "x": 44,
+            "y": 56
+          }
+        },
+        "modes": [
+          "night",
+          "off",
+          "ambient",
+          "party",
+          "panic"
+        ]
+      },
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party",
+        "panic"
+      ],
+      "mount": "sprite",
+      "anchor": {
+        "x": 6.4,
+        "y": 23.5
+      },
+      "anchorRight": {
+        "x": 57.6,
+        "y": 23.5
+      },
+      "reach": 34,
+      "section": "lighting",
+      "emissive": "assets/emissive/exit-sign.png",
+      "emissiveRight": "assets/emissive/exit-sign-right.png"
+    },
+    {
+      "id": "emergency-beacon",
+      "label": "Emergency beacon",
+      "kind": "decor",
+      "image": "assets/room/light-props/emergency-beacon.png",
+      "width": 58,
+      "height": 60,
+      "bottom": 90,
+      "resizable": false,
+      "emissiveImage": "assets/room/light-props/emergency-beacon-on.png",
+      "glowModes": [
+        "panic"
+      ],
+      "animate": "beacon",
+      "mount": "sprite",
+      "anchor": {
+        "x": 8.7,
+        "y": 33.0
+      },
+      "reach": 24,
+      "section": "lighting",
+      "emissive": "assets/emissive/emergency-beacon.png"
+    },
+    {
+      "id": "disco-ball",
+      "label": "Disco ball",
+      "kind": "decor",
+      "image": "assets/room/light-props/disco-ball.png",
+      "width": 63,
+      "height": 111,
+      "bottom": 141,
+      "resizable": false,
+      "emissiveImage": "assets/room/light-props/disco-ball-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.488,
+          "y": 0.631
+        },
+        "radius": 170,
+        "strength": 0.7,
+        "colour": "#d9e6ff",
+        "shape": {
+          "image": "assets/room/light-props/light/disco-ball-floor.png",
+          "width": 368,
+          "height": 288,
+          "origin": {
+            "x": 184,
+            "y": 144
+          }
+        },
+        "drift": {
+          "x": 14,
+          "y": 0,
+          "period": 8
+        },
+        "extra": [
+          {
+            "kind": "wash",
+            "shape": {
+              "image": "assets/room/light-props/light/disco-ball.png",
+              "width": 328,
+              "height": 228,
+              "origin": {
+                "x": 164,
+                "y": 114
+              }
+            },
+            "drift": {
+              "x": 14,
+              "y": 0,
+              "period": 8
+            }
+          }
+        ],
+        "modes": [
+          "party"
+        ]
+      },
+      "glowModes": [
+        "party"
+      ],
+      "animate": "spin",
+      "mount": "sprite",
+      "anchor": {
+        "x": 32.8,
+        "y": 21.1
+      },
+      "reach": 26,
+      "section": "lighting",
+      "emissive": "assets/emissive/disco-ball.png"
+    },
+    {
+      "id": "window-string-lights",
+      "label": "Window (string lights)",
+      "kind": "window",
+      "frame": "assets/room/wall-items/window-frame.png",
+      "mullion": "assets/room/wall-items/window-mullion.png",
+      "drawnFor": "left",
+      "width": 163,
+      "height": 127,
+      "bottom": 187,
+      "resizable": true,
+      "minWidth": 80,
+      "maxWidth": 480,
+      "minHeight": 90,
+      "maxHeight": 200,
+      "slice": {
+        "left": 24,
+        "right": 30,
+        "top": 20,
+        "bottom": 28
+      },
+      "paneWidth": 55,
+      "mullionWidth": 29,
+      "glassTop": 17,
+      "glassBottom": 102,
+      "glassLeft": 20,
+      "glassRight": 129,
+      "group": "window",
+      "familyLabel": "Window lights",
+      "section": "lighting",
+      "thumb": "assets/room/light-props/thumbs/window-string-lights.png",
+      "decor": {
+        "kind": "strip",
+        "image": "assets/room/light-props/string-lights.png",
+        "emissiveImage": "assets/room/light-props/string-lights-on.png",
+        "width": 75,
+        "height": 30,
+        "emissive": "assets/emissive/string-lights.png"
+      },
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.5,
+          "y": 0.252
+        },
+        "radius": 100,
+        "strength": 0.35,
+        "colour": "#ffc780"
+      }
+    },
+    {
+      "id": "window-string-lights-colour",
+      "label": "Window (colour lights)",
+      "kind": "window",
+      "frame": "assets/room/wall-items/window-frame.png",
+      "mullion": "assets/room/wall-items/window-mullion.png",
+      "drawnFor": "left",
+      "width": 163,
+      "height": 127,
+      "bottom": 187,
+      "resizable": true,
+      "minWidth": 80,
+      "maxWidth": 480,
+      "minHeight": 90,
+      "maxHeight": 200,
+      "slice": {
+        "left": 24,
+        "right": 30,
+        "top": 20,
+        "bottom": 28
+      },
+      "paneWidth": 55,
+      "mullionWidth": 29,
+      "glassTop": 17,
+      "glassBottom": 102,
+      "glassLeft": 20,
+      "glassRight": 129,
+      "group": "window",
+      "familyLabel": "Window lights",
+      "section": "lighting",
+      "thumb": "assets/room/light-props/thumbs/window-string-lights-colour.png",
+      "decor": {
+        "kind": "strip",
+        "image": "assets/room/light-props/string-lights-colour.png",
+        "emissiveImage": "assets/room/light-props/string-lights-colour-on.png",
+        "width": 76,
+        "height": 30,
+        "glowModes": [
+          "night",
+          "off",
+          "ambient",
+          "party"
+        ],
+        "emissive": "assets/emissive/string-lights-colour.png"
+      },
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.5,
+          "y": 0.252
+        },
+        "radius": 100,
+        "strength": 0.35,
+        "colour": "#ff8cbf",
+        "modes": [
+          "night",
+          "off",
+          "ambient",
+          "party"
+        ]
+      }
+    },
+    {
+      "id": "window-star-lantern",
+      "label": "Window (star lantern)",
+      "kind": "window",
+      "frame": "assets/room/wall-items/window-frame.png",
+      "mullion": "assets/room/wall-items/window-mullion.png",
+      "drawnFor": "left",
+      "width": 163,
+      "height": 127,
+      "bottom": 187,
+      "resizable": true,
+      "minWidth": 80,
+      "maxWidth": 480,
+      "minHeight": 90,
+      "maxHeight": 200,
+      "slice": {
+        "left": 24,
+        "right": 30,
+        "top": 20,
+        "bottom": 28
+      },
+      "paneWidth": 55,
+      "mullionWidth": 29,
+      "glassTop": 17,
+      "glassBottom": 102,
+      "glassLeft": 20,
+      "glassRight": 129,
+      "group": "window",
+      "familyLabel": "Window lights",
+      "section": "lighting",
+      "thumb": "assets/room/light-props/thumbs/window-star-lantern.png",
+      "decor": {
+        "kind": "hang",
+        "image": "assets/room/light-props/star-lantern.png",
+        "emissiveImage": "assets/room/light-props/star-lantern-on.png",
+        "width": 53,
+        "height": 61,
+        "emissive": "assets/emissive/star-lantern.png"
+      },
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.5,
+          "y": 0.422
+        },
+        "radius": 80,
+        "strength": 0.35,
+        "colour": "#ffc780"
+      }
+    },
+    {
+      "id": "window-moon-lantern",
+      "label": "Window (moon lantern)",
+      "kind": "window",
+      "frame": "assets/room/wall-items/window-frame.png",
+      "mullion": "assets/room/wall-items/window-mullion.png",
+      "drawnFor": "left",
+      "width": 163,
+      "height": 127,
+      "bottom": 187,
+      "resizable": true,
+      "minWidth": 80,
+      "maxWidth": 480,
+      "minHeight": 90,
+      "maxHeight": 200,
+      "slice": {
+        "left": 24,
+        "right": 30,
+        "top": 20,
+        "bottom": 28
+      },
+      "paneWidth": 55,
+      "mullionWidth": 29,
+      "glassTop": 17,
+      "glassBottom": 102,
+      "glassLeft": 20,
+      "glassRight": 129,
+      "group": "window",
+      "familyLabel": "Window lights",
+      "section": "lighting",
+      "thumb": "assets/room/light-props/thumbs/window-moon-lantern.png",
+      "decor": {
+        "kind": "hang",
+        "image": "assets/room/light-props/moon-lantern.png",
+        "emissiveImage": "assets/room/light-props/moon-lantern-on.png",
+        "width": 38,
+        "height": 61,
+        "emissive": "assets/emissive/moon-lantern.png"
+      },
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.5,
+          "y": 0.422
+        },
+        "radius": 80,
+        "strength": 0.3,
+        "colour": "#d9e6ff"
+      }
+    },
+    {
+      "id": "window-lounge-string-lights",
+      "label": "Window (lounge, string lights)",
+      "kind": "window",
+      "frame": "assets/room/wall-items/window-lounge-frame.png",
+      "mullion": "assets/room/wall-items/window-lounge-mullion.png",
+      "drawnFor": "left",
+      "width": 270,
+      "height": 234,
+      "bottom": 294,
+      "resizable": true,
+      "minWidth": 140,
+      "maxWidth": 560,
+      "minHeight": 150,
+      "maxHeight": 320,
+      "slice": {
+        "left": 20,
+        "right": 25,
+        "top": 17,
+        "bottom": 24
+      },
+      "paneWidth": 60,
+      "mullionWidth": 33,
+      "glassTop": 14,
+      "glassBottom": 219,
+      "glassLeft": 16,
+      "glassRight": 241,
+      "group": "window",
+      "familyLabel": "Window lights",
+      "section": "lighting",
+      "thumb": "assets/room/light-props/thumbs/window-lounge-string-lights.png",
+      "decor": {
+        "kind": "strip",
+        "image": "assets/room/light-props/string-lights.png",
+        "emissiveImage": "assets/room/light-props/string-lights-on.png",
+        "width": 75,
+        "height": 30,
+        "emissive": "assets/emissive/string-lights.png"
+      },
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.5,
+          "y": 0.124
+        },
+        "radius": 100,
+        "strength": 0.35,
+        "colour": "#ffc780"
+      }
+    },
+    {
+      "id": "window-lounge-string-lights-colour",
+      "label": "Window (lounge, colour lights)",
+      "kind": "window",
+      "frame": "assets/room/wall-items/window-lounge-frame.png",
+      "mullion": "assets/room/wall-items/window-lounge-mullion.png",
+      "drawnFor": "left",
+      "width": 270,
+      "height": 234,
+      "bottom": 294,
+      "resizable": true,
+      "minWidth": 140,
+      "maxWidth": 560,
+      "minHeight": 150,
+      "maxHeight": 320,
+      "slice": {
+        "left": 20,
+        "right": 25,
+        "top": 17,
+        "bottom": 24
+      },
+      "paneWidth": 60,
+      "mullionWidth": 33,
+      "glassTop": 14,
+      "glassBottom": 219,
+      "glassLeft": 16,
+      "glassRight": 241,
+      "group": "window",
+      "familyLabel": "Window lights",
+      "section": "lighting",
+      "thumb": "assets/room/light-props/thumbs/window-lounge-string-lights-colour.png",
+      "decor": {
+        "kind": "strip",
+        "image": "assets/room/light-props/string-lights-colour.png",
+        "emissiveImage": "assets/room/light-props/string-lights-colour-on.png",
+        "width": 76,
+        "height": 30,
+        "glowModes": [
+          "night",
+          "off",
+          "ambient",
+          "party"
+        ],
+        "emissive": "assets/emissive/string-lights-colour.png"
+      },
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.5,
+          "y": 0.124
+        },
+        "radius": 100,
+        "strength": 0.35,
+        "colour": "#ff8cbf",
+        "modes": [
+          "night",
+          "off",
+          "ambient",
+          "party"
+        ]
+      }
+    },
+    {
+      "id": "window-lounge-star-lantern",
+      "label": "Window (lounge, star lantern)",
+      "kind": "window",
+      "frame": "assets/room/wall-items/window-lounge-frame.png",
+      "mullion": "assets/room/wall-items/window-lounge-mullion.png",
+      "drawnFor": "left",
+      "width": 270,
+      "height": 234,
+      "bottom": 294,
+      "resizable": true,
+      "minWidth": 140,
+      "maxWidth": 560,
+      "minHeight": 150,
+      "maxHeight": 320,
+      "slice": {
+        "left": 20,
+        "right": 25,
+        "top": 17,
+        "bottom": 24
+      },
+      "paneWidth": 60,
+      "mullionWidth": 33,
+      "glassTop": 14,
+      "glassBottom": 219,
+      "glassLeft": 16,
+      "glassRight": 241,
+      "group": "window",
+      "familyLabel": "Window lights",
+      "section": "lighting",
+      "thumb": "assets/room/light-props/thumbs/window-lounge-star-lantern.png",
+      "decor": {
+        "kind": "hang",
+        "image": "assets/room/light-props/star-lantern.png",
+        "emissiveImage": "assets/room/light-props/star-lantern-on.png",
+        "width": 53,
+        "height": 61,
+        "emissive": "assets/emissive/star-lantern.png"
+      },
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.5,
+          "y": 0.216
+        },
+        "radius": 80,
+        "strength": 0.35,
+        "colour": "#ffc780"
+      }
+    },
+    {
+      "id": "window-lounge-moon-lantern",
+      "label": "Window (lounge, moon lantern)",
+      "kind": "window",
+      "frame": "assets/room/wall-items/window-lounge-frame.png",
+      "mullion": "assets/room/wall-items/window-lounge-mullion.png",
+      "drawnFor": "left",
+      "width": 270,
+      "height": 234,
+      "bottom": 294,
+      "resizable": true,
+      "minWidth": 140,
+      "maxWidth": 560,
+      "minHeight": 150,
+      "maxHeight": 320,
+      "slice": {
+        "left": 20,
+        "right": 25,
+        "top": 17,
+        "bottom": 24
+      },
+      "paneWidth": 60,
+      "mullionWidth": 33,
+      "glassTop": 14,
+      "glassBottom": 219,
+      "glassLeft": 16,
+      "glassRight": 241,
+      "group": "window",
+      "familyLabel": "Window lights",
+      "section": "lighting",
+      "thumb": "assets/room/light-props/thumbs/window-lounge-moon-lantern.png",
+      "decor": {
+        "kind": "hang",
+        "image": "assets/room/light-props/moon-lantern.png",
+        "emissiveImage": "assets/room/light-props/moon-lantern-on.png",
+        "width": 38,
+        "height": 61,
+        "emissive": "assets/emissive/moon-lantern.png"
+      },
+      "light": {
+        "kind": "wash",
+        "head": {
+          "x": 0.5,
+          "y": 0.216
+        },
+        "radius": 80,
+        "strength": 0.3,
+        "colour": "#d9e6ff"
+      }
+    },
+    {
+      "id": "wall-tv",
+      "label": "Wall TV",
+      "kind": "decor",
+      "width": 171,
+      "height": 203,
+      "bottom": 233,
+      "resizable": false,
+      "section": "wall",
+      "mount": "sprite",
+      "reach": 6,
+      "meetingGroup": "conference",
+      "board": "tv",
+      "image": "assets/room/conference/wall-tv.png",
+      "anchor": {
+        "x": 77.9,
+        "y": 97.5
+      },
+      "emissiveImage": "assets/room/conference/wall-tv-on.png",
+      "emissive": "assets/room/conference/wall-tv-mask.png",
+      "screen": {
+        "x": 18,
+        "y": 17,
+        "w": 135,
+        "h": 160
+      }
+    },
+    {
+      "id": "wall-whiteboard",
+      "label": "Wall whiteboard",
+      "kind": "decor",
+      "width": 189,
+      "height": 219,
+      "bottom": 249,
+      "resizable": false,
+      "section": "wall",
+      "mount": "sprite",
+      "reach": 6,
+      "meetingGroup": "conference",
+      "board": "whiteboard",
+      "image": "assets/room/conference/wall-whiteboard.png",
+      "anchor": {
+        "x": 85.9,
+        "y": 105.2
+      }
+    },
+    {
+      "id": "sticky-board",
+      "label": "Sticky-note board",
+      "kind": "decor",
+      "width": 140,
+      "height": 173,
+      "bottom": 203,
+      "resizable": false,
+      "section": "wall",
+      "mount": "sprite",
+      "reach": 6,
+      "meetingGroup": "conference",
+      "image": "assets/room/conference/sticky-board.png",
+      "anchor": {
+        "x": 64.0,
+        "y": 83.1
+      }
+    }
+  ],
+  "shells": {
+    "1": "assets/room/shell/floor-1.png",
+    "2": "assets/room/shell/floor-2.png",
+    "3": "assets/room/shell/floor-2.png"
+  },
+  "shellParts": {
+    "1": {
+      "base": "assets/room/shell/floor-1-base.png",
+      "background": [
+        254,
+        237,
+        211
+      ],
+      "endCaps": {
+        "left": {
+          "top": "assets/room/shell/floor-1-cap-left-top.png",
+          "middle": "assets/room/shell/floor-1-cap-left-middle.png",
+          "x": 264,
+          "width": 36,
+          "topHeight": 26,
+          "topAbove": 2,
+          "floorY": 968
+        },
+        "right": {
+          "top": "assets/room/shell/floor-1-cap-right-top.png",
+          "middle": "assets/room/shell/floor-1-cap-right-middle.png",
+          "x": 2455,
+          "width": 34,
+          "topHeight": 26,
+          "topAbove": 2,
+          "floorY": 967
+        }
+      },
+      "cornerLine": {
+        "color": [
+          76,
+          29,
+          19
+        ],
+        "width": 4
+      }
+    },
+    "2": {
+      "base": "assets/room/shell/floor-2-base.png",
+      "background": [
+        255,
+        233,
+        208
+      ],
+      "endCaps": {
+        "left": {
+          "top": "assets/room/shell/floor-2-cap-left-top.png",
+          "middle": "assets/room/shell/floor-2-cap-left-middle.png",
+          "x": 91,
+          "width": 28,
+          "topHeight": 25,
+          "topAbove": 1,
+          "floorY": 881
+        },
+        "right": {
+          "top": "assets/room/shell/floor-2-cap-right-top.png",
+          "middle": "assets/room/shell/floor-2-cap-right-middle.png",
+          "x": 2633,
+          "width": 28,
+          "topHeight": 27,
+          "topAbove": 3,
+          "floorY": 881
+        }
+      },
+      "cornerLine": {
+        "color": [
+          76,
+          29,
+          19
+        ],
+        "width": 4
+      }
+    },
+    "3": {
+      "base": "assets/room/shell/floor-2-base.png",
+      "background": [
+        255,
+        233,
+        208
+      ],
+      "endCaps": {
+        "left": {
+          "top": "assets/room/shell/floor-2-cap-left-top.png",
+          "middle": "assets/room/shell/floor-2-cap-left-middle.png",
+          "x": 91,
+          "width": 28,
+          "topHeight": 25,
+          "topAbove": 1,
+          "floorY": 881
+        },
+        "right": {
+          "top": "assets/room/shell/floor-2-cap-right-top.png",
+          "middle": "assets/room/shell/floor-2-cap-right-middle.png",
+          "x": 2633,
+          "width": 28,
+          "topHeight": 27,
+          "topAbove": 3,
+          "floorY": 881
+        }
+      },
+      "cornerLine": {
+        "color": [
+          76,
+          29,
+          19
+        ],
+        "width": 4
+      }
+    }
+  }
+}

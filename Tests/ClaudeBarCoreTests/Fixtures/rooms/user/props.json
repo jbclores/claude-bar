@@ -1,0 +1,2949 @@
+{
+  "props": [
+    {
+      "id": "printer",
+      "label": "Printer",
+      "image": "assets/room/props/printer.png",
+      "width": 193,
+      "height": 170,
+      "anchor": {
+        "x": 81.0,
+        "y": 175.1
+      },
+      "length": 83.3,
+      "depth": 116.7,
+      "mirror": true,
+      "group": "printer",
+      "section": "office",
+      "spots": [
+        {
+          "id": "printer",
+          "kind": "printer",
+          "label": "Printer",
+          "stand": {
+            "dx": -68.1,
+            "dy": -3.3
+          },
+          "facing": "back-right",
+          "capacity": 1
+        }
+      ]
+    },
+    {
+      "id": "printer-compact",
+      "label": "Printer (compact)",
+      "image": "assets/room/props/printer-compact.png",
+      "width": 165,
+      "height": 145,
+      "anchor": {
+        "x": 69.4,
+        "y": 149.3
+      },
+      "length": 70.4,
+      "depth": 98.5,
+      "mirror": true,
+      "group": "printer",
+      "section": "office",
+      "spots": [
+        {
+          "id": "printer-compact",
+          "kind": "printer",
+          "label": "Printer (compact)",
+          "stand": {
+            "dx": -62.3,
+            "dy": -0.5
+          },
+          "facing": "back-right",
+          "capacity": 1
+        }
+      ]
+    },
+    {
+      "id": "water-cooler",
+      "label": "Water cooler",
+      "image": "assets/room/props/water-cooler.png",
+      "width": 101,
+      "height": 215,
+      "anchor": {
+        "x": 50.0,
+        "y": 209.0
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "section": "office",
+      "spots": [
+        {
+          "id": "water-cooler",
+          "kind": "water",
+          "label": "Water cooler",
+          "stand": {
+            "dx": -53.0,
+            "dy": 4.0
+          },
+          "facing": "back-right",
+          "capacity": 1
+        }
+      ]
+    },
+    {
+      "id": "coffee-counter",
+      "label": "Coffee counter",
+      "image": "assets/room/props/coffee-counter.png",
+      "width": 275,
+      "height": 301,
+      "anchor": {
+        "x": 176.9,
+        "y": 297.6
+      },
+      "length": 189.9,
+      "depth": 101.3,
+      "mirror": true,
+      "group": "coffee-counter",
+      "section": "office",
+      "spots": [
+        {
+          "id": "coffee-counter-1",
+          "kind": "coffee",
+          "label": "Coffee counter",
+          "stand": {
+            "dx": -81.9,
+            "dy": -10.0
+          },
+          "facing": "back-right",
+          "capacity": 2,
+          "slots": [
+            {
+              "stand": {
+                "dx": -81.9,
+                "dy": -10.0
+              },
+              "facing": "back-right"
+            },
+            {
+              "stand": {
+                "dx": -153.6,
+                "dy": -44.8
+              },
+              "facing": "back-right"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "coffee-counter-large",
+      "label": "Coffee counter (large)",
+      "image": "assets/room/props/coffee-counter-large.png",
+      "width": 322,
+      "height": 355,
+      "anchor": {
+        "x": 207.3,
+        "y": 349.3
+      },
+      "length": 222.6,
+      "depth": 118.6,
+      "mirror": true,
+      "group": "coffee-counter",
+      "section": "office",
+      "spots": [
+        {
+          "id": "coffee-counter-large-1",
+          "kind": "coffee",
+          "label": "Coffee counter (large)",
+          "stand": {
+            "dx": -90.7,
+            "dy": -14.3
+          },
+          "facing": "back-right",
+          "capacity": 2,
+          "slots": [
+            {
+              "stand": {
+                "dx": -90.7,
+                "dy": -14.3
+              },
+              "facing": "back-right"
+            },
+            {
+              "stand": {
+                "dx": -174.8,
+                "dy": -55.1
+              },
+              "facing": "back-right"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tall-plant",
+      "label": "Tall plant",
+      "image": "assets/room/props/tall-plant.png",
+      "width": 110,
+      "height": 158,
+      "anchor": {
+        "x": 53.4,
+        "y": 164.4
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "group": "plant",
+      "section": "plants",
+      "spots": [
+        {
+          "id": "tall-plant",
+          "kind": "plant",
+          "label": "Tall plant",
+          "stand": {
+            "dx": -53.0,
+            "dy": 4.0
+          },
+          "facing": "back-right",
+          "capacity": 1,
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "small-plant",
+      "label": "Small plant",
+      "image": "assets/room/props/small-plant.png",
+      "width": 83,
+      "height": 105,
+      "anchor": {
+        "x": 40.8,
+        "y": 109.6
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "group": "plant",
+      "section": "plants",
+      "spots": []
+    },
+    {
+      "id": "sofa",
+      "label": "Sofa",
+      "image": "assets/room/props/sofa.png",
+      "width": 462,
+      "height": 361,
+      "anchor": {
+        "x": 323.1,
+        "y": 356.9
+      },
+      "length": 353.5,
+      "depth": 147.8,
+      "mirror": true,
+      "group": "sofa",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "sofa-1",
+          "kind": "sofa",
+          "label": "Sofa",
+          "stand": {
+            "dx": -15.3,
+            "dy": -102.6
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 69.0
+        },
+        {
+          "id": "sofa-2",
+          "kind": "sofa",
+          "label": "Sofa",
+          "stand": {
+            "dx": -99.7,
+            "dy": -151.2
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 69.0
+        },
+        {
+          "id": "sofa-3",
+          "kind": "sofa",
+          "label": "Sofa",
+          "stand": {
+            "dx": -196.6,
+            "dy": -190.5
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 69.0
+        }
+      ]
+    },
+    {
+      "id": "sofa-plain",
+      "label": "Sofa (plain)",
+      "image": "assets/room/props/sofa-plain.png",
+      "width": 462,
+      "height": 361,
+      "anchor": {
+        "x": 323.1,
+        "y": 356.9
+      },
+      "length": 353.5,
+      "depth": 147.8,
+      "mirror": true,
+      "group": "sofa",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "sofa-plain-1",
+          "kind": "sofa",
+          "label": "Sofa (plain)",
+          "stand": {
+            "dx": -15.4,
+            "dy": -102.5
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 69.0
+        },
+        {
+          "id": "sofa-plain-2",
+          "kind": "sofa",
+          "label": "Sofa (plain)",
+          "stand": {
+            "dx": -100.1,
+            "dy": -151.3
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 69.0
+        },
+        {
+          "id": "sofa-plain-3",
+          "kind": "sofa",
+          "label": "Sofa (plain)",
+          "stand": {
+            "dx": -199.9,
+            "dy": -192.0
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 69.0
+        }
+      ]
+    },
+    {
+      "id": "sofa-round",
+      "label": "Sofa (round ends)",
+      "image": "assets/room/props/sofa-round.png",
+      "width": 458,
+      "height": 368,
+      "anchor": {
+        "x": 323.0,
+        "y": 363.4
+      },
+      "length": 353.4,
+      "depth": 143.4,
+      "mirror": true,
+      "group": "sofa",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "sofa-round-1",
+          "kind": "sofa",
+          "label": "Sofa (round ends)",
+          "stand": {
+            "dx": -17.0,
+            "dy": -105.1
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 70.3
+        },
+        {
+          "id": "sofa-round-2",
+          "kind": "sofa",
+          "label": "Sofa (round ends)",
+          "stand": {
+            "dx": -102.1,
+            "dy": -154.0
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 70.3
+        },
+        {
+          "id": "sofa-round-3",
+          "kind": "sofa",
+          "label": "Sofa (round ends)",
+          "stand": {
+            "dx": -203.9,
+            "dy": -195.7
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 70.3
+        }
+      ]
+    },
+    {
+      "id": "sofa-armed",
+      "label": "Sofa (with armrests)",
+      "image": "assets/room/props/sofa-armed.png",
+      "width": 464,
+      "height": 358,
+      "anchor": {
+        "x": 324.1,
+        "y": 355.4
+      },
+      "length": 353.5,
+      "depth": 147.7,
+      "mirror": true,
+      "group": "sofa",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "sofa-armed-1",
+          "kind": "sofa",
+          "label": "Sofa (with armrests)",
+          "stand": {
+            "dx": -33.0,
+            "dy": -111.0
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 63.9
+        },
+        {
+          "id": "sofa-armed-2",
+          "kind": "sofa",
+          "label": "Sofa (with armrests)",
+          "stand": {
+            "dx": -99.3,
+            "dy": -150.9
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 63.9
+        },
+        {
+          "id": "sofa-armed-3",
+          "kind": "sofa",
+          "label": "Sofa (with armrests)",
+          "stand": {
+            "dx": -189.8,
+            "dy": -187.1
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 63.9
+        }
+      ]
+    },
+    {
+      "id": "bean-bag-brown",
+      "label": "Bean bag brown",
+      "image": "assets/room/props/bean-bag-brown.png",
+      "width": 275,
+      "height": 270,
+      "anchor": {
+        "x": 135.5,
+        "y": 282.2
+      },
+      "length": 143.9,
+      "depth": 147.3,
+      "mirror": true,
+      "group": "bean-bag",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "bean-bag-brown",
+          "kind": "beanbag",
+          "label": "Bean bag brown",
+          "stand": {
+            "dx": 1.5,
+            "dy": -122.9
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 59.4
+        }
+      ]
+    },
+    {
+      "id": "bean-bag-cream",
+      "label": "Bean bag cream",
+      "image": "assets/room/props/bean-bag-cream.png",
+      "width": 264,
+      "height": 260,
+      "anchor": {
+        "x": 129.5,
+        "y": 272.2
+      },
+      "length": 137.2,
+      "depth": 141.7,
+      "mirror": true,
+      "group": "bean-bag",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "bean-bag-cream",
+          "kind": "beanbag",
+          "label": "Bean bag cream",
+          "stand": {
+            "dx": 2.0,
+            "dy": -118.1
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 57.2
+        }
+      ]
+    },
+    {
+      "id": "cat-bed-fluffy",
+      "label": "Cat bed fluffy",
+      "image": "assets/room/props/cat-bed-fluffy.png",
+      "width": 209,
+      "height": 161,
+      "anchor": {
+        "x": 104.6,
+        "y": 170.4
+      },
+      "length": 109.6,
+      "depth": 108.2,
+      "mirror": true,
+      "group": "cat-bed",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "cat-bed-fluffy",
+          "kind": "cat-bed",
+          "label": "Cat bed fluffy",
+          "stand": {
+            "dx": -0.6,
+            "dy": -86.3
+          },
+          "facing": "front-left",
+          "pose": "sleep",
+          "capacity": 1,
+          "lift": 38.8
+        }
+      ]
+    },
+    {
+      "id": "cat-bed-blue",
+      "label": "Cat bed blue",
+      "image": "assets/room/props/cat-bed-blue.png",
+      "width": 211,
+      "height": 161,
+      "anchor": {
+        "x": 105.5,
+        "y": 170.9
+      },
+      "length": 110.6,
+      "depth": 109.5,
+      "mirror": true,
+      "group": "cat-bed",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "cat-bed-blue",
+          "kind": "cat-bed",
+          "label": "Cat bed blue",
+          "stand": {
+            "dx": -0.5,
+            "dy": -83.0
+          },
+          "facing": "front-left",
+          "pose": "sleep",
+          "capacity": 1,
+          "lift": 35.0
+        }
+      ]
+    },
+    {
+      "id": "cat-tree",
+      "label": "Cat tree",
+      "image": "assets/room/props/cat-tree.png",
+      "width": 280,
+      "height": 327,
+      "anchor": {
+        "x": 141.1,
+        "y": 322.7
+      },
+      "length": 150.1,
+      "depth": 146.6,
+      "mirror": true,
+      "group": "cat-tree",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "cat-tree",
+          "kind": "cat-tree",
+          "label": "Cat tree",
+          "stand": {
+            "dx": -98.1,
+            "dy": -17.9
+          },
+          "facing": "back-right",
+          "capacity": 1
+        }
+      ]
+    },
+    {
+      "id": "cat-tree-toy",
+      "label": "Cat tree (with toy)",
+      "image": "assets/room/props/cat-tree-toy.png",
+      "width": 278,
+      "height": 325,
+      "anchor": {
+        "x": 140.0,
+        "y": 322.5
+      },
+      "length": 149.0,
+      "depth": 145.6,
+      "mirror": true,
+      "group": "cat-tree",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "cat-tree-toy",
+          "kind": "cat-tree",
+          "label": "Cat tree (with toy)",
+          "stand": {
+            "dx": -97.6,
+            "dy": -17.7
+          },
+          "facing": "back-right",
+          "capacity": 1
+        }
+      ]
+    },
+    {
+      "id": "cat-tree-large",
+      "label": "Cat tree (large)",
+      "image": "assets/room/props/cat-tree-large.png",
+      "width": 326,
+      "height": 385,
+      "anchor": {
+        "x": 164.3,
+        "y": 380.3
+      },
+      "length": 174.8,
+      "depth": 170.9,
+      "mirror": true,
+      "group": "cat-tree",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "cat-tree-large",
+          "kind": "cat-tree",
+          "label": "Cat tree (large)",
+          "stand": {
+            "dx": -109.2,
+            "dy": -23.3
+          },
+          "facing": "back-right",
+          "capacity": 1
+        }
+      ]
+    },
+    {
+      "id": "bookshelf",
+      "label": "Bookshelf",
+      "image": "assets/room/props/bookshelf.png",
+      "width": 210,
+      "height": 323,
+      "anchor": {
+        "x": 150.5,
+        "y": 317.4
+      },
+      "length": 160.6,
+      "depth": 58.4,
+      "mirror": true,
+      "group": "bookshelf",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "bookshelf",
+          "kind": "bookshelf",
+          "label": "Bookshelf",
+          "stand": {
+            "dx": -102.8,
+            "dy": -20.2
+          },
+          "facing": "back-right",
+          "capacity": 1
+        }
+      ]
+    },
+    {
+      "id": "bookshelf-low",
+      "label": "Bookshelf (low)",
+      "image": "assets/room/props/bookshelf-low.png",
+      "width": 209,
+      "height": 290,
+      "anchor": {
+        "x": 152.7,
+        "y": 286.3
+      },
+      "length": 163.1,
+      "depth": 54.8,
+      "mirror": true,
+      "group": "bookshelf",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "bookshelf-low",
+          "kind": "bookshelf",
+          "label": "Bookshelf (low)",
+          "stand": {
+            "dx": -104.0,
+            "dy": -20.7
+          },
+          "facing": "back-right",
+          "capacity": 1
+        }
+      ]
+    },
+    {
+      "id": "bookshelf-large",
+      "label": "Bookshelf (large)",
+      "image": "assets/room/props/bookshelf-large.png",
+      "width": 245,
+      "height": 344,
+      "anchor": {
+        "x": 179.1,
+        "y": 337.9
+      },
+      "length": 191.2,
+      "depth": 64.4,
+      "mirror": true,
+      "group": "bookshelf",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "bookshelf-large",
+          "kind": "bookshelf",
+          "label": "Bookshelf (large)",
+          "stand": {
+            "dx": -116.6,
+            "dy": -26.9
+          },
+          "facing": "back-right",
+          "capacity": 1
+        }
+      ]
+    },
+    {
+      "id": "floor-cushion",
+      "label": "Floor cushion brown",
+      "image": "assets/room/props/floor-cushion.png",
+      "width": 186,
+      "height": 121,
+      "anchor": {
+        "x": 93.0,
+        "y": 115.6
+      },
+      "length": 96.6,
+      "depth": 95.6,
+      "mirror": true,
+      "group": "floor-cushion",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "floor-cushion",
+          "kind": "rug",
+          "label": "Floor cushion brown",
+          "stand": {
+            "dx": -0.3,
+            "dy": -49.9
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 23.0
+        }
+      ]
+    },
+    {
+      "id": "window-seat",
+      "label": "Window seat",
+      "image": "assets/room/props/window-seat.png",
+      "width": 264,
+      "height": 251,
+      "anchor": {
+        "x": 192.2,
+        "y": 247.4
+      },
+      "length": 206.9,
+      "depth": 72.1,
+      "mirror": true,
+      "section": "lounge",
+      "cover": [{"x": 0, "y": 113}, {"x": 180, "y": 189}, {"x": 181, "y": 121}, {"x": 256, "y": 91}, {"x": 264, "y": 91}, {"x": 264, "y": 251}, {"x": 0, "y": 251}],
+      "spots": [
+        {
+          "id": "window-seat",
+          "kind": "window-seat",
+          "label": "Window seat",
+          "stand": {
+            "dx": -74.5,
+            "dy": -101.1
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 65.0
+        }
+      ]
+    },
+    {
+      "id": "floor-lamp",
+      "label": "Floor lamp",
+      "image": "assets/room/props/floor-lamp.png",
+      "width": 110,
+      "height": 271,
+      "anchor": {
+        "x": 54.5,
+        "y": 270.4
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "section": "lounge",
+      "spots": [],
+      "emissive": "assets/emissive/floor-lamp.png"
+    },
+    {
+      "id": "round-topiary",
+      "label": "Round topiary",
+      "image": "assets/room/props/round-topiary.png",
+      "width": 98,
+      "height": 172,
+      "anchor": {
+        "x": 48.5,
+        "y": 176.4
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "group": "plant",
+      "section": "plants",
+      "spots": [
+        {
+          "id": "round-topiary",
+          "kind": "plant",
+          "label": "Round topiary",
+          "stand": {
+            "dx": -53.0,
+            "dy": 4.0
+          },
+          "facing": "back-right",
+          "capacity": 1,
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "snack-table",
+      "label": "Snack table",
+      "image": "assets/room/props/snack-table.png",
+      "width": 222,
+      "height": 168,
+      "anchor": {
+        "x": 117.4,
+        "y": 164.2
+      },
+      "length": 124.9,
+      "depth": 109.6,
+      "mirror": true,
+      "group": "snack-table",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "snacks-1",
+          "kind": "snacks",
+          "label": "Snack table",
+          "stand": {
+            "dx": 61.6,
+            "dy": -9.8
+          },
+          "facing": "back-left",
+          "capacity": 3,
+          "slots": [
+            {
+              "stand": {
+                "dx": 61.6,
+                "dy": -9.8
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": 55.7,
+                "dy": -75.4
+              },
+              "facing": "front-left"
+            },
+            {
+              "stand": {
+                "dx": -79.7,
+                "dy": -78.2
+              },
+              "facing": "front-right"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "snack-table-large",
+      "label": "Snack table (large)",
+      "image": "assets/room/props/snack-table-large.png",
+      "width": 231,
+      "height": 175,
+      "anchor": {
+        "x": 121.9,
+        "y": 171.4
+      },
+      "length": 130.0,
+      "depth": 114.6,
+      "mirror": true,
+      "group": "snack-table",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "snack-table-large-1",
+          "kind": "snacks",
+          "label": "Snack table (large)",
+          "stand": {
+            "dx": 63.5,
+            "dy": -10.7
+          },
+          "facing": "back-left",
+          "capacity": 3,
+          "slots": [
+            {
+              "stand": {
+                "dx": 63.5,
+                "dy": -10.7
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": 58.1,
+                "dy": -78.5
+              },
+              "facing": "front-left"
+            },
+            {
+              "stand": {
+                "dx": -82.4,
+                "dy": -81.3
+              },
+              "facing": "front-right"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "floor-cushion-cream",
+      "label": "Floor cushion cream",
+      "image": "assets/room/props/floor-cushion-cream.png",
+      "width": 186,
+      "height": 121,
+      "anchor": {
+        "x": 93.0,
+        "y": 115.6
+      },
+      "length": 96.6,
+      "depth": 95.6,
+      "mirror": true,
+      "group": "floor-cushion",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "floor-cushion-cream",
+          "kind": "rug",
+          "label": "Floor cushion cream",
+          "stand": {
+            "dx": -0.3,
+            "dy": -49.9
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 23.0
+        }
+      ]
+    },
+    {
+      "id": "floor-cushion-blue",
+      "label": "Floor cushion blue",
+      "image": "assets/room/props/floor-cushion-blue.png",
+      "width": 186,
+      "height": 121,
+      "anchor": {
+        "x": 93.0,
+        "y": 115.6
+      },
+      "length": 96.6,
+      "depth": 95.6,
+      "mirror": true,
+      "group": "floor-cushion",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "floor-cushion-blue",
+          "kind": "rug",
+          "label": "Floor cushion blue",
+          "stand": {
+            "dx": -0.3,
+            "dy": -49.9
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 23.0
+        }
+      ]
+    },
+    {
+      "id": "floor-cushion-mauve",
+      "label": "Floor cushion mauve",
+      "image": "assets/room/props/floor-cushion-mauve.png",
+      "width": 186,
+      "height": 121,
+      "anchor": {
+        "x": 93.0,
+        "y": 115.6
+      },
+      "length": 96.6,
+      "depth": 95.6,
+      "mirror": true,
+      "group": "floor-cushion",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "floor-cushion-mauve",
+          "kind": "rug",
+          "label": "Floor cushion mauve",
+          "stand": {
+            "dx": -0.3,
+            "dy": -49.9
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 23.0
+        }
+      ]
+    },
+    {
+      "id": "window-seat-cushion",
+      "label": "Window seat cushion",
+      "image": "assets/room/props/window-seat-cushion.png",
+      "width": 258,
+      "height": 173,
+      "anchor": {
+        "x": 185.4,
+        "y": 242.0
+      },
+      "length": 199.3,
+      "depth": 73.0,
+      "mirror": true,
+      "raised": 72,
+      "group": "window-seat-cushion",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "window-seat-cushion",
+          "kind": "window-seat",
+          "label": "Window seat cushion",
+          "stand": {
+            "dx": -58.9,
+            "dy": -137.5
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 93.0
+        }
+      ]
+    },
+    {
+      "id": "window-seat-cushion-large",
+      "label": "Window seat cushion (large)",
+      "image": "assets/room/props/window-seat-cushion-large.png",
+      "width": 303,
+      "height": 203,
+      "anchor": {
+        "x": 217.8,
+        "y": 271.7
+      },
+      "length": 234.3,
+      "depth": 85.8,
+      "mirror": true,
+      "raised": 72,
+      "group": "window-seat-cushion",
+      "section": "lounge",
+      "spots": [
+        {
+          "id": "window-seat-cushion-large",
+          "kind": "window-seat",
+          "label": "Window seat cushion (large)",
+          "stand": {
+            "dx": -69.2,
+            "dy": -149.0
+          },
+          "facing": "front-left",
+          "pose": "sit",
+          "capacity": 1,
+          "lift": 96.7
+        }
+      ]
+    },
+    {
+      "id": "arc-floor-lamp",
+      "label": "Arc floor lamp",
+      "image": "assets/room/light-props/arc-floor-lamp.png",
+      "width": 235,
+      "height": 294,
+      "anchor": {
+        "x": 55.5,
+        "y": 297.5
+      },
+      "length": 74.1,
+      "depth": 74.1,
+      "mirror": true,
+      "cells": 3,
+      "emissiveImage": "assets/room/light-props/arc-floor-lamp-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.75,
+          "y": 0.354
+        },
+        "radius": 95,
+        "strength": 0.55,
+        "colour": "#ffc780"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/arc-floor-lamp.png"
+    },
+    {
+      "id": "tripod-floor-lamp",
+      "label": "Tripod floor lamp",
+      "image": "assets/room/light-props/tripod-floor-lamp.png",
+      "width": 115,
+      "height": 265,
+      "anchor": {
+        "x": 57.5,
+        "y": 275.5
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "emissiveImage": "assets/room/light-props/tripod-floor-lamp-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.49,
+          "y": 0.223
+        },
+        "radius": 85,
+        "strength": 0.5,
+        "colour": "#ffc780"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/tripod-floor-lamp.png"
+    },
+    {
+      "id": "torchiere",
+      "label": "Torchiere",
+      "image": "assets/room/light-props/torchiere.png",
+      "width": 107,
+      "height": 275,
+      "anchor": {
+        "x": 53.4,
+        "y": 276.7
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "emissiveImage": "assets/room/light-props/torchiere-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.494,
+          "y": 0.145
+        },
+        "radius": 70,
+        "strength": 0.35,
+        "colour": "#ffd99e"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/torchiere.png"
+    },
+    {
+      "id": "paper-lantern-lamp",
+      "label": "Paper lantern lamp",
+      "image": "assets/room/light-props/paper-lantern-lamp.png",
+      "width": 82,
+      "height": 259,
+      "anchor": {
+        "x": 40.0,
+        "y": 264.9
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "emissiveImage": "assets/room/light-props/paper-lantern-lamp-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.504,
+          "y": 0.453
+        },
+        "radius": 80,
+        "strength": 0.5,
+        "colour": "#ffd99e"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/paper-lantern-lamp.png"
+    },
+    {
+      "id": "mushroom-lamp",
+      "label": "Mushroom lamp",
+      "image": "assets/room/light-props/mushroom-lamp.png",
+      "width": 103,
+      "height": 123,
+      "anchor": {
+        "x": 51.0,
+        "y": 129.3
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "emissiveImage": "assets/room/light-props/mushroom-lamp-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.496,
+          "y": 0.454
+        },
+        "radius": 55,
+        "strength": 0.45,
+        "colour": "#ffc780"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/mushroom-lamp.png"
+    },
+    {
+      "id": "cat-lamp",
+      "label": "Cat lamp",
+      "image": "assets/room/light-props/cat-lamp.png",
+      "width": 86,
+      "height": 126,
+      "anchor": {
+        "x": 43.2,
+        "y": 118.0
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "emissiveImage": "assets/room/light-props/cat-lamp-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.467,
+          "y": 0.554
+        },
+        "radius": 55,
+        "strength": 0.45,
+        "colour": "#ffd99e"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/cat-lamp.png"
+    },
+    {
+      "id": "lava-lamp",
+      "label": "Lava lamp",
+      "image": "assets/room/light-props/lava-lamp.png",
+      "width": 71,
+      "height": 164,
+      "anchor": {
+        "x": 35.5,
+        "y": 165.0
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "group": "lava-lamp",
+      "emissiveImage": "assets/room/light-props/lava-lamp-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.496,
+          "y": 0.408
+        },
+        "radius": 55,
+        "strength": 0.4,
+        "colour": "#ff8c8c"
+      },
+      "animate": "drift",
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/lava-lamp.png"
+    },
+    {
+      "id": "lava-lamp-tall",
+      "label": "Lava lamp (tall stool)",
+      "image": "assets/room/light-props/lava-lamp-tall.png",
+      "width": 75,
+      "height": 172,
+      "anchor": {
+        "x": 37.0,
+        "y": 172.7
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "group": "lava-lamp",
+      "emissiveImage": "assets/room/light-props/lava-lamp-tall-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.497,
+          "y": 0.439
+        },
+        "radius": 55,
+        "strength": 0.4,
+        "colour": "#ff8c8c"
+      },
+      "animate": "drift",
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/lava-lamp-tall.png"
+    },
+    {
+      "id": "salt-rock-lamp",
+      "label": "Salt-rock lamp",
+      "image": "assets/room/light-props/salt-rock-lamp.png",
+      "width": 85,
+      "height": 139,
+      "anchor": {
+        "x": 42.0,
+        "y": 133.0
+      },
+      "length": 40.0,
+      "depth": 40.1,
+      "mirror": true,
+      "group": "salt-rock-lamp",
+      "emissiveImage": "assets/room/light-props/salt-rock-lamp-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.475,
+          "y": 0.501
+        },
+        "radius": 60,
+        "strength": 0.45,
+        "colour": "#ff9973"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/salt-rock-lamp.png"
+    },
+    {
+      "id": "salt-rock-lamp-round",
+      "label": "Salt-rock lamp (round base)",
+      "image": "assets/room/light-props/salt-rock-lamp-round.png",
+      "width": 82,
+      "height": 134,
+      "anchor": {
+        "x": 40.5,
+        "y": 132.1
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "group": "salt-rock-lamp",
+      "emissiveImage": "assets/room/light-props/salt-rock-lamp-round-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.488,
+          "y": 0.468
+        },
+        "radius": 60,
+        "strength": 0.45,
+        "colour": "#ff9973"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/salt-rock-lamp-round.png"
+    },
+    {
+      "id": "bamboo-lantern",
+      "label": "Bamboo lantern",
+      "image": "assets/room/light-props/bamboo-lantern.png",
+      "width": 134,
+      "height": 199,
+      "anchor": {
+        "x": 66.6,
+        "y": 193.7
+      },
+      "length": 67.4,
+      "depth": 67.1,
+      "mirror": true,
+      "group": "bamboo-lantern",
+      "emissiveImage": "assets/room/light-props/bamboo-lantern-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.501,
+          "y": 0.478
+        },
+        "radius": 80,
+        "strength": 0.5,
+        "colour": "#ffc780"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/bamboo-lantern.png"
+    },
+    {
+      "id": "bamboo-lantern-slim",
+      "label": "Bamboo lantern (slim)",
+      "image": "assets/room/light-props/bamboo-lantern-slim.png",
+      "width": 119,
+      "height": 194,
+      "anchor": {
+        "x": 59.0,
+        "y": 188.9
+      },
+      "length": 57.8,
+      "depth": 57.8,
+      "mirror": true,
+      "group": "bamboo-lantern",
+      "emissiveImage": "assets/room/light-props/bamboo-lantern-slim-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.504,
+          "y": 0.465
+        },
+        "radius": 80,
+        "strength": 0.5,
+        "colour": "#ffc780"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/bamboo-lantern-slim.png"
+    },
+    {
+      "id": "ring-light",
+      "label": "Ring light",
+      "image": "assets/room/light-props/ring-light.png",
+      "width": 80,
+      "height": 253,
+      "anchor": {
+        "x": 46.0,
+        "y": 267.3
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "emissiveImage": "assets/room/light-props/ring-light-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.496,
+          "y": 0.264
+        },
+        "radius": 75,
+        "strength": 0.4,
+        "colour": "#d1e6ff"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/ring-light.png"
+    },
+    {
+      "id": "fairy-light-plant",
+      "label": "Fairy-light plant",
+      "image": "assets/room/light-props/fairy-light-plant.png",
+      "width": 110,
+      "height": 231,
+      "anchor": {
+        "x": 54.6,
+        "y": 234.6
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "emissiveImage": "assets/room/light-props/fairy-light-plant-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.492,
+          "y": 0.377
+        },
+        "radius": 60,
+        "strength": 0.3,
+        "colour": "#ffc780"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/fairy-light-plant.png"
+    },
+    {
+      "id": "fish-tank",
+      "label": "Fish tank",
+      "image": "assets/room/light-props/fish-tank.png",
+      "width": 149,
+      "height": 154,
+      "anchor": {
+        "x": 88.6,
+        "y": 148.3
+      },
+      "length": 91.8,
+      "depth": 59.4,
+      "mirror": true,
+      "group": "fish-tank",
+      "emissiveImage": "assets/room/light-props/fish-tank-on.png",
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party"
+      ],
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/fish-tank.png"
+    },
+    {
+      "id": "fish-tank-tall",
+      "label": "Fish tank (tall)",
+      "image": "assets/room/light-props/fish-tank-tall.png",
+      "width": 164,
+      "height": 170,
+      "anchor": {
+        "x": 97.1,
+        "y": 163.6
+      },
+      "length": 100.2,
+      "depth": 67.7,
+      "mirror": true,
+      "group": "fish-tank",
+      "emissiveImage": "assets/room/light-props/fish-tank-tall-on.png",
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party"
+      ],
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/fish-tank-tall.png"
+    },
+    {
+      "id": "bankers-lamp",
+      "label": "Banker's lamp",
+      "image": "assets/room/light-props/bankers-lamp.png",
+      "width": 115,
+      "height": 154,
+      "anchor": {
+        "x": 56.9,
+        "y": 148.4
+      },
+      "length": 56.6,
+      "depth": 56.8,
+      "mirror": true,
+      "emissiveImage": "assets/room/light-props/bankers-lamp-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.492,
+          "y": 0.314
+        },
+        "radius": 55,
+        "strength": 0.35,
+        "colour": "#bfffb2"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/bankers-lamp.png"
+    },
+    {
+      "id": "cat-ear-lamp",
+      "label": "Cat-ear lamp",
+      "image": "assets/room/light-props/cat-ear-lamp.png",
+      "width": 79,
+      "height": 164,
+      "anchor": {
+        "x": 38.5,
+        "y": 163.0
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "emissiveImage": "assets/room/light-props/cat-ear-lamp-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.488,
+          "y": 0.309
+        },
+        "radius": 60,
+        "strength": 0.45,
+        "colour": "#ffd99e"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/cat-ear-lamp.png"
+    },
+    {
+      "id": "candle-table",
+      "label": "Candle table",
+      "image": "assets/room/light-props/candle-table.png",
+      "width": 142,
+      "height": 124,
+      "anchor": {
+        "x": 70.3,
+        "y": 118.6
+      },
+      "length": 71.4,
+      "depth": 71.9,
+      "mirror": true,
+      "emissiveImage": "assets/room/light-props/candle-table-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.485,
+          "y": 0.304
+        },
+        "radius": 65,
+        "strength": 0.45,
+        "colour": "#ffb266",
+        "flicker": true
+      },
+      "animate": "flicker",
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/candle-table.png"
+    },
+    {
+      "id": "lantern-crate",
+      "label": "Lantern on a crate",
+      "image": "assets/room/light-props/lantern-crate.png",
+      "width": 127,
+      "height": 154,
+      "anchor": {
+        "x": 63.1,
+        "y": 148.9
+      },
+      "length": 63.5,
+      "depth": 64.3,
+      "mirror": true,
+      "emissiveImage": "assets/room/light-props/lantern-crate-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.452,
+          "y": 0.398
+        },
+        "radius": 60,
+        "strength": 0.45,
+        "colour": "#ffc780"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/lantern-crate.png"
+    },
+    {
+      "id": "moon-lamp",
+      "label": "Moon lamp",
+      "image": "assets/room/light-props/moon-lamp.png",
+      "width": 96,
+      "height": 155,
+      "anchor": {
+        "x": 49.0,
+        "y": 165.9
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "emissiveImage": "assets/room/light-props/moon-lamp-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.494,
+          "y": 0.359
+        },
+        "radius": 60,
+        "strength": 0.4,
+        "colour": "#ffebb2"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/moon-lamp.png"
+    },
+    {
+      "id": "neon-cube",
+      "label": "Neon cube",
+      "image": "assets/room/light-props/neon-cube.png",
+      "width": 129,
+      "height": 155,
+      "anchor": {
+        "x": 64.2,
+        "y": 149.1
+      },
+      "length": 63.5,
+      "depth": 64.3,
+      "mirror": true,
+      "emissiveImage": "assets/room/light-props/neon-cube-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.502,
+          "y": 0.29
+        },
+        "radius": 55,
+        "strength": 0.35,
+        "colour": "#ff73d9",
+        "modes": [
+          "night",
+          "off",
+          "ambient",
+          "party"
+        ]
+      },
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party"
+      ],
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/neon-cube.png"
+    },
+    {
+      "id": "glowing-globe",
+      "label": "Glowing globe",
+      "image": "assets/room/light-props/glowing-globe.png",
+      "width": 95,
+      "height": 164,
+      "anchor": {
+        "x": 47.0,
+        "y": 170.4
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "group": "glowing-globe",
+      "emissiveImage": "assets/room/light-props/glowing-globe-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.507,
+          "y": 0.393
+        },
+        "radius": 55,
+        "strength": 0.35,
+        "colour": "#b2e0ff"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/glowing-globe.png"
+    },
+    {
+      "id": "glowing-globe-stool",
+      "label": "Glowing globe (stool)",
+      "image": "assets/room/light-props/glowing-globe-stool.png",
+      "width": 100,
+      "height": 165,
+      "anchor": {
+        "x": 49.5,
+        "y": 159.2
+      },
+      "length": 48.3,
+      "depth": 48.4,
+      "mirror": true,
+      "group": "glowing-globe",
+      "emissiveImage": "assets/room/light-props/glowing-globe-stool-on.png",
+      "light": {
+        "kind": "pool",
+        "head": {
+          "x": 0.507,
+          "y": 0.382
+        },
+        "radius": 55,
+        "strength": 0.35,
+        "colour": "#b2e0ff"
+      },
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/glowing-globe-stool.png"
+    },
+    {
+      "id": "aquarium-long",
+      "label": "Big fish tank (long aquarium)",
+      "image": "assets/room/light-props/aquarium-long.png",
+      "width": 296,
+      "height": 305,
+      "anchor": {
+        "x": 208.6,
+        "y": 299.0
+      },
+      "length": 225.2,
+      "depth": 89.4,
+      "mirror": true,
+      "group": "fish-tank",
+      "emissiveImage": "assets/room/light-props/aquarium-long-on.png",
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party"
+      ],
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/aquarium-long.png"
+    },
+    {
+      "id": "aquarium-cube",
+      "label": "Big fish tank (cube aquarium)",
+      "image": "assets/room/light-props/aquarium-cube.png",
+      "width": 214,
+      "height": 344,
+      "anchor": {
+        "x": 119.9,
+        "y": 338.4
+      },
+      "length": 126.6,
+      "depth": 96.8,
+      "mirror": true,
+      "group": "fish-tank",
+      "emissiveImage": "assets/room/light-props/aquarium-cube-on.png",
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party"
+      ],
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/aquarium-cube.png"
+    },
+    {
+      "id": "aquarium-column",
+      "label": "Big fish tank (column aquarium)",
+      "image": "assets/room/light-props/aquarium-column.png",
+      "width": 217,
+      "height": 404,
+      "anchor": {
+        "x": 108.5,
+        "y": 417.6
+      },
+      "length": 153.4,
+      "depth": 153.4,
+      "mirror": true,
+      "cells": 6,
+      "group": "fish-tank",
+      "emissiveImage": "assets/room/light-props/aquarium-column-on.png",
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party"
+      ],
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/aquarium-column.png"
+    },
+    {
+      "id": "aquarium-corner",
+      "label": "Big fish tank (corner aquarium)",
+      "image": "assets/room/light-props/aquarium-corner.png",
+      "width": 278,
+      "height": 304,
+      "anchor": {
+        "x": 140.4,
+        "y": 335.9
+      },
+      "length": 149.3,
+      "depth": 145.2,
+      "mirror": true,
+      "group": "fish-tank",
+      "emissiveImage": "assets/room/light-props/aquarium-corner-on.png",
+      "glowModes": [
+        "night",
+        "off",
+        "ambient",
+        "party"
+      ],
+      "notch": 0.66,
+      "section": "lighting",
+      "spots": [],
+      "emissive": "assets/emissive/aquarium-corner.png"
+    },
+    {
+      "id": "trash-bin-mesh",
+      "label": "Mesh bin",
+      "image": "assets/room/props/trash-bin-mesh.png",
+      "width": 57,
+      "height": 76,
+      "anchor": {
+        "x": 28.5,
+        "y": 76.5
+      },
+      "length": 27.3,
+      "depth": 27.3,
+      "cells": 1,
+      "mirror": true,
+      "group": "trash-bin",
+      "section": "office",
+      "spots": []
+    },
+    {
+      "id": "trash-bin-wicker",
+      "label": "Wicker basket",
+      "image": "assets/room/props/trash-bin-wicker.png",
+      "width": 62,
+      "height": 76,
+      "anchor": {
+        "x": 31.0,
+        "y": 76.7
+      },
+      "length": 29.3,
+      "depth": 29.3,
+      "cells": 1,
+      "mirror": true,
+      "group": "trash-bin",
+      "section": "office",
+      "spots": []
+    },
+    {
+      "id": "trash-bin-pedal",
+      "label": "Pedal bin",
+      "image": "assets/room/props/trash-bin-pedal.png",
+      "width": 50,
+      "height": 76,
+      "anchor": {
+        "x": 25.0,
+        "y": 77.5
+      },
+      "length": 35.2,
+      "depth": 35.2,
+      "cells": 1,
+      "mirror": true,
+      "group": "trash-bin",
+      "section": "office",
+      "spots": []
+    },
+    {
+      "id": "trash-bin-metal",
+      "label": "Metal bin",
+      "image": "assets/room/props/trash-bin-metal.png",
+      "width": 57,
+      "height": 76,
+      "anchor": {
+        "x": 28.5,
+        "y": 76.2
+      },
+      "length": 25.0,
+      "depth": 25.0,
+      "cells": 1,
+      "mirror": true,
+      "group": "trash-bin",
+      "section": "office",
+      "spots": []
+    },
+    {
+      "id": "conference-table",
+      "label": "Conference table (round, wood)",
+      "image": "assets/room/conference/conference-table.png",
+      "width": 255,
+      "height": 179,
+      "anchor": {
+        "x": 127.5,
+        "y": 208.0
+      },
+      "length": 199.6,
+      "depth": 199.6,
+      "mirror": true,
+      "cells": 8,
+      "section": "office",
+      "group": "conference-table",
+      "meetingGroup": "conference",
+      "spots": [
+        {
+          "id": "meeting",
+          "kind": "meeting",
+          "label": "Meeting table",
+          "stand": {
+            "dx": 116.8,
+            "dy": -143.8
+          },
+          "facing": "front-left",
+          "pose": "stand",
+          "capacity": 4,
+          "slots": [
+            {
+              "stand": {
+                "dx": 116.8,
+                "dy": -143.8
+              },
+              "facing": "front-left"
+            },
+            {
+              "stand": {
+                "dx": 116.8,
+                "dy": -30.5
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": -116.8,
+                "dy": -30.5
+              },
+              "facing": "back-right"
+            },
+            {
+              "stand": {
+                "dx": -116.8,
+                "dy": -143.8
+              },
+              "facing": "front-right"
+            }
+          ]
+        }
+      ],
+      "top": {
+        "height": 54.5,
+        "inset": 0.18
+      }
+    },
+    {
+      "id": "conference-table-round-white",
+      "label": "Conference table (round, white)",
+      "image": "assets/room/conference/conference-table-round-white.png",
+      "width": 255,
+      "height": 179,
+      "anchor": {
+        "x": 127.5,
+        "y": 207.7
+      },
+      "length": 199.6,
+      "depth": 199.6,
+      "mirror": true,
+      "cells": 8,
+      "section": "office",
+      "group": "conference-table",
+      "meetingGroup": "conference",
+      "spots": [
+        {
+          "id": "meeting",
+          "kind": "meeting",
+          "label": "Meeting table",
+          "stand": {
+            "dx": 116.8,
+            "dy": -143.8
+          },
+          "facing": "front-left",
+          "pose": "stand",
+          "capacity": 4,
+          "slots": [
+            {
+              "stand": {
+                "dx": 116.8,
+                "dy": -143.8
+              },
+              "facing": "front-left"
+            },
+            {
+              "stand": {
+                "dx": 116.8,
+                "dy": -30.5
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": -116.8,
+                "dy": -30.5
+              },
+              "facing": "back-right"
+            },
+            {
+              "stand": {
+                "dx": -116.8,
+                "dy": -143.8
+              },
+              "facing": "front-right"
+            }
+          ]
+        }
+      ],
+      "top": {
+        "height": 54.2,
+        "inset": 0.18
+      }
+    },
+    {
+      "id": "conference-table-square",
+      "label": "Conference table (square, wood)",
+      "image": "assets/room/conference/conference-table-square.png",
+      "width": 240,
+      "height": 178,
+      "anchor": {
+        "x": 119.4,
+        "y": 171.7
+      },
+      "length": 126.0,
+      "depth": 126.3,
+      "mirror": true,
+      "section": "office",
+      "group": "conference-table",
+      "meetingGroup": "conference",
+      "spots": [
+        {
+          "id": "meeting",
+          "kind": "meeting",
+          "label": "Meeting table",
+          "stand": {
+            "dx": 83.9,
+            "dy": -95.7
+          },
+          "facing": "front-left",
+          "pose": "stand",
+          "capacity": 4,
+          "slots": [
+            {
+              "stand": {
+                "dx": 83.9,
+                "dy": -95.7
+              },
+              "facing": "front-left"
+            },
+            {
+              "stand": {
+                "dx": 83.8,
+                "dy": -14.5
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": -83.7,
+                "dy": -14.4
+              },
+              "facing": "back-right"
+            },
+            {
+              "stand": {
+                "dx": -83.6,
+                "dy": -95.6
+              },
+              "facing": "front-right"
+            }
+          ]
+        }
+      ],
+      "top": {
+        "height": 55.6,
+        "inset": 0.18
+      }
+    },
+    {
+      "id": "conference-table-long",
+      "label": "Conference table (long, wood)",
+      "image": "assets/room/conference/conference-table-long.png",
+      "width": 472,
+      "height": 289,
+      "anchor": {
+        "x": 138.7,
+        "y": 284.1
+      },
+      "length": 147.5,
+      "depth": 362.7,
+      "mirror": true,
+      "section": "office",
+      "group": "conference-table",
+      "meetingGroup": "conference",
+      "spots": [
+        {
+          "id": "meeting",
+          "kind": "meeting",
+          "label": "Meeting table",
+          "stand": {
+            "dx": 286.9,
+            "dy": -203.6
+          },
+          "facing": "front-left",
+          "pose": "stand",
+          "capacity": 8,
+          "slots": [
+            {
+              "stand": {
+                "dx": 286.9,
+                "dy": -203.6
+              },
+              "facing": "front-left"
+            },
+            {
+              "stand": {
+                "dx": 81.4,
+                "dy": -13.3
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": -105.3,
+                "dy": -103.8
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 190.1,
+                "dy": -66.1
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": 3.5,
+                "dy": -156.6
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 298.9,
+                "dy": -118.9
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": 112.2,
+                "dy": -209.4
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": -93.3,
+                "dy": -19.1
+              },
+              "facing": "back-right"
+            }
+          ]
+        }
+      ],
+      "top": {
+        "height": 55.4,
+        "inset": 0.18
+      }
+    },
+    {
+      "id": "conference-table-long-white",
+      "label": "Conference table (long, white)",
+      "image": "assets/room/conference/conference-table-long-white.png",
+      "width": 472,
+      "height": 289,
+      "anchor": {
+        "x": 137.0,
+        "y": 283.4
+      },
+      "length": 145.6,
+      "depth": 364.5,
+      "mirror": true,
+      "section": "office",
+      "group": "conference-table",
+      "meetingGroup": "conference",
+      "spots": [
+        {
+          "id": "meeting",
+          "kind": "meeting",
+          "label": "Meeting table",
+          "stand": {
+            "dx": 289.4,
+            "dy": -204.0
+          },
+          "facing": "front-left",
+          "pose": "stand",
+          "capacity": 8,
+          "slots": [
+            {
+              "stand": {
+                "dx": 289.4,
+                "dy": -204.0
+              },
+              "facing": "front-left"
+            },
+            {
+              "stand": {
+                "dx": 81.7,
+                "dy": -13.4
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": -103.4,
+                "dy": -103.2
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 191.0,
+                "dy": -66.5
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": 6.0,
+                "dy": -156.2
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 300.3,
+                "dy": -119.5
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": 115.3,
+                "dy": -209.3
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": -92.5,
+                "dy": -18.7
+              },
+              "facing": "back-right"
+            }
+          ]
+        }
+      ],
+      "top": {
+        "height": 55.7,
+        "inset": 0.18
+      }
+    },
+    {
+      "id": "big-meeting-table",
+      "label": "Big meeting table (head end)",
+      "image": "assets/room/conference/big-meeting-table.png",
+      "width": 708,
+      "height": 417,
+      "anchor": {
+        "x": 212.4,
+        "y": 432.8
+      },
+      "length": 258.2,
+      "depth": 655.2,
+      "mirror": true,
+      "section": "office",
+      "group": "big-meeting-table",
+      "meetingGroup": "conference",
+      "spots": [
+        {
+          "id": "meeting",
+          "kind": "meeting",
+          "label": "Meeting table",
+          "stand": {
+            "dx": 500.2,
+            "dy": -355.5
+          },
+          "facing": "front-left",
+          "pose": "stand",
+          "capacity": 10,
+          "slots": [
+            {
+              "stand": {
+                "dx": 500.2,
+                "dy": -355.5
+              },
+              "facing": "front-left"
+            },
+            {
+              "stand": {
+                "dx": 68.2,
+                "dy": -16.9
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": -197.6,
+                "dy": -145.7
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 170.1,
+                "dy": -67.3
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": -93.7,
+                "dy": -195.2
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 272.0,
+                "dy": -117.7
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": 10.2,
+                "dy": -244.7
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 373.8,
+                "dy": -168.2
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": 114.2,
+                "dy": -294.1
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": -143.2,
+                "dy": -43.2
+              },
+              "facing": "back-right"
+            }
+          ]
+        }
+      ],
+      "top": {
+        "height": 55.2,
+        "inset": 0.34
+      },
+      "companions": [
+        {
+          "rug": "meeting-head-mat-round",
+          "at": {
+            "du": 685.2,
+            "dv": 129.1
+          },
+          "label": "Head mat"
+        }
+      ]
+    },
+    {
+      "id": "big-meeting-table-lectern",
+      "label": "Big meeting table (lectern)",
+      "image": "assets/room/conference/big-meeting-table-lectern.png",
+      "width": 645,
+      "height": 393,
+      "anchor": {
+        "x": 96.4,
+        "y": 453.1
+      },
+      "length": 235.4,
+      "depth": 667.6,
+      "mirror": true,
+      "section": "office",
+      "group": "big-meeting-table",
+      "meetingGroup": "conference",
+      "spots": [
+        {
+          "id": "meeting",
+          "kind": "meeting",
+          "label": "Meeting table",
+          "stand": {
+            "dx": 501.9,
+            "dy": -346.3
+          },
+          "facing": "front-left",
+          "pose": "stand",
+          "capacity": 10,
+          "slots": [
+            {
+              "stand": {
+                "dx": 501.9,
+                "dy": -346.3
+              },
+              "facing": "front-left"
+            },
+            {
+              "stand": {
+                "dx": 132.7,
+                "dy": -44.1
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": -120.9,
+                "dy": -167.1
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 246.1,
+                "dy": -93.4
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": -19.4,
+                "dy": -222.1
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 353.1,
+                "dy": -145.7
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": 88.5,
+                "dy": -274.0
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 460.1,
+                "dy": -198.1
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": 196.5,
+                "dy": -326.0
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": -132.9,
+                "dy": -38.2
+              },
+              "facing": "back-right"
+            }
+          ]
+        }
+      ],
+      "top": {
+        "height": 54.3,
+        "inset": 0.18
+      },
+      "emissive": "assets/room/conference/big-meeting-table-lectern-mask.png"
+    },
+    {
+      "id": "big-meeting-table-screen",
+      "label": "Big meeting table (screen)",
+      "image": "assets/room/conference/big-meeting-table-screen.png",
+      "width": 612,
+      "height": 362,
+      "anchor": {
+        "x": 162.7,
+        "y": 373.3
+      },
+      "length": 206.2,
+      "depth": 513.5,
+      "mirror": true,
+      "section": "office",
+      "group": "big-meeting-table",
+      "meetingGroup": "conference",
+      "spots": [
+        {
+          "id": "meeting",
+          "kind": "meeting",
+          "label": "Meeting table",
+          "stand": {
+            "dx": 396.2,
+            "dy": -282.3
+          },
+          "facing": "front-left",
+          "pose": "stand",
+          "capacity": 10,
+          "slots": [
+            {
+              "stand": {
+                "dx": 396.2,
+                "dy": -282.3
+              },
+              "facing": "front-left"
+            },
+            {
+              "stand": {
+                "dx": 93.0,
+                "dy": -20.0
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": -144.4,
+                "dy": -135.1
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 206.1,
+                "dy": -74.6
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": -31.8,
+                "dy": -190.0
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 319.1,
+                "dy": -129.3
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": 80.8,
+                "dy": -244.8
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": 432.5,
+                "dy": -183.8
+              },
+              "facing": "back-left"
+            },
+            {
+              "stand": {
+                "dx": 193.2,
+                "dy": -299.8
+              },
+              "facing": "front-right"
+            },
+            {
+              "stand": {
+                "dx": -109.1,
+                "dy": -37.1
+              },
+              "facing": "back-right"
+            }
+          ]
+        }
+      ],
+      "top": {
+        "height": 55.2,
+        "inset": 0.18
+      },
+      "companions": [
+        {
+          "prop": "meeting-screen",
+          "at": {
+            "du": 585.0,
+            "dv": 103.1
+          },
+          "label": "Screen"
+        }
+      ]
+    },
+    {
+      "id": "meeting-screen",
+      "label": "Meeting screen",
+      "image": "assets/room/conference/meeting-screen.png",
+      "width": 248,
+      "height": 364,
+      "anchor": {
+        "x": 160.8,
+        "y": 356.1
+      },
+      "length": 131.0,
+      "depth": 25,
+      "mirror": true,
+      "section": "office",
+      "meetingGroup": "conference",
+      "board": "tv",
+      "drawnFor": "right",
+      "emissive": "assets/room/conference/meeting-screen-mask.png",
+      "screen": {
+        "x": 18,
+        "y": 26,
+        "w": 203,
+        "h": 205
+      },
+      "spots": []
+    },
+    {
+      "id": "whiteboard-stand",
+      "label": "Whiteboard on wheels",
+      "image": "assets/room/conference/whiteboard-stand.png",
+      "width": 180,
+      "height": 218,
+      "anchor": {
+        "x": 47.0,
+        "y": 212.0
+      },
+      "length": 45.5,
+      "depth": 140.1,
+      "mirror": true,
+      "section": "office",
+      "meetingGroup": "conference",
+      "spots": [],
+      "board": "whiteboard"
+    },
+    {
+      "id": "glass-partition",
+      "label": "Glass partition",
+      "image": "assets/room/conference/glass-partition.png",
+      "width": 145,
+      "height": 191,
+      "anchor": {
+        "x": 36.5,
+        "y": 185.2
+      },
+      "length": 33.9,
+      "depth": 112.9,
+      "mirror": true,
+      "section": "office",
+      "group": "glass-partition",
+      "meetingGroup": "conference",
+      "spots": []
+    },
+    {
+      "id": "glass-partition-wide",
+      "label": "Glass partition (wide)",
+      "image": "assets/room/conference/glass-partition-wide.png",
+      "width": 255,
+      "height": 260,
+      "anchor": {
+        "x": 15.6,
+        "y": 254.8
+      },
+      "length": 11.8,
+      "depth": 258.3,
+      "mirror": true,
+      "section": "office",
+      "group": "glass-partition",
+      "meetingGroup": "conference",
+      "spots": [],
+      "panels": {
+        "default": 2,
+        "step": 124.5,
+        "sizes": [
+          {
+            "panels": 1,
+            "image": "assets/room/conference/glass-partition-wide-1.png",
+            "width": 143,
+            "height": 205,
+            "anchor": {
+              "x": 15.6,
+              "y": 199.8
+            }
+          },
+          {
+            "panels": 2,
+            "image": "assets/room/conference/glass-partition-wide.png",
+            "width": 255,
+            "height": 260,
+            "anchor": {
+              "x": 15.6,
+              "y": 254.8
+            }
+          },
+          {
+            "panels": 3,
+            "image": "assets/room/conference/glass-partition-wide-3.png",
+            "width": 367,
+            "height": 315,
+            "anchor": {
+              "x": 15.6,
+              "y": 309.8
+            }
+          },
+          {
+            "panels": 4,
+            "image": "assets/room/conference/glass-partition-wide-4.png",
+            "width": 479,
+            "height": 370,
+            "anchor": {
+              "x": 15.6,
+              "y": 364.8
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "planter-divider",
+      "label": "Planter divider",
+      "image": "assets/room/conference/planter-divider.png",
+      "width": 215,
+      "height": 215,
+      "anchor": {
+        "x": 47.6,
+        "y": 209.7
+      },
+      "length": 47.3,
+      "depth": 178.3,
+      "mirror": true,
+      "section": "office",
+      "meetingGroup": "conference",
+      "spots": []
+    },
+    {
+      "id": "broadleaf-plant",
+      "label": "Broadleaf plant",
+      "image": "assets/room/conference/broadleaf-plant.png",
+      "width": 115,
+      "height": 163,
+      "anchor": {
+        "x": 56.1,
+        "y": 170.6
+      },
+      "length": 49.9,
+      "depth": 49.9,
+      "mirror": true,
+      "cells": 2,
+      "section": "plants",
+      "meetingGroup": "conference",
+      "spots": []
+    },
+    {
+      "id": "table-speakerphone",
+      "label": "Speakerphone",
+      "image": "assets/room/conference/table-speakerphone.png",
+      "width": 51,
+      "height": 37,
+      "anchor": {
+        "x": 29.3,
+        "y": 32.2
+      },
+      "length": 25.0,
+      "depth": 25.0,
+      "mirror": true,
+      "cells": 1,
+      "section": "office",
+      "meetingGroup": "conference",
+      "spots": [],
+      "placeOn": "table"
+    },
+    {
+      "id": "table-succulents",
+      "label": "Succulent bowl",
+      "image": "assets/room/conference/table-succulents.png",
+      "width": 45,
+      "height": 44,
+      "anchor": {
+        "x": 22.0,
+        "y": 41.7
+      },
+      "length": 25.0,
+      "depth": 25.0,
+      "mirror": true,
+      "cells": 1,
+      "section": "office",
+      "meetingGroup": "conference",
+      "spots": [],
+      "placeOn": "table"
+    },
+    {
+      "id": "table-water-tray",
+      "label": "Water tray",
+      "image": "assets/room/conference/table-water-tray.png",
+      "width": 52,
+      "height": 46,
+      "anchor": {
+        "x": 25.5,
+        "y": 41.4
+      },
+      "length": 25.0,
+      "depth": 25.0,
+      "mirror": true,
+      "cells": 1,
+      "section": "office",
+      "meetingGroup": "conference",
+      "spots": [],
+      "placeOn": "table"
+    }
+  ]
+}

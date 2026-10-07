@@ -1,0 +1,1309 @@
+{
+ "floors": [
+  {
+   "id": 1,
+   "corners": {
+    "top": {
+     "x": 1377,
+     "y": 445
+    },
+    "left": {
+     "x": 299,
+     "y": 968
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1490
+    },
+    "right": {
+     "x": 2455,
+     "y": 967
+    }
+   },
+   "wallHeight": 432,
+   "eu": 1198.171,
+   "ev": 1197.735,
+   "floorPlane": {
+    "size": 1197.953,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.9,
+    "d": 0.437,
+    "e": 1377,
+    "f": 445
+   },
+   "walls": {
+    "left": {
+     "length": 1198.171,
+     "a": 0.9,
+     "b": -0.436,
+     "e": 299,
+     "f": 536
+    },
+    "right": {
+     "length": 1197.735,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1377,
+     "f": 13
+    }
+   },
+   "rugs": [
+    {
+     "id": "rug-1",
+     "rug": "round-cream-painted",
+     "image": "assets/room/rugs/round-cream-painted.png",
+     "left": 195.027,
+     "top": 222.939,
+     "width": 619.102,
+     "height": 616.946,
+     "turned": false
+    }
+   ],
+   "wallItems": [
+    {
+     "id": "window-lounge-1",
+     "item": "window-lounge-full",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 133.989,
+     "top": 24,
+     "width": 270,
+     "height": 408,
+     "plate": null
+    },
+    {
+     "id": "sign-lounge-1",
+     "item": "sign-lounge",
+     "wall": "right",
+     "image": "assets/room/wall-items/sign-lounge-right.png",
+     "mirrored": false,
+     "left": 201.934,
+     "top": 98,
+     "width": 195,
+     "height": 91,
+     "plate": null
+    },
+    {
+     "id": "elevator-lounge-1",
+     "item": "elevator-lounge",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator-lounge.png",
+     "mirrored": false,
+     "left": 461.644,
+     "top": 74,
+     "width": 256,
+     "height": 360,
+     "plate": {
+      "left": 538.644,
+      "top": 93,
+      "width": 58,
+      "height": 23
+     }
+    },
+    {
+     "id": "alcove-1",
+     "item": "alcove",
+     "wall": "right",
+     "image": "assets/room/wall-items/alcove.png",
+     "mirrored": false,
+     "left": 680.855,
+     "top": 57,
+     "width": 335,
+     "height": 378,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-lounge-1",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.033
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [],
+   "props": [
+    {
+     "id": "sofa",
+     "prop": "sofa",
+     "image": "assets/room/props/sofa.png",
+     "mirrored": true,
+     "left": 401.788,
+     "top": 622.796,
+     "width": 462,
+     "height": 361,
+     "z": 10236,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "sofa",
+       "kind": "sofa",
+       "pose": "sit",
+       "u": 0.86,
+       "v": 0.098,
+       "facing": "front-right",
+       "lift": 69
+      },
+      {
+       "id": "sofa:sofa-2",
+       "kind": "sofa",
+       "pose": "sit",
+       "u": 0.774,
+       "v": 0.091,
+       "facing": "front-right",
+       "lift": 69
+      },
+      {
+       "id": "sofa:sofa-3",
+       "kind": "sofa",
+       "pose": "sit",
+       "u": 0.692,
+       "v": 0.098,
+       "facing": "front-right",
+       "lift": 69
+      }
+     ]
+    },
+    {
+     "id": "beanbag-1",
+     "prop": "bean-bag-brown",
+     "image": "assets/room/props/bean-bag-brown.png",
+     "mirrored": false,
+     "left": 1463.072,
+     "top": 398.564,
+     "width": 275,
+     "height": 270,
+     "z": 4524,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "beanbag-1",
+       "kind": "beanbag",
+       "pose": "sit",
+       "u": 0.061,
+       "v": 0.268,
+       "facing": "front-left",
+       "lift": 59.4
+      }
+     ]
+    },
+    {
+     "id": "beanbag-2",
+     "prop": "bean-bag-cream",
+     "image": "assets/room/props/bean-bag-cream.png",
+     "mirrored": false,
+     "left": 1625.296,
+     "top": 479.322,
+     "width": 264,
+     "height": 260,
+     "z": 5880,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "beanbag-2",
+       "kind": "beanbag",
+       "pose": "sit",
+       "u": 0.059,
+       "v": 0.411,
+       "facing": "front-left",
+       "lift": 57.2
+      }
+     ]
+    },
+    {
+     "id": "cat-bed-1",
+     "prop": "cat-bed-fluffy",
+     "image": "assets/room/props/cat-bed-fluffy.png",
+     "mirrored": true,
+     "left": 1159.087,
+     "top": 424.077,
+     "width": 209,
+     "height": 161,
+     "z": 2870,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "cat-bed-1",
+       "kind": "cat-bed",
+       "pose": "sleep",
+       "u": 0.15,
+       "v": 0.045,
+       "facing": "front-right",
+       "lift": 38.8
+      }
+     ]
+    },
+    {
+     "id": "cat-bed-2",
+     "prop": "cat-bed-blue",
+     "image": "assets/room/props/cat-bed-blue.png",
+     "mirrored": true,
+     "left": 1024.487,
+     "top": 489.955,
+     "width": 211,
+     "height": 161,
+     "z": 4139,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "cat-bed-2",
+       "kind": "cat-bed",
+       "pose": "sleep",
+       "u": 0.275,
+       "v": 0.046,
+       "facing": "front-right",
+       "lift": 35
+      }
+     ]
+    },
+    {
+     "id": "cat-tree",
+     "prop": "cat-tree-large",
+     "image": "assets/room/props/cat-tree-large.png",
+     "mirrored": false,
+     "left": 2136.945,
+     "top": 661.295,
+     "width": 326,
+     "height": 385,
+     "z": 11436,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "cat-tree",
+       "kind": "cat-tree",
+       "pose": null,
+       "u": 0.171,
+       "v": 0.927,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "bookshelf",
+     "prop": "bookshelf",
+     "image": "assets/room/props/bookshelf.png",
+     "mirrored": false,
+     "left": 1318.507,
+     "top": 244.853,
+     "width": 210,
+     "height": 323,
+     "z": 2255,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "bookshelf",
+       "kind": "bookshelf",
+       "pose": null,
+       "u": 0.098,
+       "v": 0.088,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "cushion-1",
+     "prop": "floor-cushion-mauve",
+     "image": "assets/room/props/floor-cushion-mauve.png",
+     "mirrored": false,
+     "left": 1795.188,
+     "top": 778.199,
+     "width": 186,
+     "height": 121,
+     "z": 8604,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "cushion-1",
+       "kind": "rug",
+       "pose": "sit",
+       "u": 0.167,
+       "v": 0.641,
+       "facing": "front-left",
+       "lift": 23
+      }
+     ]
+    },
+    {
+     "id": "cushion-2",
+     "prop": "floor-cushion-cream",
+     "image": "assets/room/props/floor-cushion-cream.png",
+     "mirrored": false,
+     "left": 1888.758,
+     "top": 871.788,
+     "width": 186,
+     "height": 121,
+     "z": 10396,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "cushion-2",
+       "kind": "rug",
+       "pose": "sit",
+       "u": 0.213,
+       "v": 0.774,
+       "facing": "front-left",
+       "lift": 23
+      }
+     ]
+    },
+    {
+     "id": "cushion-3",
+     "prop": "floor-cushion-blue",
+     "image": "assets/room/props/floor-cushion-blue.png",
+     "mirrored": false,
+     "left": 1969.285,
+     "top": 808.267,
+     "width": 186,
+     "height": 121,
+     "z": 9181,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "cushion-4",
+     "prop": "floor-cushion-cream",
+     "image": "assets/room/props/floor-cushion-cream.png",
+     "mirrored": false,
+     "left": 1672.296,
+     "top": 933.334,
+     "width": 186,
+     "height": 121,
+     "z": 11572,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-1-1",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": false,
+     "left": 290.528,
+     "top": 825.345,
+     "width": 110,
+     "height": 158,
+     "z": 10427,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-1-2",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": false,
+     "left": 1323.608,
+     "top": 1325.594,
+     "width": 110,
+     "height": 158,
+     "z": 20010,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-1-3",
+     "prop": "small-plant",
+     "image": "assets/room/props/small-plant.png",
+     "mirrored": false,
+     "left": 976.878,
+     "top": 553.27,
+     "width": 83,
+     "height": 105,
+     "z": 4177,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "window-seat",
+     "prop": "window-seat-cushion",
+     "image": "assets/room/props/window-seat-cushion.png",
+     "mirrored": false,
+     "left": 2044.837,
+     "top": 616.163,
+     "width": 258,
+     "height": 173,
+     "z": 7925,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "window-seat",
+       "kind": "window-seat",
+       "pose": "sit",
+       "u": -0.015,
+       "v": 0.722,
+       "facing": "front-left",
+       "lift": 93
+      }
+     ]
+    },
+    {
+     "id": "snacks",
+     "prop": "snack-table",
+     "image": "assets/room/props/snack-table.png",
+     "mirrored": false,
+     "left": 711.954,
+     "top": 1025.575,
+     "width": 222,
+     "height": 168,
+     "z": 14259,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "snacks",
+       "kind": "snacks",
+       "pose": null,
+       "u": 0.929,
+       "v": 0.478,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "paper-lantern-lamp-1-1",
+     "prop": "paper-lantern-lamp",
+     "image": "assets/room/light-props/paper-lantern-lamp.png",
+     "mirrored": false,
+     "left": 1876.008,
+     "top": 484.639,
+     "width": 82,
+     "height": 259,
+     "z": 5890,
+     "companionOf": null,
+     "spots": []
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 399,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 482
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -128
+    }
+   },
+   "rugs": [
+    {
+     "id": "rug-2-1",
+     "rug": "round-sage",
+     "image": "assets/room/rugs/round-sage.png",
+     "left": 394.555,
+     "top": 533.69,
+     "width": 384.911,
+     "height": 386.169,
+     "turned": false
+    }
+   ],
+   "wallItems": [
+    {
+     "id": "elevator-2",
+     "item": "elevator-lounge",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator-lounge.png",
+     "mirrored": false,
+     "left": 554.934,
+     "top": 41,
+     "width": 256,
+     "height": 360,
+     "plate": {
+      "left": 631.934,
+      "top": 60,
+      "width": 58,
+      "height": 23
+     }
+    },
+    {
+     "id": "window-2-1",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 157.979,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-2-2",
+     "item": "window-lounge-full",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 14.019,
+     "top": 24,
+     "width": 560,
+     "height": 375,
+     "plate": null
+    },
+    {
+     "id": "window-2-3",
+     "item": "window-lounge-full",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 829.158,
+     "top": 24,
+     "width": 554,
+     "height": 375,
+     "plate": null
+    },
+    {
+     "id": "window-2-4",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 1119.042,
+     "top": 26,
+     "width": 163,
+     "height": 163,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-2",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [
+    {
+     "id": "f2-desk-1",
+     "desk": "s2-cat-fan",
+     "image": "assets/desk-sprites/s2-cat-fan.png",
+     "flip": false,
+     "rear": false,
+     "left": 1570.888,
+     "top": 341.166,
+     "width": 276,
+     "height": 277,
+     "z": 5516,
+     "standAt": {
+      "u": 0.138,
+      "v": 0.353
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-2",
+     "desk": "s1-book",
+     "image": "assets/desk-sprites/s1-book.png",
+     "flip": true,
+     "rear": false,
+     "left": 1004.724,
+     "top": 353.407,
+     "width": 276,
+     "height": 249,
+     "z": 5397,
+     "standAt": {
+      "u": 0.321,
+      "v": 0.185
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f2-desk-3",
+     "desk": "s2-gamer",
+     "image": "assets/desk-sprites/s2-gamer.png",
+     "flip": false,
+     "rear": false,
+     "left": 1329.722,
+     "top": 522.864,
+     "width": 251,
+     "height": 254,
+     "z": 8134,
+     "standAt": {
+      "u": 0.379,
+      "v": 0.397
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-4",
+     "desk": "s2-laptop",
+     "image": "assets/desk-sprites/s2-laptop.png",
+     "flip": false,
+     "rear": false,
+     "left": 1036.155,
+     "top": 594.674,
+     "width": 276,
+     "height": 269,
+     "z": 9544,
+     "standAt": {
+      "u": 0.563,
+      "v": 0.353
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-5",
+     "desk": "s1-sky",
+     "image": "assets/desk-sprites/s1-sky.png",
+     "flip": false,
+     "rear": false,
+     "left": 1738.272,
+     "top": 666.307,
+     "width": 276,
+     "height": 247,
+     "z": 10497,
+     "standAt": {
+      "u": 0.329,
+      "v": 0.685
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-6",
+     "desk": "s1-oak",
+     "image": "assets/desk-sprites/s1-oak.png",
+     "flip": false,
+     "rear": false,
+     "left": 770.392,
+     "top": 687.99,
+     "width": 276,
+     "height": 244,
+     "z": 10800,
+     "standAt": {
+      "u": 0.734,
+      "v": 0.316
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-7",
+     "desk": "s1-pink",
+     "image": "assets/desk-sprites/s1-pink.png",
+     "flip": false,
+     "rear": false,
+     "left": 1452.385,
+     "top": 789.81,
+     "width": 276,
+     "height": 235,
+     "z": 12320,
+     "standAt": {
+      "u": 0.531,
+      "v": 0.656
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-8",
+     "desk": "s2-fairy-light",
+     "image": "assets/desk-sprites/s2-fairy-light.png",
+     "flip": false,
+     "rear": false,
+     "left": 1093.795,
+     "top": 868.859,
+     "width": 276,
+     "height": 268,
+     "z": 14029,
+     "standAt": {
+      "u": 0.76,
+      "v": 0.591
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-9",
+     "desk": "s2-dual-monitor",
+     "image": "assets/desk-sprites/s2-dual-monitor.png",
+     "flip": false,
+     "rear": false,
+     "left": 1816.605,
+     "top": 904.253,
+     "width": 240,
+     "height": 247,
+     "z": 14283,
+     "standAt": {
+      "u": 0.491,
+      "v": 0.883
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-10",
+     "desk": "s1-mint",
+     "image": "assets/desk-sprites/s1-mint.png",
+     "flip": false,
+     "rear": false,
+     "left": 1474.674,
+     "top": 1035.616,
+     "width": 276,
+     "height": 248,
+     "z": 16566,
+     "standAt": {
+      "u": 0.742,
+      "v": 0.883
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-11",
+     "desk": "s2-walnut",
+     "image": "assets/desk-sprites/s2-walnut.png",
+     "flip": false,
+     "rear": false,
+     "left": 760.35,
+     "top": 918.911,
+     "width": 276,
+     "height": 275,
+     "z": 14961,
+     "standAt": {
+      "u": 0.937,
+      "v": 0.5
+     },
+     "facing": "back-right"
+    }
+   ],
+   "props": [
+    {
+     "id": "printer-2",
+     "prop": "printer",
+     "image": "assets/room/props/printer.png",
+     "mirrored": false,
+     "left": 2233.671,
+     "top": 653.397,
+     "width": 193,
+     "height": 170,
+     "z": 9149,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "printer-2",
+       "kind": "printer",
+       "pose": null,
+       "u": 0.108,
+       "v": 0.801,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "water-2",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": false,
+     "left": 1980.228,
+     "top": 426.906,
+     "width": 101,
+     "height": 215,
+     "z": 6052,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-2",
+       "kind": "water",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.542,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "coffee-2",
+     "prop": "coffee-counter",
+     "image": "assets/room/props/coffee-counter.png",
+     "mirrored": false,
+     "left": 2050.217,
+     "top": 476.711,
+     "width": 275,
+     "height": 301,
+     "z": 8261,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "coffee-2",
+       "kind": "coffee",
+       "pose": null,
+       "u": 0.098,
+       "v": 0.71,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-2",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 1326.524,
+     "top": 141.8,
+     "width": 98,
+     "height": 172,
+     "z": 843,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-2",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.021,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-2-2",
+     "prop": "small-plant",
+     "image": "assets/room/props/small-plant.png",
+     "mirrored": false,
+     "left": 1386.633,
+     "top": 234.012,
+     "width": 83,
+     "height": 105,
+     "z": 1260,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-2-3",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 2479.683,
+     "top": 700.962,
+     "width": 98,
+     "height": 172,
+     "z": 10010,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-2-3",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.938,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-2-4",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": false,
+     "left": 1269.258,
+     "top": 179.212,
+     "width": 110,
+     "height": 158,
+     "z": 1260,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-2-4",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.105,
+       "v": 0.021,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "paper-lantern-lamp-2-1",
+     "prop": "paper-lantern-lamp",
+     "image": "assets/room/light-props/paper-lantern-lamp.png",
+     "mirrored": false,
+     "left": 2540.603,
+     "top": 637.881,
+     "width": 82,
+     "height": 259,
+     "z": 10427,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "aquarium-long-2-1",
+     "prop": "aquarium-long",
+     "image": "assets/room/light-props/aquarium-long.png",
+     "mirrored": true,
+     "left": 248.867,
+     "top": 554.117,
+     "width": 296,
+     "height": 305,
+     "z": 9553,
+     "companionOf": null,
+     "spots": []
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 480,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 401
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -209
+    }
+   },
+   "rugs": [
+    {
+     "id": "rug-2-1",
+     "rug": "round-sage",
+     "image": "assets/room/rugs/round-sage.png",
+     "left": 394.555,
+     "top": 533.69,
+     "width": 384.911,
+     "height": 386.169,
+     "turned": false
+    }
+   ],
+   "wallItems": [
+    {
+     "id": "elevator-2",
+     "item": "elevator-lounge",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator-lounge.png",
+     "mirrored": false,
+     "left": 554.934,
+     "top": 122,
+     "width": 256,
+     "height": 360,
+     "plate": {
+      "left": 631.934,
+      "top": 141,
+      "width": 58,
+      "height": 23
+     }
+    },
+    {
+     "id": "window-2-1",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 157.979,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-2-2",
+     "item": "window-lounge-full",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": -55.981,
+     "top": 24,
+     "width": 700,
+     "height": 456,
+     "plate": null
+    },
+    {
+     "id": "window-2-3",
+     "item": "window-lounge-full",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 829.158,
+     "top": 24,
+     "width": 554,
+     "height": 456,
+     "plate": null
+    },
+    {
+     "id": "window-2-4",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 1119.042,
+     "top": 26,
+     "width": 163,
+     "height": 163,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-2",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [],
+   "props": [
+    {
+     "id": "printer-2",
+     "prop": "printer",
+     "image": "assets/room/props/printer.png",
+     "mirrored": true,
+     "left": 2202.671,
+     "top": 653.397,
+     "width": 193,
+     "height": 170,
+     "z": 9149,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "printer-2",
+       "kind": "printer",
+       "pose": null,
+       "u": 0.054,
+       "v": 0.855,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "water-2",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": true,
+     "left": 1979.228,
+     "top": 426.906,
+     "width": 101,
+     "height": 215,
+     "z": 6052,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-2",
+       "kind": "water",
+       "pose": null,
+       "u": 0.021,
+       "v": 0.584,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "coffee-2",
+     "prop": "coffee-counter",
+     "image": "assets/room/props/coffee-counter.png",
+     "mirrored": true,
+     "left": 2129.017,
+     "top": 476.711,
+     "width": 275,
+     "height": 301,
+     "z": 8261,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "coffee-2",
+       "kind": "coffee",
+       "pose": null,
+       "u": 0.033,
+       "v": 0.776,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-2",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": true,
+     "left": 1325.524,
+     "top": 141.8,
+     "width": 98,
+     "height": 172,
+     "z": 843,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-2",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.021,
+       "v": 0.063,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-2-2",
+     "prop": "small-plant",
+     "image": "assets/room/props/small-plant.png",
+     "mirrored": true,
+     "left": 1385.233,
+     "top": 234.012,
+     "width": 83,
+     "height": 105,
+     "z": 1260,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-2-3",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": true,
+     "left": 2478.683,
+     "top": 700.962,
+     "width": 98,
+     "height": 172,
+     "z": 10010,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-2-3",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.021,
+       "v": 0.98,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-2-4",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": true,
+     "left": 1266.058,
+     "top": 179.212,
+     "width": 110,
+     "height": 158,
+     "z": 1260,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-2-4",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.063,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "paper-lantern-lamp-2-1",
+     "prop": "paper-lantern-lamp",
+     "image": "assets/room/light-props/paper-lantern-lamp.png",
+     "mirrored": true,
+     "left": 2538.603,
+     "top": 637.881,
+     "width": 82,
+     "height": 259,
+     "z": 10427,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "aquarium-long-2-1",
+     "prop": "aquarium-long",
+     "image": "assets/room/light-props/aquarium-long.png",
+     "mirrored": true,
+     "left": 248.867,
+     "top": 554.117,
+     "width": 296,
+     "height": 305,
+     "z": 9553,
+     "companionOf": null,
+     "spots": []
+    }
+   ]
+  }
+ ]
+}

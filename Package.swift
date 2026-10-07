@@ -7,7 +7,7 @@ let package = Package(
     targets: [
         .target(name: "ClaudeBarCore"),
         .executableTarget(name: "ClaudeBar", dependencies: ["ClaudeBarCore"]),
-        .testTarget(name: "ClaudeBarCoreTests", dependencies: ["ClaudeBarCore"]),
+        .testTarget(name: "ClaudeBarCoreTests", dependencies: ["ClaudeBarCore"], resources: [.copy("Fixtures")]),
     ],
     swiftLanguageModes: [.v5]
 )

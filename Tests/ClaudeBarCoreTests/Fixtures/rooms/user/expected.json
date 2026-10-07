@@ -1,0 +1,4965 @@
+{
+ "floors": [
+  {
+   "id": 1,
+   "corners": {
+    "top": {
+     "x": 1377,
+     "y": 445
+    },
+    "left": {
+     "x": 299,
+     "y": 968
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1490
+    },
+    "right": {
+     "x": 2455,
+     "y": 967
+    }
+   },
+   "wallHeight": 432,
+   "eu": 1198.171,
+   "ev": 1197.735,
+   "floorPlane": {
+    "size": 1197.953,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.9,
+    "d": 0.437,
+    "e": 1377,
+    "f": 445
+   },
+   "walls": {
+    "left": {
+     "length": 1198.171,
+     "a": 0.9,
+     "b": -0.436,
+     "e": 299,
+     "f": 536
+    },
+    "right": {
+     "length": 1197.735,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1377,
+     "f": 13
+    }
+   },
+   "rugs": [
+    {
+     "id": "rug-1",
+     "rug": "round-cream-painted",
+     "image": "assets/room/rugs/round-cream-painted.png",
+     "left": 195.027,
+     "top": 222.939,
+     "width": 619.102,
+     "height": 616.946,
+     "turned": false
+    }
+   ],
+   "wallItems": [
+    {
+     "id": "window-lounge-1",
+     "item": "window-lounge-full",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 133.989,
+     "top": 24,
+     "width": 270,
+     "height": 408,
+     "plate": null
+    },
+    {
+     "id": "sign-lounge-1",
+     "item": "sign-lounge",
+     "wall": "right",
+     "image": "assets/room/wall-items/sign-lounge-right.png",
+     "mirrored": false,
+     "left": 201.934,
+     "top": 98,
+     "width": 195,
+     "height": 91,
+     "plate": null
+    },
+    {
+     "id": "elevator-lounge-1",
+     "item": "elevator-lounge",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator-lounge.png",
+     "mirrored": false,
+     "left": 461.644,
+     "top": 74,
+     "width": 256,
+     "height": 360,
+     "plate": {
+      "left": 538.644,
+      "top": 93,
+      "width": 58,
+      "height": 23
+     }
+    },
+    {
+     "id": "alcove-1",
+     "item": "alcove",
+     "wall": "right",
+     "image": "assets/room/wall-items/alcove.png",
+     "mirrored": false,
+     "left": 680.855,
+     "top": 57,
+     "width": 335,
+     "height": 378,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-lounge-1",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.033
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [],
+   "props": [
+    {
+     "id": "sofa",
+     "prop": "sofa",
+     "image": "assets/room/props/sofa.png",
+     "mirrored": true,
+     "left": 401.788,
+     "top": 622.796,
+     "width": 462,
+     "height": 361,
+     "z": 10236,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "sofa",
+       "kind": "sofa",
+       "pose": "sit",
+       "u": 0.86,
+       "v": 0.098,
+       "facing": "front-right",
+       "lift": 69
+      },
+      {
+       "id": "sofa:sofa-2",
+       "kind": "sofa",
+       "pose": "sit",
+       "u": 0.774,
+       "v": 0.091,
+       "facing": "front-right",
+       "lift": 69
+      },
+      {
+       "id": "sofa:sofa-3",
+       "kind": "sofa",
+       "pose": "sit",
+       "u": 0.692,
+       "v": 0.098,
+       "facing": "front-right",
+       "lift": 69
+      }
+     ]
+    },
+    {
+     "id": "beanbag-1",
+     "prop": "bean-bag-brown",
+     "image": "assets/room/props/bean-bag-brown.png",
+     "mirrored": false,
+     "left": 1463.072,
+     "top": 398.564,
+     "width": 275,
+     "height": 270,
+     "z": 4524,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "beanbag-1",
+       "kind": "beanbag",
+       "pose": "sit",
+       "u": 0.061,
+       "v": 0.268,
+       "facing": "front-left",
+       "lift": 59.4
+      }
+     ]
+    },
+    {
+     "id": "beanbag-2",
+     "prop": "bean-bag-cream",
+     "image": "assets/room/props/bean-bag-cream.png",
+     "mirrored": false,
+     "left": 1625.296,
+     "top": 479.322,
+     "width": 264,
+     "height": 260,
+     "z": 5880,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "beanbag-2",
+       "kind": "beanbag",
+       "pose": "sit",
+       "u": 0.059,
+       "v": 0.411,
+       "facing": "front-left",
+       "lift": 57.2
+      }
+     ]
+    },
+    {
+     "id": "cat-bed-1",
+     "prop": "cat-bed-fluffy",
+     "image": "assets/room/props/cat-bed-fluffy.png",
+     "mirrored": true,
+     "left": 1159.087,
+     "top": 424.077,
+     "width": 209,
+     "height": 161,
+     "z": 2870,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "cat-bed-1",
+       "kind": "cat-bed",
+       "pose": "sleep",
+       "u": 0.15,
+       "v": 0.045,
+       "facing": "front-right",
+       "lift": 38.8
+      }
+     ]
+    },
+    {
+     "id": "cat-bed-2",
+     "prop": "cat-bed-blue",
+     "image": "assets/room/props/cat-bed-blue.png",
+     "mirrored": true,
+     "left": 1024.487,
+     "top": 489.955,
+     "width": 211,
+     "height": 161,
+     "z": 4139,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "cat-bed-2",
+       "kind": "cat-bed",
+       "pose": "sleep",
+       "u": 0.275,
+       "v": 0.046,
+       "facing": "front-right",
+       "lift": 35
+      }
+     ]
+    },
+    {
+     "id": "cat-tree",
+     "prop": "cat-tree-large",
+     "image": "assets/room/props/cat-tree-large.png",
+     "mirrored": false,
+     "left": 2136.945,
+     "top": 661.295,
+     "width": 326,
+     "height": 385,
+     "z": 11436,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "cat-tree",
+       "kind": "cat-tree",
+       "pose": null,
+       "u": 0.171,
+       "v": 0.927,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "bookshelf",
+     "prop": "bookshelf",
+     "image": "assets/room/props/bookshelf.png",
+     "mirrored": false,
+     "left": 1318.507,
+     "top": 244.853,
+     "width": 210,
+     "height": 323,
+     "z": 2255,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "bookshelf",
+       "kind": "bookshelf",
+       "pose": null,
+       "u": 0.098,
+       "v": 0.088,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "cushion-1",
+     "prop": "floor-cushion-mauve",
+     "image": "assets/room/props/floor-cushion-mauve.png",
+     "mirrored": false,
+     "left": 1795.188,
+     "top": 778.199,
+     "width": 186,
+     "height": 121,
+     "z": 8604,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "cushion-1",
+       "kind": "rug",
+       "pose": "sit",
+       "u": 0.167,
+       "v": 0.641,
+       "facing": "front-left",
+       "lift": 23
+      }
+     ]
+    },
+    {
+     "id": "cushion-2",
+     "prop": "floor-cushion-cream",
+     "image": "assets/room/props/floor-cushion-cream.png",
+     "mirrored": false,
+     "left": 1888.758,
+     "top": 871.788,
+     "width": 186,
+     "height": 121,
+     "z": 10396,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "cushion-2",
+       "kind": "rug",
+       "pose": "sit",
+       "u": 0.213,
+       "v": 0.774,
+       "facing": "front-left",
+       "lift": 23
+      }
+     ]
+    },
+    {
+     "id": "cushion-3",
+     "prop": "floor-cushion-blue",
+     "image": "assets/room/props/floor-cushion-blue.png",
+     "mirrored": false,
+     "left": 1969.285,
+     "top": 808.267,
+     "width": 186,
+     "height": 121,
+     "z": 9181,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "cushion-4",
+     "prop": "floor-cushion-cream",
+     "image": "assets/room/props/floor-cushion-cream.png",
+     "mirrored": false,
+     "left": 1672.296,
+     "top": 933.334,
+     "width": 186,
+     "height": 121,
+     "z": 11572,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-1-1",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": false,
+     "left": 290.528,
+     "top": 825.345,
+     "width": 110,
+     "height": 158,
+     "z": 10427,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-1-2",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": false,
+     "left": 1323.608,
+     "top": 1325.594,
+     "width": 110,
+     "height": 158,
+     "z": 20010,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-1-3",
+     "prop": "small-plant",
+     "image": "assets/room/props/small-plant.png",
+     "mirrored": false,
+     "left": 976.878,
+     "top": 553.27,
+     "width": 83,
+     "height": 105,
+     "z": 4177,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "window-seat",
+     "prop": "window-seat-cushion",
+     "image": "assets/room/props/window-seat-cushion.png",
+     "mirrored": false,
+     "left": 2044.837,
+     "top": 616.163,
+     "width": 258,
+     "height": 173,
+     "z": 7925,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "window-seat",
+       "kind": "window-seat",
+       "pose": "sit",
+       "u": -0.015,
+       "v": 0.722,
+       "facing": "front-left",
+       "lift": 93
+      }
+     ]
+    },
+    {
+     "id": "snacks",
+     "prop": "snack-table",
+     "image": "assets/room/props/snack-table.png",
+     "mirrored": false,
+     "left": 711.954,
+     "top": 1025.575,
+     "width": 222,
+     "height": 168,
+     "z": 14259,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "snacks",
+       "kind": "snacks",
+       "pose": null,
+       "u": 0.929,
+       "v": 0.478,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "paper-lantern-lamp-1-1",
+     "prop": "paper-lantern-lamp",
+     "image": "assets/room/light-props/paper-lantern-lamp.png",
+     "mirrored": false,
+     "left": 1876.008,
+     "top": 484.639,
+     "width": 82,
+     "height": 259,
+     "z": 5890,
+     "companionOf": null,
+     "spots": []
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 399,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 482
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -128
+    }
+   },
+   "rugs": [
+    {
+     "id": "rug-2-1",
+     "rug": "round-sage",
+     "image": "assets/room/rugs/round-sage.png",
+     "left": 394.555,
+     "top": 533.69,
+     "width": 384.911,
+     "height": 386.169,
+     "turned": false
+    }
+   ],
+   "wallItems": [
+    {
+     "id": "elevator-2",
+     "item": "elevator-lounge",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator-lounge.png",
+     "mirrored": false,
+     "left": 554.934,
+     "top": 41,
+     "width": 256,
+     "height": 360,
+     "plate": {
+      "left": 631.934,
+      "top": 60,
+      "width": 58,
+      "height": 23
+     }
+    },
+    {
+     "id": "window-2-1",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 157.979,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-2-2",
+     "item": "window-lounge-full",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 14.019,
+     "top": 24,
+     "width": 560,
+     "height": 375,
+     "plate": null
+    },
+    {
+     "id": "window-2-3",
+     "item": "window-lounge-full",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 829.158,
+     "top": 24,
+     "width": 554,
+     "height": 375,
+     "plate": null
+    },
+    {
+     "id": "window-2-4",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 1119.042,
+     "top": 26,
+     "width": 163,
+     "height": 163,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-2",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [
+    {
+     "id": "f2-desk-1",
+     "desk": "s2-cat-fan",
+     "image": "assets/desk-sprites/s2-cat-fan.png",
+     "flip": false,
+     "rear": false,
+     "left": 1570.888,
+     "top": 341.166,
+     "width": 276,
+     "height": 277,
+     "z": 5516,
+     "standAt": {
+      "u": 0.138,
+      "v": 0.353
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-2",
+     "desk": "s1-book",
+     "image": "assets/desk-sprites/s1-book.png",
+     "flip": true,
+     "rear": false,
+     "left": 1004.724,
+     "top": 353.407,
+     "width": 276,
+     "height": 249,
+     "z": 5397,
+     "standAt": {
+      "u": 0.321,
+      "v": 0.185
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f2-desk-3",
+     "desk": "s2-gamer",
+     "image": "assets/desk-sprites/s2-gamer.png",
+     "flip": false,
+     "rear": false,
+     "left": 1329.722,
+     "top": 522.864,
+     "width": 251,
+     "height": 254,
+     "z": 8134,
+     "standAt": {
+      "u": 0.379,
+      "v": 0.397
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-4",
+     "desk": "s2-laptop",
+     "image": "assets/desk-sprites/s2-laptop.png",
+     "flip": false,
+     "rear": false,
+     "left": 1036.155,
+     "top": 594.674,
+     "width": 276,
+     "height": 269,
+     "z": 9544,
+     "standAt": {
+      "u": 0.563,
+      "v": 0.353
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-5",
+     "desk": "s1-sky",
+     "image": "assets/desk-sprites/s1-sky.png",
+     "flip": false,
+     "rear": false,
+     "left": 1738.272,
+     "top": 666.307,
+     "width": 276,
+     "height": 247,
+     "z": 10497,
+     "standAt": {
+      "u": 0.329,
+      "v": 0.685
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-6",
+     "desk": "s1-oak",
+     "image": "assets/desk-sprites/s1-oak.png",
+     "flip": false,
+     "rear": false,
+     "left": 770.392,
+     "top": 687.99,
+     "width": 276,
+     "height": 244,
+     "z": 10800,
+     "standAt": {
+      "u": 0.734,
+      "v": 0.316
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-7",
+     "desk": "s1-pink",
+     "image": "assets/desk-sprites/s1-pink.png",
+     "flip": false,
+     "rear": false,
+     "left": 1452.385,
+     "top": 789.81,
+     "width": 276,
+     "height": 235,
+     "z": 12320,
+     "standAt": {
+      "u": 0.531,
+      "v": 0.656
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-8",
+     "desk": "s2-fairy-light",
+     "image": "assets/desk-sprites/s2-fairy-light.png",
+     "flip": false,
+     "rear": false,
+     "left": 1093.795,
+     "top": 868.859,
+     "width": 276,
+     "height": 268,
+     "z": 14029,
+     "standAt": {
+      "u": 0.76,
+      "v": 0.591
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-9",
+     "desk": "s2-dual-monitor",
+     "image": "assets/desk-sprites/s2-dual-monitor.png",
+     "flip": false,
+     "rear": false,
+     "left": 1816.605,
+     "top": 904.253,
+     "width": 240,
+     "height": 247,
+     "z": 14283,
+     "standAt": {
+      "u": 0.491,
+      "v": 0.883
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-10",
+     "desk": "s1-mint",
+     "image": "assets/desk-sprites/s1-mint.png",
+     "flip": false,
+     "rear": false,
+     "left": 1474.674,
+     "top": 1035.616,
+     "width": 276,
+     "height": 248,
+     "z": 16566,
+     "standAt": {
+      "u": 0.742,
+      "v": 0.883
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f2-desk-11",
+     "desk": "s2-walnut",
+     "image": "assets/desk-sprites/s2-walnut.png",
+     "flip": false,
+     "rear": false,
+     "left": 760.35,
+     "top": 918.911,
+     "width": 276,
+     "height": 275,
+     "z": 14961,
+     "standAt": {
+      "u": 0.937,
+      "v": 0.5
+     },
+     "facing": "back-right"
+    }
+   ],
+   "props": [
+    {
+     "id": "printer-2",
+     "prop": "printer",
+     "image": "assets/room/props/printer.png",
+     "mirrored": false,
+     "left": 2233.671,
+     "top": 653.397,
+     "width": 193,
+     "height": 170,
+     "z": 9149,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "printer-2",
+       "kind": "printer",
+       "pose": null,
+       "u": 0.108,
+       "v": 0.801,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "water-2",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": false,
+     "left": 1980.228,
+     "top": 426.906,
+     "width": 101,
+     "height": 215,
+     "z": 6052,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-2",
+       "kind": "water",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.542,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "coffee-2",
+     "prop": "coffee-counter",
+     "image": "assets/room/props/coffee-counter.png",
+     "mirrored": false,
+     "left": 2050.217,
+     "top": 476.711,
+     "width": 275,
+     "height": 301,
+     "z": 8261,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "coffee-2",
+       "kind": "coffee",
+       "pose": null,
+       "u": 0.098,
+       "v": 0.71,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-2",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 1326.524,
+     "top": 141.8,
+     "width": 98,
+     "height": 172,
+     "z": 843,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-2",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.021,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-2-2",
+     "prop": "small-plant",
+     "image": "assets/room/props/small-plant.png",
+     "mirrored": false,
+     "left": 1386.633,
+     "top": 234.012,
+     "width": 83,
+     "height": 105,
+     "z": 1260,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-2-3",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 2479.683,
+     "top": 700.962,
+     "width": 98,
+     "height": 172,
+     "z": 10010,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-2-3",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.938,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-2-4",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": false,
+     "left": 1269.258,
+     "top": 179.212,
+     "width": 110,
+     "height": 158,
+     "z": 1260,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-2-4",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.105,
+       "v": 0.021,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "paper-lantern-lamp-2-1",
+     "prop": "paper-lantern-lamp",
+     "image": "assets/room/light-props/paper-lantern-lamp.png",
+     "mirrored": false,
+     "left": 2540.603,
+     "top": 637.881,
+     "width": 82,
+     "height": 259,
+     "z": 10427,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "aquarium-long-2-1",
+     "prop": "aquarium-long",
+     "image": "assets/room/light-props/aquarium-long.png",
+     "mirrored": true,
+     "left": 248.867,
+     "top": 554.117,
+     "width": 296,
+     "height": 305,
+     "z": 9553,
+     "companionOf": null,
+     "spots": []
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 399,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 482
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -128
+    }
+   },
+   "rugs": [
+    {
+     "id": "rug-3-1",
+     "rug": "round-sage",
+     "image": "assets/room/rugs/round-sage.png",
+     "left": 394.555,
+     "top": 533.697,
+     "width": 338.733,
+     "height": 339.837,
+     "turned": false
+    }
+   ],
+   "wallItems": [
+    {
+     "id": "elevator-3",
+     "item": "elevator-lounge",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator-lounge.png",
+     "mirrored": false,
+     "left": 554.934,
+     "top": 41,
+     "width": 256,
+     "height": 360,
+     "plate": {
+      "left": 631.934,
+      "top": 60,
+      "width": 58,
+      "height": 23
+     }
+    },
+    {
+     "id": "window-3-1",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 157.979,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-3-2",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 1119.946,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-3-3",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 137.022,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-3-4",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 1119.042,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-3",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [
+    {
+     "id": "f3-desk-1",
+     "desk": "s2-oak",
+     "image": "assets/desk-sprites/s2-oak.png",
+     "flip": false,
+     "rear": false,
+     "left": 1233.876,
+     "top": 1074.026,
+     "width": 276,
+     "height": 273,
+     "z": 17476,
+     "standAt": {
+      "u": 0.871,
+      "v": 0.815
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f3-desk-2",
+     "desk": "s2-pink",
+     "image": "assets/desk-sprites/s2-pink.png",
+     "flip": false,
+     "rear": false,
+     "left": 878.417,
+     "top": 924.962,
+     "width": 276,
+     "height": 250,
+     "z": 14652,
+     "standAt": {
+      "u": 0.87,
+      "v": 0.528
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f3-desk-3",
+     "desk": "s3-sky",
+     "image": "assets/desk-sprites/s3-sky.png",
+     "flip": false,
+     "rear": false,
+     "left": 1597.668,
+     "top": 1012.813,
+     "width": 276,
+     "height": 245,
+     "z": 16143,
+     "standAt": {
+      "u": 0.67,
+      "v": 0.91
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f3-desk-4",
+     "desk": "s3-cat-fan",
+     "image": "assets/desk-sprites/s3-cat-fan.png",
+     "flip": false,
+     "rear": false,
+     "left": 2029.231,
+     "top": 813.688,
+     "width": 276,
+     "height": 247,
+     "z": 12918,
+     "standAt": {
+      "u": 0.34,
+      "v": 0.914
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f3-desk-5",
+     "desk": "s3-laptop",
+     "image": "assets/desk-sprites/s3-laptop.png",
+     "flip": false,
+     "rear": false,
+     "left": 1687.591,
+     "top": 660.952,
+     "width": 276,
+     "height": 237,
+     "z": 10242,
+     "standAt": {
+      "u": 0.341,
+      "v": 0.645
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f3-desk-6",
+     "desk": "s3-ultrawide",
+     "image": "assets/desk-sprites/s3-ultrawide.png",
+     "flip": false,
+     "rear": false,
+     "left": 1257.971,
+     "top": 834.665,
+     "width": 276,
+     "height": 242,
+     "z": 13175,
+     "standAt": {
+      "u": 0.659,
+      "v": 0.625
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f3-desk-7",
+     "desk": "s1-gamer",
+     "image": "assets/desk-sprites/s1-gamer.png",
+     "flip": false,
+     "rear": false,
+     "left": 920.15,
+     "top": 656.92,
+     "width": 276,
+     "height": 260,
+     "z": 10430,
+     "standAt": {
+      "u": 0.656,
+      "v": 0.349
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f3-desk-8",
+     "desk": "s3-book",
+     "image": "assets/desk-sprites/s3-book.png",
+     "flip": false,
+     "rear": false,
+     "left": 544.335,
+     "top": 771.815,
+     "width": 276,
+     "height": 235,
+     "z": 12025,
+     "standAt": {
+      "u": 0.888,
+      "v": 0.287
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f3-desk-9",
+     "desk": "s3-dual-monitor",
+     "image": "assets/desk-sprites/s3-dual-monitor.png",
+     "flip": false,
+     "rear": false,
+     "left": 1197.883,
+     "top": 592.256,
+     "width": 268,
+     "height": 251,
+     "z": 9306,
+     "standAt": {
+      "u": 0.492,
+      "v": 0.408
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f3-desk-10",
+     "desk": "s1-fairy-light",
+     "image": "assets/desk-sprites/s1-fairy-light.png",
+     "flip": true,
+     "rear": false,
+     "left": 980.125,
+     "top": 359.435,
+     "width": 276,
+     "height": 246,
+     "z": 5445,
+     "standAt": {
+      "u": 0.337,
+      "v": 0.175
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f3-desk-11",
+     "desk": "s2-mint",
+     "image": "assets/desk-sprites/s2-mint.png",
+     "flip": true,
+     "rear": false,
+     "left": 1355.216,
+     "top": 335.137,
+     "width": 276,
+     "height": 271,
+     "z": 5327,
+     "standAt": {
+      "u": 0.176,
+      "v": 0.319
+     },
+     "facing": "back-left"
+    }
+   ],
+   "props": [
+    {
+     "id": "printer-3",
+     "prop": "printer",
+     "image": "assets/room/props/printer.png",
+     "mirrored": false,
+     "left": 1645.948,
+     "top": 370.217,
+     "width": 193,
+     "height": 170,
+     "z": 4507,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "printer-3",
+       "kind": "printer",
+       "pose": null,
+       "u": 0.109,
+       "v": 0.335,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "water-3",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": false,
+     "left": 2006.433,
+     "top": 439.612,
+     "width": 101,
+     "height": 215,
+     "z": 6260,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-3",
+       "kind": "water",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.563,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "coffee-3",
+     "prop": "coffee-counter",
+     "image": "assets/room/props/coffee-counter.png",
+     "mirrored": false,
+     "left": 2050.217,
+     "top": 476.711,
+     "width": 275,
+     "height": 301,
+     "z": 8261,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "coffee-3",
+       "kind": "coffee",
+       "pose": null,
+       "u": 0.098,
+       "v": 0.71,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-3",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 1326.524,
+     "top": 141.8,
+     "width": 98,
+     "height": 172,
+     "z": 843,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-3",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.021,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-3-3",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 2505.899,
+     "top": 713.675,
+     "width": 98,
+     "height": 172,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-3-3",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.958,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-3-4",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": true,
+     "left": 139.987,
+     "top": 725.675,
+     "width": 110,
+     "height": 158,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-3-4",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.958,
+       "v": 0.063,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 399,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 482
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -128
+    }
+   },
+   "rugs": [
+    {
+     "id": "rug-4-1",
+     "rug": "round-sage",
+     "image": "assets/room/rugs/round-sage.png",
+     "left": 394.555,
+     "top": 533.69,
+     "width": 384.911,
+     "height": 386.169,
+     "turned": false
+    }
+   ],
+   "wallItems": [
+    {
+     "id": "elevator-4",
+     "item": "elevator",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator.png",
+     "mirrored": false,
+     "left": 554.938,
+     "top": 171,
+     "width": 262,
+     "height": 231,
+     "plate": {
+      "left": 634.938,
+      "top": 181,
+      "width": 68,
+      "height": 21
+     }
+    },
+    {
+     "id": "window-4-1",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 157.979,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-4-2",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 1119.946,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-4-3",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 137.022,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-4-4",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 1119.042,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-4",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [
+    {
+     "id": "f4-desk-1",
+     "desk": "s3-gamer",
+     "image": "assets/desk-sprites/s3-gamer.png",
+     "flip": false,
+     "rear": false,
+     "left": 2006.655,
+     "top": 791.295,
+     "width": 276,
+     "height": 252,
+     "z": 12705,
+     "standAt": {
+      "u": 0.34,
+      "v": 0.893
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f4-desk-2",
+     "desk": "s3-walnut",
+     "image": "assets/desk-sprites/s3-walnut.png",
+     "flip": true,
+     "rear": false,
+     "left": 1444.56,
+     "top": 818.34,
+     "width": 276,
+     "height": 239,
+     "z": 12850,
+     "standAt": {
+      "u": 0.525,
+      "v": 0.733
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f4-desk-3",
+     "desk": "s2-book",
+     "image": "assets/desk-sprites/s2-book.png",
+     "flip": false,
+     "rear": false,
+     "left": 1498.757,
+     "top": 558.743,
+     "width": 276,
+     "height": 270,
+     "z": 8973,
+     "standAt": {
+      "u": 0.341,
+      "v": 0.498
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f4-desk-4",
+     "desk": "s1-cat-fan",
+     "image": "assets/desk-sprites/s1-cat-fan.png",
+     "flip": true,
+     "rear": false,
+     "left": 936.494,
+     "top": 555.613,
+     "width": 276,
+     "height": 256,
+     "z": 8843,
+     "standAt": {
+      "u": 0.515,
+      "v": 0.331
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f4-desk-5",
+     "desk": "s2-sky",
+     "image": "assets/desk-sprites/s2-sky.png",
+     "flip": false,
+     "rear": false,
+     "left": 1740.058,
+     "top": 903.818,
+     "width": 276,
+     "height": 271,
+     "z": 14648,
+     "standAt": {
+      "u": 0.539,
+      "v": 0.888
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f4-desk-6",
+     "desk": "s3-oak",
+     "image": "assets/desk-sprites/s3-oak.png",
+     "flip": false,
+     "rear": false,
+     "left": 1233.101,
+     "top": 413.05,
+     "width": 276,
+     "height": 242,
+     "z": 6260,
+     "standAt": {
+      "u": 0.322,
+      "v": 0.266
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f4-desk-7",
+     "desk": "s2-ultrawide",
+     "image": "assets/desk-sprites/s2-ultrawide.png",
+     "flip": false,
+     "rear": false,
+     "left": 1401.942,
+     "top": 1088.254,
+     "width": 276,
+     "height": 274,
+     "z": 17724,
+     "standAt": {
+      "u": 0.827,
+      "v": 0.908
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f4-desk-8",
+     "desk": "s1-dual-monitor",
+     "image": "assets/desk-sprites/s1-dual-monitor.png",
+     "flip": false,
+     "rear": false,
+     "left": 1072.801,
+     "top": 934.536,
+     "width": 276,
+     "height": 253,
+     "z": 14986,
+     "standAt": {
+      "u": 0.819,
+      "v": 0.639
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f4-desk-9",
+     "desk": "s3-pink",
+     "image": "assets/desk-sprites/s3-pink.png",
+     "flip": true,
+     "rear": false,
+     "left": 970.705,
+     "top": 309.435,
+     "width": 276,
+     "height": 223,
+     "z": 4245,
+     "standAt": {
+      "u": 0.268,
+      "v": 0.107
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f4-desk-10",
+     "desk": "s3-fairy-light",
+     "image": "assets/desk-sprites/s3-fairy-light.png",
+     "flip": false,
+     "rear": false,
+     "left": 667.023,
+     "top": 652.281,
+     "width": 276,
+     "height": 245,
+     "z": 10231,
+     "standAt": {
+      "u": 0.745,
+      "v": 0.247
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f4-desk-11",
+     "desk": "s3-mint",
+     "image": "assets/desk-sprites/s3-mint.png",
+     "flip": true,
+     "rear": false,
+     "left": 681.322,
+     "top": 896.664,
+     "width": 276,
+     "height": 239,
+     "z": 14134,
+     "standAt": {
+      "u": 0.892,
+      "v": 0.494
+     },
+     "facing": "back-left"
+    }
+   ],
+   "props": [
+    {
+     "id": "printer-4",
+     "prop": "printer",
+     "image": "assets/room/props/printer.png",
+     "mirrored": false,
+     "left": 1645.948,
+     "top": 370.217,
+     "width": 193,
+     "height": 170,
+     "z": 4507,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "printer-4",
+       "kind": "printer",
+       "pose": null,
+       "u": 0.109,
+       "v": 0.335,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "water-4",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": false,
+     "left": 2006.433,
+     "top": 439.612,
+     "width": 101,
+     "height": 215,
+     "z": 6260,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-4",
+       "kind": "water",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.563,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "coffee-4",
+     "prop": "coffee-counter",
+     "image": "assets/room/props/coffee-counter.png",
+     "mirrored": false,
+     "left": 2050.217,
+     "top": 476.711,
+     "width": 275,
+     "height": 301,
+     "z": 8261,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "coffee-4",
+       "kind": "coffee",
+       "pose": null,
+       "u": 0.098,
+       "v": 0.71,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-4",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 1326.524,
+     "top": 141.8,
+     "width": 98,
+     "height": 172,
+     "z": 843,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-4",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.021,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-4-1",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": false,
+     "left": 1793.374,
+     "top": 382.55,
+     "width": 110,
+     "height": 158,
+     "z": 4593,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-4-1",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.396,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-4-2",
+     "prop": "small-plant",
+     "image": "assets/room/props/small-plant.png",
+     "mirrored": false,
+     "left": 1884.599,
+     "top": 475.475,
+     "width": 83,
+     "height": 105,
+     "z": 5218,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-4-3",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 2505.899,
+     "top": 713.675,
+     "width": 98,
+     "height": 172,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-4-3",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.958,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-4-4",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": true,
+     "left": 139.987,
+     "top": 725.675,
+     "width": 110,
+     "height": 158,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-4-4",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.958,
+       "v": 0.063,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 399,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 482
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -128
+    }
+   },
+   "rugs": [
+    {
+     "id": "rug-5-1",
+     "rug": "round-sage",
+     "image": "assets/room/rugs/round-sage.png",
+     "left": 394.555,
+     "top": 533.69,
+     "width": 384.911,
+     "height": 386.169,
+     "turned": false
+    }
+   ],
+   "wallItems": [
+    {
+     "id": "elevator-5",
+     "item": "elevator",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator.png",
+     "mirrored": false,
+     "left": 554.938,
+     "top": 171,
+     "width": 262,
+     "height": 231,
+     "plate": {
+      "left": 634.938,
+      "top": 181,
+      "width": 68,
+      "height": 21
+     }
+    },
+    {
+     "id": "window-5-1",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 157.979,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-5-2",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 1119.946,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-5-3",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 137.022,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-5-4",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 1119.042,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-5",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [
+    {
+     "id": "f5-desk-1",
+     "desk": "s1-laptop",
+     "image": "assets/desk-sprites/s1-laptop.png",
+     "flip": false,
+     "rear": false,
+     "left": 1874.635,
+     "top": 854.707,
+     "width": 276,
+     "height": 242,
+     "z": 13497,
+     "standAt": {
+      "u": 0.43,
+      "v": 0.882
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f5-desk-2",
+     "desk": "s1-ultrawide",
+     "image": "assets/desk-sprites/s1-ultrawide.png",
+     "flip": true,
+     "rear": false,
+     "left": 1306.7,
+     "top": 847.368,
+     "width": 276,
+     "height": 249,
+     "z": 13498,
+     "standAt": {
+      "u": 0.625,
+      "v": 0.706
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f5-desk-3",
+     "desk": "s1-walnut",
+     "image": "assets/desk-sprites/s1-walnut.png",
+     "flip": false,
+     "rear": false,
+     "left": 1326.115,
+     "top": 393.408,
+     "width": 276,
+     "height": 242,
+     "z": 5938,
+     "standAt": {
+      "u": 0.269,
+      "v": 0.291
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f5-desk-4",
+     "desk": "s1-cat-fan",
+     "image": "assets/desk-sprites/s1-cat-fan.png",
+     "flip": false,
+     "rear": false,
+     "left": 1592.463,
+     "top": 557.077,
+     "width": 276,
+     "height": 256,
+     "z": 8867,
+     "standAt": {
+      "u": 0.311,
+      "v": 0.538
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f5-desk-5",
+     "desk": "s2-pink",
+     "image": "assets/desk-sprites/s2-pink.png",
+     "flip": true,
+     "rear": false,
+     "left": 1024.603,
+     "top": 580.312,
+     "width": 276,
+     "height": 250,
+     "z": 9002,
+     "standAt": {
+      "u": 0.473,
+      "v": 0.36
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f5-desk-6",
+     "desk": "s3-book",
+     "image": "assets/desk-sprites/s3-book.png",
+     "flip": false,
+     "rear": false,
+     "left": 1594.782,
+     "top": 995.075,
+     "width": 276,
+     "height": 235,
+     "z": 15685,
+     "standAt": {
+      "u": 0.654,
+      "v": 0.887
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f5-desk-7",
+     "desk": "s3-fairy-light",
+     "image": "assets/desk-sprites/s3-fairy-light.png",
+     "flip": false,
+     "rear": false,
+     "left": 1293.487,
+     "top": 1085.442,
+     "width": 276,
+     "height": 245,
+     "z": 17332,
+     "standAt": {
+      "u": 0.851,
+      "v": 0.851
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f5-desk-8",
+     "desk": "s1-mint",
+     "image": "assets/desk-sprites/s1-mint.png",
+     "flip": false,
+     "rear": false,
+     "left": 961.898,
+     "top": 921.119,
+     "width": 276,
+     "height": 248,
+     "z": 14689,
+     "standAt": {
+      "u": 0.852,
+      "v": 0.585
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f5-desk-9",
+     "desk": "s2-dual-monitor",
+     "image": "assets/desk-sprites/s2-dual-monitor.png",
+     "flip": false,
+     "rear": false,
+     "left": 723.796,
+     "top": 700.086,
+     "width": 240,
+     "height": 247,
+     "z": 10936,
+     "standAt": {
+      "u": 0.758,
+      "v": 0.282
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f5-desk-10",
+     "desk": "s3-gamer",
+     "image": "assets/desk-sprites/s3-gamer.png",
+     "flip": true,
+     "rear": false,
+     "left": 1007.896,
+     "top": 256.935,
+     "width": 276,
+     "height": 252,
+     "z": 3945,
+     "standAt": {
+      "u": 0.24,
+      "v": 0.116
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f5-desk-11",
+     "desk": "s3-oak",
+     "image": "assets/desk-sprites/s3-oak.png",
+     "flip": false,
+     "rear": false,
+     "left": 442.547,
+     "top": 764.227,
+     "width": 276,
+     "height": 242,
+     "z": 12017,
+     "standAt": {
+      "u": 0.925,
+      "v": 0.239
+     },
+     "facing": "back-right"
+    }
+   ],
+   "props": [
+    {
+     "id": "printer-5",
+     "prop": "printer",
+     "image": "assets/room/props/printer.png",
+     "mirrored": false,
+     "left": 1645.948,
+     "top": 370.217,
+     "width": 193,
+     "height": 170,
+     "z": 4507,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "printer-5",
+       "kind": "printer",
+       "pose": null,
+       "u": 0.109,
+       "v": 0.335,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "water-5",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": false,
+     "left": 2006.433,
+     "top": 439.612,
+     "width": 101,
+     "height": 215,
+     "z": 6260,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-5",
+       "kind": "water",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.563,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "coffee-5",
+     "prop": "coffee-counter",
+     "image": "assets/room/props/coffee-counter.png",
+     "mirrored": false,
+     "left": 2050.217,
+     "top": 476.711,
+     "width": 275,
+     "height": 301,
+     "z": 8261,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "coffee-5",
+       "kind": "coffee",
+       "pose": null,
+       "u": 0.098,
+       "v": 0.71,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-5",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 1326.524,
+     "top": 141.8,
+     "width": 98,
+     "height": 172,
+     "z": 843,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-5",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.021,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-5-1",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": false,
+     "left": 1793.374,
+     "top": 382.55,
+     "width": 110,
+     "height": 158,
+     "z": 4593,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-5-1",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.396,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-5-2",
+     "prop": "small-plant",
+     "image": "assets/room/props/small-plant.png",
+     "mirrored": false,
+     "left": 1884.599,
+     "top": 475.475,
+     "width": 83,
+     "height": 105,
+     "z": 5218,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-5-3",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 2505.899,
+     "top": 713.675,
+     "width": 98,
+     "height": 172,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-5-3",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.958,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-5-4",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": true,
+     "left": 139.987,
+     "top": 725.675,
+     "width": 110,
+     "height": 158,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-5-4",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.958,
+       "v": 0.063,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 399,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 482
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -128
+    }
+   },
+   "rugs": [],
+   "wallItems": [
+    {
+     "id": "elevator-6",
+     "item": "elevator-lounge",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator-lounge.png",
+     "mirrored": false,
+     "left": 554.934,
+     "top": 41,
+     "width": 256,
+     "height": 360,
+     "plate": {
+      "left": 631.934,
+      "top": 60,
+      "width": 58,
+      "height": 23
+     }
+    },
+    {
+     "id": "window-6-4",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 1119.042,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-6-1",
+     "item": "window-lounge-full",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 970.216,
+     "top": 24,
+     "width": 413,
+     "height": 375,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-6",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [
+    {
+     "id": "wall-whiteboard-6-1",
+     "image": "assets/room/conference/wall-whiteboard.png",
+     "mirrored": true,
+     "left": 1429.15,
+     "top": 114.241,
+     "width": 189,
+     "height": 219,
+     "z": 1979
+    },
+    {
+     "id": "wall-tv-6-1",
+     "image": "assets/room/conference/wall-tv.png",
+     "mirrored": true,
+     "left": 1622.566,
+     "top": 217.188,
+     "width": 171,
+     "height": 203,
+     "z": 3372
+    }
+   ],
+   "desks": [
+    {
+     "id": "f6-desk-1",
+     "desk": "s1-ultrawide",
+     "image": "assets/desk-sprites/s1-ultrawide.png",
+     "flip": true,
+     "rear": false,
+     "left": 1191.401,
+     "top": 1170.851,
+     "width": 276,
+     "height": 249,
+     "z": 18801,
+     "standAt": {
+      "u": 0.936,
+      "v": 0.926
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f6-desk-2",
+     "desk": "s1-laptop",
+     "image": "assets/desk-sprites/s1-laptop.png",
+     "flip": false,
+     "rear": false,
+     "left": 1509.883,
+     "top": 1067.963,
+     "width": 276,
+     "height": 242,
+     "z": 16993,
+     "standAt": {
+      "u": 0.75,
+      "v": 0.912
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f6-desk-3",
+     "desk": "s1-mint",
+     "image": "assets/desk-sprites/s1-mint.png",
+     "flip": true,
+     "rear": false,
+     "left": 830.809,
+     "top": 995.539,
+     "width": 276,
+     "height": 248,
+     "z": 15909,
+     "standAt": {
+      "u": 0.918,
+      "v": 0.641
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f6-desk-4",
+     "desk": "s3-pink",
+     "image": "assets/desk-sprites/s3-pink.png",
+     "flip": true,
+     "rear": false,
+     "left": 1771.232,
+     "top": 926.145,
+     "width": 276,
+     "height": 223,
+     "z": 14355,
+     "standAt": {
+      "u": 0.456,
+      "v": 0.93
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f6-desk-5",
+     "desk": "s1-dual-monitor",
+     "image": "assets/desk-sprites/s1-dual-monitor.png",
+     "flip": false,
+     "rear": false,
+     "left": 1210.822,
+     "top": 869.632,
+     "width": 276,
+     "height": 253,
+     "z": 13922,
+     "standAt": {
+      "u": 0.711,
+      "v": 0.641
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f6-desk-6",
+     "desk": "s2-cat-fan",
+     "image": "assets/desk-sprites/s2-cat-fan.png",
+     "flip": false,
+     "rear": false,
+     "left": 2032.375,
+     "top": 782.257,
+     "width": 276,
+     "height": 277,
+     "z": 12747,
+     "standAt": {
+      "u": 0.316,
+      "v": 0.897
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f6-desk-7",
+     "desk": "s1-fairy-light",
+     "image": "assets/desk-sprites/s1-fairy-light.png",
+     "flip": true,
+     "rear": false,
+     "left": 565.036,
+     "top": 834.381,
+     "width": 276,
+     "height": 246,
+     "z": 13231,
+     "standAt": {
+      "u": 0.892,
+      "v": 0.399
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f6-desk-8",
+     "desk": "s3-walnut",
+     "image": "assets/desk-sprites/s3-walnut.png",
+     "flip": true,
+     "rear": false,
+     "left": 917.724,
+     "top": 734.099,
+     "width": 276,
+     "height": 239,
+     "z": 11469,
+     "standAt": {
+      "u": 0.666,
+      "v": 0.455
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f6-desk-9",
+     "desk": "s2-sky",
+     "image": "assets/desk-sprites/s2-sky.png",
+     "flip": false,
+     "rear": false,
+     "left": 1480.799,
+     "top": 795.055,
+     "width": 276,
+     "height": 271,
+     "z": 12865,
+     "standAt": {
+      "u": 0.552,
+      "v": 0.696
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f6-desk-10",
+     "desk": "s2-gamer",
+     "image": "assets/desk-sprites/s2-gamer.png",
+     "flip": false,
+     "rear": false,
+     "left": 2299.77,
+     "top": 691.407,
+     "width": 251,
+     "height": 254,
+     "z": 10897,
+     "standAt": {
+      "u": 0.131,
+      "v": 0.921
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f6-desk-11",
+     "desk": "s1-book",
+     "image": "assets/desk-sprites/s1-book.png",
+     "flip": false,
+     "rear": false,
+     "left": 2031.695,
+     "top": 542.446,
+     "width": 276,
+     "height": 249,
+     "z": 8496,
+     "standAt": {
+      "u": 0.117,
+      "v": 0.699
+     },
+     "facing": "back-right"
+    }
+   ],
+   "props": [
+    {
+     "id": "trash-bin-wicker-6-1",
+     "prop": "trash-bin-pedal",
+     "image": "assets/room/props/trash-bin-pedal.png",
+     "mirrored": false,
+     "left": 250.138,
+     "top": 755.317,
+     "width": 50,
+     "height": 76,
+     "z": 9187,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "water-cooler-6-1",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": true,
+     "left": 276.528,
+     "top": 617.531,
+     "width": 101,
+     "height": 215,
+     "z": 9177,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-cooler-6-1",
+       "kind": "water",
+       "pose": null,
+       "u": 0.854,
+       "v": 0.063,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "big-meeting-table-screen-6-1",
+     "prop": "big-meeting-table-screen",
+     "image": "assets/room/conference/big-meeting-table-screen.png",
+     "mirrored": true,
+     "left": 1202.305,
+     "top": 288.021,
+     "width": 612,
+     "height": 362,
+     "z": 6409,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "big-meeting-table-screen-6-1",
+       "kind": "meeting",
+       "pose": "stand",
+       "u": 0.136,
+       "v": 0.041,
+       "facing": "front-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "glass-partition-wide-6-2",
+     "prop": "glass-partition-wide",
+     "image": "assets/room/conference/glass-partition-wide-4.png",
+     "mirrored": true,
+     "left": 990.827,
+     "top": 310.606,
+     "width": 479,
+     "height": 370,
+     "z": 6640,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "glass-partition-wide-6-3",
+     "prop": "glass-partition-wide",
+     "image": "assets/room/conference/glass-partition-wide-3.png",
+     "mirrored": false,
+     "left": 1680.829,
+     "top": 451.183,
+     "width": 367,
+     "height": 315,
+     "z": 8043,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "coffee-counter-6-2",
+     "prop": "coffee-counter",
+     "image": "assets/room/props/coffee-counter.png",
+     "mirrored": true,
+     "left": 333.016,
+     "top": 519.887,
+     "width": 275,
+     "height": 301,
+     "z": 8969,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "coffee-counter-6-2",
+       "kind": "coffee",
+       "pose": null,
+       "u": 0.783,
+       "v": 0.097,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "big-meeting-table-screen-6-1~0",
+     "prop": "meeting-screen",
+     "image": "assets/room/conference/meeting-screen.png",
+     "mirrored": true,
+     "left": 1083.099,
+     "top": 39.018,
+     "width": 248,
+     "height": 364,
+     "z": 2045,
+     "companionOf": "big-meeting-table-screen-6-1",
+     "spots": []
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 399,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 482
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -128
+    }
+   },
+   "rugs": [],
+   "wallItems": [
+    {
+     "id": "elevator-7",
+     "item": "elevator-lounge",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator-lounge.png",
+     "mirrored": false,
+     "left": 554.934,
+     "top": 41,
+     "width": 256,
+     "height": 360,
+     "plate": {
+      "left": 631.934,
+      "top": 60,
+      "width": 58,
+      "height": 23
+     }
+    },
+    {
+     "id": "window-7-2",
+     "item": "window-lounge-full",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 984.188,
+     "top": 24,
+     "width": 413,
+     "height": 375,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-7",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [
+    {
+     "id": "wall-whiteboard-7-1",
+     "image": "assets/room/conference/wall-whiteboard.png",
+     "mirrored": true,
+     "left": 1429.15,
+     "top": 114.241,
+     "width": 189,
+     "height": 219,
+     "z": 1979
+    },
+    {
+     "id": "wall-tv-7-1",
+     "image": "assets/room/conference/wall-tv.png",
+     "mirrored": true,
+     "left": 1622.566,
+     "top": 217.188,
+     "width": 171,
+     "height": 203,
+     "z": 3372
+    }
+   ],
+   "desks": [
+    {
+     "id": "f7-desk-1",
+     "desk": "s1-dual-monitor",
+     "image": "assets/desk-sprites/s1-dual-monitor.png",
+     "flip": true,
+     "rear": false,
+     "left": 1195.241,
+     "top": 1127.113,
+     "width": 276,
+     "height": 253,
+     "z": 18143,
+     "standAt": {
+      "u": 0.879,
+      "v": 0.894
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f7-desk-2",
+     "desk": "s2-cat-fan",
+     "image": "assets/desk-sprites/s2-cat-fan.png",
+     "flip": false,
+     "rear": false,
+     "left": 1498.255,
+     "top": 1016.192,
+     "width": 276,
+     "height": 277,
+     "z": 16582,
+     "standAt": {
+      "u": 0.721,
+      "v": 0.877
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f7-desk-3",
+     "desk": "s2-gamer",
+     "image": "assets/desk-sprites/s2-gamer.png",
+     "flip": false,
+     "rear": false,
+     "left": 900.023,
+     "top": 968.53,
+     "width": 251,
+     "height": 254,
+     "z": 15440,
+     "standAt": {
+      "u": 0.915,
+      "v": 0.591
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f7-desk-4",
+     "desk": "s2-ultrawide",
+     "image": "assets/desk-sprites/s2-ultrawide.png",
+     "flip": true,
+     "rear": false,
+     "left": 554.791,
+     "top": 851.94,
+     "width": 276,
+     "height": 274,
+     "z": 13850,
+     "standAt": {
+      "u": 0.92,
+      "v": 0.427
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f7-desk-5",
+     "desk": "s3-fairy-light",
+     "image": "assets/desk-sprites/s3-fairy-light.png",
+     "flip": true,
+     "rear": false,
+     "left": 1162.458,
+     "top": 877.676,
+     "width": 276,
+     "height": 245,
+     "z": 13926,
+     "standAt": {
+      "u": 0.688,
+      "v": 0.673
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f7-desk-6",
+     "desk": "s2-book",
+     "image": "assets/desk-sprites/s2-book.png",
+     "flip": false,
+     "rear": false,
+     "left": 1783.11,
+     "top": 904.674,
+     "width": 276,
+     "height": 270,
+     "z": 14644,
+     "standAt": {
+      "u": 0.511,
+      "v": 0.894
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f7-desk-7",
+     "desk": "s1-pink",
+     "image": "assets/desk-sprites/s1-pink.png",
+     "flip": false,
+     "rear": false,
+     "left": 2045.062,
+     "top": 811.343,
+     "width": 276,
+     "height": 235,
+     "z": 12673,
+     "standAt": {
+      "u": 0.313,
+      "v": 0.909
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f7-desk-8",
+     "desk": "s3-laptop",
+     "image": "assets/desk-sprites/s3-laptop.png",
+     "flip": false,
+     "rear": false,
+     "left": 854.172,
+     "top": 724.636,
+     "width": 276,
+     "height": 237,
+     "z": 11286,
+     "standAt": {
+      "u": 0.725,
+      "v": 0.366
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f7-desk-9",
+     "desk": "s1-walnut",
+     "image": "assets/desk-sprites/s1-walnut.png",
+     "flip": false,
+     "rear": false,
+     "left": 1469.911,
+     "top": 777.647,
+     "width": 276,
+     "height": 242,
+     "z": 12237,
+     "standAt": {
+      "u": 0.527,
+      "v": 0.663
+     },
+     "facing": "back-right"
+    }
+   ],
+   "props": [
+    {
+     "id": "trash-bin-pedal-7-1",
+     "prop": "trash-bin-pedal",
+     "image": "assets/room/props/trash-bin-pedal.png",
+     "mirrored": false,
+     "left": 250.138,
+     "top": 755.317,
+     "width": 50,
+     "height": 76,
+     "z": 9187,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "water-cooler-7-1",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": true,
+     "left": 276.528,
+     "top": 617.531,
+     "width": 101,
+     "height": 215,
+     "z": 9177,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-cooler-7-1",
+       "kind": "water",
+       "pose": null,
+       "u": 0.854,
+       "v": 0.063,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "big-meeting-table-screen-7-1",
+     "prop": "big-meeting-table-screen",
+     "image": "assets/room/conference/big-meeting-table-screen.png",
+     "mirrored": true,
+     "left": 1202.305,
+     "top": 288.021,
+     "width": 612,
+     "height": 362,
+     "z": 6409,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "big-meeting-table-screen-7-1",
+       "kind": "meeting",
+       "pose": "stand",
+       "u": 0.136,
+       "v": 0.041,
+       "facing": "front-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "glass-partition-wide-7-1",
+     "prop": "glass-partition-wide",
+     "image": "assets/room/conference/glass-partition-wide-4.png",
+     "mirrored": true,
+     "left": 990.827,
+     "top": 310.606,
+     "width": 479,
+     "height": 370,
+     "z": 6640,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "glass-partition-wide-7-2",
+     "prop": "glass-partition-wide",
+     "image": "assets/room/conference/glass-partition-wide-3.png",
+     "mirrored": false,
+     "left": 1680.829,
+     "top": 451.183,
+     "width": 367,
+     "height": 315,
+     "z": 7619,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "coffee-counter-7-1",
+     "prop": "coffee-counter",
+     "image": "assets/room/props/coffee-counter.png",
+     "mirrored": true,
+     "left": 333.016,
+     "top": 519.887,
+     "width": 275,
+     "height": 301,
+     "z": 8969,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "coffee-counter-7-1",
+       "kind": "coffee",
+       "pose": null,
+       "u": 0.783,
+       "v": 0.097,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "window-seat-7-1",
+     "prop": "window-seat",
+     "image": "assets/room/props/window-seat.png",
+     "mirrored": false,
+     "left": 2011.735,
+     "top": 488.475,
+     "width": 264,
+     "height": 251,
+     "z": 7631,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "window-seat-7-1",
+       "kind": "window-seat",
+       "pose": "sit",
+       "u": 0.052,
+       "v": 0.651,
+       "facing": "front-left",
+       "lift": 65
+      }
+     ]
+    },
+    {
+     "id": "window-seat-7-2",
+     "prop": "window-seat",
+     "image": "assets/room/props/window-seat.png",
+     "mirrored": false,
+     "left": 2300.019,
+     "top": 628.263,
+     "width": 264,
+     "height": 251,
+     "z": 9923,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "window-seat-7-2",
+       "kind": "window-seat",
+       "pose": "sit",
+       "u": 0.052,
+       "v": 0.88,
+       "facing": "front-left",
+       "lift": 65
+      }
+     ]
+    },
+    {
+     "id": "water-cooler-7-2",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": false,
+     "left": 2242.308,
+     "top": 553.987,
+     "width": 101,
+     "height": 215,
+     "z": 8135,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-cooler-7-2",
+       "kind": "water",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.75,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "big-meeting-table-screen-7-1~0",
+     "prop": "meeting-screen",
+     "image": "assets/room/conference/meeting-screen.png",
+     "mirrored": true,
+     "left": 1083.099,
+     "top": 39.018,
+     "width": 248,
+     "height": 364,
+     "z": 2045,
+     "companionOf": "big-meeting-table-screen-7-1",
+     "spots": []
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 399,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 482
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -128
+    }
+   },
+   "rugs": [],
+   "wallItems": [
+    {
+     "id": "elevator-8",
+     "item": "elevator",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator.png",
+     "mirrored": false,
+     "left": 554.938,
+     "top": 171,
+     "width": 262,
+     "height": 231,
+     "plate": {
+      "left": 634.938,
+      "top": 181,
+      "width": 68,
+      "height": 21
+     }
+    },
+    {
+     "id": "window-8-1",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 157.979,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-8-2",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 1119.946,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-8-3",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 137.022,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-8-4",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 1119.042,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-8",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [],
+   "props": []
+  },
+  {
+   "id": 9,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 399,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 482
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -128
+    }
+   },
+   "rugs": [
+    {
+     "id": "rug-9-1",
+     "rug": "round-sage",
+     "image": "assets/room/rugs/round-sage.png",
+     "left": 394.555,
+     "top": 533.69,
+     "width": 384.911,
+     "height": 386.169,
+     "turned": false
+    }
+   ],
+   "wallItems": [
+    {
+     "id": "elevator-9",
+     "item": "elevator",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator.png",
+     "mirrored": false,
+     "left": 554.938,
+     "top": 171,
+     "width": 262,
+     "height": 231,
+     "plate": {
+      "left": 634.938,
+      "top": 181,
+      "width": 68,
+      "height": 21
+     }
+    },
+    {
+     "id": "window-9-1",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 157.979,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-9-2",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 1119.946,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-9-3",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 137.022,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-9-4",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 1119.042,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-9",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [
+    {
+     "id": "f9-desk-1",
+     "desk": "s1-pink",
+     "image": "assets/desk-sprites/s1-pink.png",
+     "flip": false,
+     "rear": false,
+     "left": 1355.53,
+     "top": 296.381,
+     "width": 276,
+     "height": 235,
+     "z": 4231,
+     "standAt": {
+      "u": 0.165,
+      "v": 0.213
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f9-desk-2",
+     "desk": "s1-fairy-light",
+     "image": "assets/desk-sprites/s1-fairy-light.png",
+     "flip": true,
+     "rear": false,
+     "left": 962.351,
+     "top": 307.158,
+     "width": 276,
+     "height": 246,
+     "z": 4588,
+     "standAt": {
+      "u": 0.301,
+      "v": 0.125
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f9-desk-3",
+     "desk": "s3-gamer",
+     "image": "assets/desk-sprites/s3-gamer.png",
+     "flip": true,
+     "rear": false,
+     "left": 277.351,
+     "top": 640.381,
+     "width": 276,
+     "height": 252,
+     "z": 10231,
+     "standAt": {
+      "u": 0.845,
+      "v": 0.14
+     },
+     "facing": "back-left"
+    }
+   ],
+   "props": [
+    {
+     "id": "printer-9",
+     "prop": "printer",
+     "image": "assets/room/props/printer.png",
+     "mirrored": false,
+     "left": 1645.948,
+     "top": 370.217,
+     "width": 193,
+     "height": 170,
+     "z": 4507,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "printer-9",
+       "kind": "printer",
+       "pose": null,
+       "u": 0.109,
+       "v": 0.335,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "water-9",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": false,
+     "left": 2006.433,
+     "top": 439.612,
+     "width": 101,
+     "height": 215,
+     "z": 6260,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-9",
+       "kind": "water",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.563,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "coffee-9",
+     "prop": "coffee-counter",
+     "image": "assets/room/props/coffee-counter.png",
+     "mirrored": false,
+     "left": 2050.217,
+     "top": 476.711,
+     "width": 275,
+     "height": 301,
+     "z": 8261,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "coffee-9",
+       "kind": "coffee",
+       "pose": null,
+       "u": 0.098,
+       "v": 0.71,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-9",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 1326.524,
+     "top": 141.8,
+     "width": 98,
+     "height": 172,
+     "z": 843,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-9",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.021,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-9-1",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": false,
+     "left": 1793.374,
+     "top": 382.55,
+     "width": 110,
+     "height": 158,
+     "z": 4593,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-9-1",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.396,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-9-2",
+     "prop": "small-plant",
+     "image": "assets/room/props/small-plant.png",
+     "mirrored": false,
+     "left": 1884.599,
+     "top": 475.475,
+     "width": 83,
+     "height": 105,
+     "z": 5218,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-9-3",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 2505.899,
+     "top": 713.675,
+     "width": 98,
+     "height": 172,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-9-3",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.958,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-9-4",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": true,
+     "left": 139.987,
+     "top": 725.675,
+     "width": 110,
+     "height": 158,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-9-4",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.958,
+       "v": 0.063,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 399,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 482
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -128
+    }
+   },
+   "rugs": [
+    {
+     "id": "rug-10-1",
+     "rug": "round-sage",
+     "image": "assets/room/rugs/round-sage.png",
+     "left": 394.555,
+     "top": 533.69,
+     "width": 384.911,
+     "height": 386.169,
+     "turned": false
+    }
+   ],
+   "wallItems": [
+    {
+     "id": "elevator-10",
+     "item": "elevator",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator.png",
+     "mirrored": false,
+     "left": 554.938,
+     "top": 171,
+     "width": 262,
+     "height": 231,
+     "plate": {
+      "left": 634.938,
+      "top": 181,
+      "width": 68,
+      "height": 21
+     }
+    },
+    {
+     "id": "window-10-1",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 157.979,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-10-2",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 1119.946,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-10-3",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 137.022,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-10-4",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 1119.042,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-10",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [
+    {
+     "id": "f10-desk-1",
+     "desk": "s1-pink",
+     "image": "assets/desk-sprites/s1-pink.png",
+     "flip": false,
+     "rear": false,
+     "left": 1355.53,
+     "top": 296.381,
+     "width": 276,
+     "height": 235,
+     "z": 4231,
+     "standAt": {
+      "u": 0.165,
+      "v": 0.213
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f10-desk-2",
+     "desk": "s3-sky",
+     "image": "assets/desk-sprites/s3-sky.png",
+     "flip": true,
+     "rear": false,
+     "left": 276.172,
+     "top": 633.942,
+     "width": 276,
+     "height": 245,
+     "z": 9932,
+     "standAt": {
+      "u": 0.839,
+      "v": 0.12
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f10-desk-3",
+     "desk": "s2-mint",
+     "image": "assets/desk-sprites/s2-mint.png",
+     "flip": true,
+     "rear": false,
+     "left": 933.659,
+     "top": 283.531,
+     "width": 276,
+     "height": 271,
+     "z": 4481,
+     "standAt": {
+      "u": 0.301,
+      "v": 0.109
+     },
+     "facing": "back-left"
+    }
+   ],
+   "props": [
+    {
+     "id": "printer-10",
+     "prop": "printer",
+     "image": "assets/room/props/printer.png",
+     "mirrored": false,
+     "left": 1645.948,
+     "top": 370.217,
+     "width": 193,
+     "height": 170,
+     "z": 4507,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "printer-10",
+       "kind": "printer",
+       "pose": null,
+       "u": 0.109,
+       "v": 0.335,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "water-10",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": false,
+     "left": 2006.433,
+     "top": 439.612,
+     "width": 101,
+     "height": 215,
+     "z": 6260,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-10",
+       "kind": "water",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.563,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "coffee-10",
+     "prop": "coffee-counter",
+     "image": "assets/room/props/coffee-counter.png",
+     "mirrored": false,
+     "left": 2050.217,
+     "top": 476.711,
+     "width": 275,
+     "height": 301,
+     "z": 8261,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "coffee-10",
+       "kind": "coffee",
+       "pose": null,
+       "u": 0.098,
+       "v": 0.71,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-10",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 1326.524,
+     "top": 141.8,
+     "width": 98,
+     "height": 172,
+     "z": 843,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-10",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.021,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-10-1",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": false,
+     "left": 1793.374,
+     "top": 382.55,
+     "width": 110,
+     "height": 158,
+     "z": 4593,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-10-1",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.396,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-10-2",
+     "prop": "small-plant",
+     "image": "assets/room/props/small-plant.png",
+     "mirrored": false,
+     "left": 1884.599,
+     "top": 475.475,
+     "width": 83,
+     "height": 105,
+     "z": 5218,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-10-3",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 2505.899,
+     "top": 713.675,
+     "width": 98,
+     "height": 172,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-10-3",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.958,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-10-4",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": true,
+     "left": 139.987,
+     "top": 725.675,
+     "width": 110,
+     "height": 158,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-10-4",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.958,
+       "v": 0.063,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 399,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 482
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -128
+    }
+   },
+   "rugs": [
+    {
+     "id": "rug-11-1",
+     "rug": "round-sage",
+     "image": "assets/room/rugs/round-sage.png",
+     "left": 394.555,
+     "top": 533.69,
+     "width": 384.911,
+     "height": 386.169,
+     "turned": false
+    }
+   ],
+   "wallItems": [
+    {
+     "id": "elevator-11",
+     "item": "elevator",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator.png",
+     "mirrored": false,
+     "left": 554.938,
+     "top": 171,
+     "width": 262,
+     "height": 231,
+     "plate": {
+      "left": 634.938,
+      "top": 181,
+      "width": 68,
+      "height": 21
+     }
+    },
+    {
+     "id": "window-11-1",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 157.979,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-11-2",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 1119.946,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-11-3",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 137.022,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-11-4",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 1119.042,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-11",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [
+    {
+     "id": "f11-desk-1",
+     "desk": "s3-sky",
+     "image": "assets/desk-sprites/s3-sky.png",
+     "flip": true,
+     "rear": false,
+     "left": 849.254,
+     "top": 375.241,
+     "width": 276,
+     "height": 245,
+     "z": 5691,
+     "standAt": {
+      "u": 0.399,
+      "v": 0.136
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f11-desk-2",
+     "desk": "s3-gamer",
+     "image": "assets/desk-sprites/s3-gamer.png",
+     "flip": true,
+     "rear": false,
+     "left": 1021.113,
+     "top": 273.344,
+     "width": 276,
+     "height": 252,
+     "z": 4214,
+     "standAt": {
+      "u": 0.249,
+      "v": 0.135
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f11-desk-3",
+     "desk": "s3-mint",
+     "image": "assets/desk-sprites/s3-mint.png",
+     "flip": true,
+     "rear": false,
+     "left": 340.8,
+     "top": 600.692,
+     "width": 276,
+     "height": 239,
+     "z": 9282,
+     "standAt": {
+      "u": 0.785,
+      "v": 0.116
+     },
+     "facing": "back-left"
+    }
+   ],
+   "props": [
+    {
+     "id": "printer-11",
+     "prop": "printer",
+     "image": "assets/room/props/printer.png",
+     "mirrored": false,
+     "left": 1645.948,
+     "top": 370.217,
+     "width": 193,
+     "height": 170,
+     "z": 4507,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "printer-11",
+       "kind": "printer",
+       "pose": null,
+       "u": 0.109,
+       "v": 0.335,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "water-11",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": false,
+     "left": 2006.433,
+     "top": 439.612,
+     "width": 101,
+     "height": 215,
+     "z": 6260,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-11",
+       "kind": "water",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.563,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "coffee-11",
+     "prop": "coffee-counter",
+     "image": "assets/room/props/coffee-counter.png",
+     "mirrored": false,
+     "left": 2050.217,
+     "top": 476.711,
+     "width": 275,
+     "height": 301,
+     "z": 8261,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "coffee-11",
+       "kind": "coffee",
+       "pose": null,
+       "u": 0.098,
+       "v": 0.71,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-11",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 1326.524,
+     "top": 141.8,
+     "width": 98,
+     "height": 172,
+     "z": 843,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-11",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.021,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-11-1",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": false,
+     "left": 1793.374,
+     "top": 382.55,
+     "width": 110,
+     "height": 158,
+     "z": 4593,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-11-1",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.396,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-11-2",
+     "prop": "small-plant",
+     "image": "assets/room/props/small-plant.png",
+     "mirrored": false,
+     "left": 1884.599,
+     "top": 475.475,
+     "width": 83,
+     "height": 105,
+     "z": 5218,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-11-3",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 2505.899,
+     "top": 713.675,
+     "width": 98,
+     "height": 172,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-11-3",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.958,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-11-4",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": true,
+     "left": 139.987,
+     "top": 725.675,
+     "width": 110,
+     "height": 158,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-11-4",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.958,
+       "v": 0.063,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "corners": {
+    "top": {
+     "x": 1375,
+     "y": 271
+    },
+    "left": {
+     "x": 118,
+     "y": 881
+    },
+    "bottom": {
+     "x": 1376,
+     "y": 1491
+    },
+    "right": {
+     "x": 2633,
+     "y": 881
+    }
+   },
+   "wallHeight": 399,
+   "eu": 1397.193,
+   "ev": 1398.093,
+   "floorPlane": {
+    "size": 1397.643,
+    "a": 0.9,
+    "b": 0.436,
+    "c": -0.899,
+    "d": 0.436,
+    "e": 1375,
+    "f": 271
+   },
+   "walls": {
+    "left": {
+     "length": 1397.193,
+     "a": 0.9,
+     "b": -0.437,
+     "e": 118,
+     "f": 482
+    },
+    "right": {
+     "length": 1398.093,
+     "a": 0.9,
+     "b": 0.436,
+     "e": 1375,
+     "f": -128
+    }
+   },
+   "rugs": [
+    {
+     "id": "rug-12-1",
+     "rug": "round-sage",
+     "image": "assets/room/rugs/round-sage.png",
+     "left": 394.555,
+     "top": 533.69,
+     "width": 384.911,
+     "height": 386.169,
+     "turned": false
+    }
+   ],
+   "wallItems": [
+    {
+     "id": "elevator-12",
+     "item": "elevator",
+     "wall": "left",
+     "image": "assets/room/wall-items/elevator.png",
+     "mirrored": false,
+     "left": 554.938,
+     "top": 171,
+     "width": 262,
+     "height": 231,
+     "plate": {
+      "left": 634.938,
+      "top": 181,
+      "width": 68,
+      "height": 21
+     }
+    },
+    {
+     "id": "window-12-1",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 157.979,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-12-2",
+     "item": "window",
+     "wall": "left",
+     "image": null,
+     "mirrored": false,
+     "left": 1119.946,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-12-3",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 137.022,
+     "top": 60,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    },
+    {
+     "id": "window-12-4",
+     "item": "window",
+     "wall": "right",
+     "image": null,
+     "mirrored": true,
+     "left": 1119.042,
+     "top": 62,
+     "width": 163,
+     "height": 127,
+     "plate": null
+    }
+   ],
+   "elevators": [
+    {
+     "id": "elevator-12",
+     "standAt": {
+      "u": 0.531,
+      "v": 0.029
+     },
+     "facing": "back-left"
+    }
+   ],
+   "fixtures": [],
+   "desks": [
+    {
+     "id": "f12-desk-1",
+     "desk": "s1-walnut",
+     "image": "assets/desk-sprites/s1-walnut.png",
+     "flip": true,
+     "rear": false,
+     "left": 276.349,
+     "top": 636.981,
+     "width": 276,
+     "height": 242,
+     "z": 9931,
+     "standAt": {
+      "u": 0.837,
+      "v": 0.122
+     },
+     "facing": "back-left"
+    },
+    {
+     "id": "f12-desk-2",
+     "desk": "s3-mint",
+     "image": "assets/desk-sprites/s3-mint.png",
+     "flip": false,
+     "rear": false,
+     "left": 1348.948,
+     "top": 298.132,
+     "width": 276,
+     "height": 239,
+     "z": 4322,
+     "standAt": {
+      "u": 0.18,
+      "v": 0.225
+     },
+     "facing": "back-right"
+    },
+    {
+     "id": "f12-desk-3",
+     "desk": "s1-ultrawide",
+     "image": "assets/desk-sprites/s1-ultrawide.png",
+     "flip": true,
+     "rear": false,
+     "left": 924.105,
+     "top": 309.531,
+     "width": 276,
+     "height": 249,
+     "z": 4681,
+     "standAt": {
+      "u": 0.336,
+      "v": 0.114
+     },
+     "facing": "back-left"
+    }
+   ],
+   "props": [
+    {
+     "id": "printer-12",
+     "prop": "printer",
+     "image": "assets/room/props/printer.png",
+     "mirrored": false,
+     "left": 1645.948,
+     "top": 370.217,
+     "width": 193,
+     "height": 170,
+     "z": 4507,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "printer-12",
+       "kind": "printer",
+       "pose": null,
+       "u": 0.109,
+       "v": 0.335,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "water-12",
+     "prop": "water-cooler",
+     "image": "assets/room/props/water-cooler.png",
+     "mirrored": false,
+     "left": 2006.433,
+     "top": 439.612,
+     "width": 101,
+     "height": 215,
+     "z": 6260,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "water-12",
+       "kind": "water",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.563,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "coffee-12",
+     "prop": "coffee-counter",
+     "image": "assets/room/props/coffee-counter.png",
+     "mirrored": false,
+     "left": 2050.217,
+     "top": 476.711,
+     "width": 275,
+     "height": 301,
+     "z": 8261,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "coffee-12",
+       "kind": "coffee",
+       "pose": null,
+       "u": 0.098,
+       "v": 0.71,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-12",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 1326.524,
+     "top": 141.8,
+     "width": 98,
+     "height": 172,
+     "z": 843,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-12",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.021,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-12-1",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": false,
+     "left": 1793.374,
+     "top": 382.55,
+     "width": 110,
+     "height": 158,
+     "z": 4593,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-12-1",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.396,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-12-2",
+     "prop": "small-plant",
+     "image": "assets/room/props/small-plant.png",
+     "mirrored": false,
+     "left": 1884.599,
+     "top": 475.475,
+     "width": 83,
+     "height": 105,
+     "z": 5218,
+     "companionOf": null,
+     "spots": []
+    },
+    {
+     "id": "plant-12-3",
+     "prop": "round-topiary",
+     "image": "assets/room/props/round-topiary.png",
+     "mirrored": false,
+     "left": 2505.899,
+     "top": 713.675,
+     "width": 98,
+     "height": 172,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-12-3",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.063,
+       "v": 0.958,
+       "facing": "back-right",
+       "lift": 0
+      }
+     ]
+    },
+    {
+     "id": "plant-12-4",
+     "prop": "tall-plant",
+     "image": "assets/room/props/tall-plant.png",
+     "mirrored": true,
+     "left": 139.987,
+     "top": 725.675,
+     "width": 110,
+     "height": 158,
+     "z": 10218,
+     "companionOf": null,
+     "spots": [
+      {
+       "id": "plant-12-4",
+       "kind": "plant",
+       "pose": null,
+       "u": 0.958,
+       "v": 0.063,
+       "facing": "back-left",
+       "lift": 0
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,146 @@
+{
+  "assets/room/conference/sticky-board.png": {
+    "l": 0.1,
+    "t": 0.0809,
+    "r": 0.9,
+    "b": 0.9191
+  },
+  "assets/room/conference/wall-tv.png": {
+    "l": 0.0819,
+    "t": 0.069,
+    "r": 0.9181,
+    "b": 0.931
+  },
+  "assets/room/conference/wall-whiteboard.png": {
+    "l": 0.0688,
+    "t": 0.0594,
+    "r": 0.9312,
+    "b": 0.9406
+  },
+  "assets/room/light-props/disco-ball.png": {
+    "l": 0.0952,
+    "t": 0.0991,
+    "r": 0.9048,
+    "b": 0.9459
+  },
+  "assets/room/light-props/emergency-beacon.png": {
+    "l": 0.1034,
+    "t": 0.1,
+    "r": 0.8966,
+    "b": 0.9167
+  },
+  "assets/room/light-props/exit-sign-right.png": {
+    "l": 0.0938,
+    "t": 0.0896,
+    "r": 0.9062,
+    "b": 0.9104
+  },
+  "assets/room/light-props/exit-sign.png": {
+    "l": 0.0938,
+    "t": 0.0896,
+    "r": 0.9062,
+    "b": 0.9104
+  },
+  "assets/room/light-props/fairy-garland.png": {
+    "l": 0.0638,
+    "t": 0.0811,
+    "r": 0.9362,
+    "b": 0.9324
+  },
+  "assets/room/light-props/led-shelf.png": {
+    "l": 0.0659,
+    "t": 0.0857,
+    "r": 0.9341,
+    "b": 0.9143
+  },
+  "assets/room/light-props/neon-fish.png": {
+    "l": 0.0472,
+    "t": 0.0833,
+    "r": 0.9528,
+    "b": 0.9167
+  },
+  "assets/room/light-props/neon-heart.png": {
+    "l": 0.069,
+    "t": 0.0759,
+    "r": 0.931,
+    "b": 0.9241
+  },
+  "assets/room/light-props/neon-meow-right.png": {
+    "l": 0.0522,
+    "t": 0.0909,
+    "r": 0.9478,
+    "b": 0.9091
+  },
+  "assets/room/light-props/neon-meow.png": {
+    "l": 0.0522,
+    "t": 0.0909,
+    "r": 0.9478,
+    "b": 0.9091
+  },
+  "assets/room/light-props/neon-paw.png": {
+    "l": 0.069,
+    "t": 0.061,
+    "r": 0.931,
+    "b": 0.939
+  },
+  "assets/room/light-props/neon.png": {
+    "l": 0.0667,
+    "t": 0.069,
+    "r": 0.9333,
+    "b": 0.931
+  },
+  "assets/room/light-props/picture-light.png": {
+    "l": 0.0769,
+    "t": 0.0463,
+    "r": 0.9231,
+    "b": 0.9444
+  },
+  "assets/room/light-props/sconce-globe.png": {
+    "l": 0.0882,
+    "t": 0.0864,
+    "r": 0.8971,
+    "b": 0.9259
+  },
+  "assets/room/light-props/sconce-lantern.png": {
+    "l": 0.1,
+    "t": 0.0652,
+    "r": 0.9,
+    "b": 0.9348
+  },
+  "assets/room/light-props/sconce-porthole.png": {
+    "l": 0.0882,
+    "t": 0.087,
+    "r": 0.9118,
+    "b": 0.913
+  },
+  "assets/room/light-props/sconce.png": {
+    "l": 0.0882,
+    "t": 0.0714,
+    "r": 0.9118,
+    "b": 0.9286
+  },
+  "assets/room/wall-items/clock.png": {
+    "l": 0.0395,
+    "t": 0.0395,
+    "r": 0.9605,
+    "b": 0.9605
+  },
+  "assets/room/wall-items/picture.png": {
+    "l": 0.0306,
+    "t": 0.037,
+    "r": 0.9694,
+    "b": 0.963
+  },
+  "assets/room/wall-items/sign-lounge-right.png": {
+    "l": 0.0256,
+    "t": 0.0549,
+    "r": 0.9744,
+    "b": 0.9451
+  },
+  "assets/room/wall-items/sign-lounge.png": {
+    "l": 0.0256,
+    "t": 0.0549,
+    "r": 0.9744,
+    "b": 0.9451
+  }
+}
