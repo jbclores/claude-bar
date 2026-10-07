@@ -102,3 +102,45 @@ extension UndoPlanTests {
         #expect(UndoText.sentence("Wow!") == "Wow!")
     }
 }
+
+extension ClaudeBarRemovalTests {
+    func setStatusLine(_ h: URL, _ command: String) {
+        write(#"{"model":"opus","statusLine":{"type":"command","command":"\#(command)"}}"#, to: h.appendingPathComponent(".claude/settings.json"))
+    }
+
+    /// The wrapper in use: Claude Code still runs it (and it runs the hook), so both stay.
+    @Test func helperScriptsStayWhileSettingsRunTheWrapper() {
+        let h = home(); write("x", to: h.appendingPathComponent(".claude/claude-bar-hook.sh"))
+        setStatusLine(h, "bash ~/.claude/claude-bar-statusline.sh")
+        let (_, trash) = fakeTrash()
+        let result = ClaudeBarRemoval(home: h, trash: trash).remove()
+        #expect(result.failures.isEmpty && result.trashed.count == 4)
+        for p in [".claude/claude-bar-statusline.sh", ".claude/claude-bar-hook.sh", ".claude/settings.json", ".claude/statusline-command.sh"] {
+            #expect(exists(h, p))
+        }
+    }
+
+    /// Not in use (ClaudeBar's own script, their own line, or none): both helpers go to the Trash; never
+    /// settings.json or statusline-command.sh.
+    @Test func helperScriptsGoWhenSettingsDoNotRunTheWrapper() {
+        for command in ["bash ~/.claude/statusline-command.sh", "npx ccstatusline", nil] as [String?] {
+            let h = home(); write("x", to: h.appendingPathComponent(".claude/claude-bar-hook.sh"))
+            if let command { setStatusLine(h, command) } else { write(#"{"model":"opus"}"#, to: h.appendingPathComponent(".claude/settings.json")) }
+            let settingsBefore = try? String(contentsOf: h.appendingPathComponent(".claude/settings.json"), encoding: .utf8)
+            let (_, trash) = fakeTrash()
+            let result = ClaudeBarRemoval(home: h, trash: trash).remove()
+            #expect(result.failures.isEmpty && result.trashed.count == 6)
+            #expect(!exists(h, ".claude/claude-bar-statusline.sh") && !exists(h, ".claude/claude-bar-hook.sh"))
+            #expect(exists(h, ".claude/statusline-command.sh"))
+            #expect((try? String(contentsOf: h.appendingPathComponent(".claude/settings.json"), encoding: .utf8)) == settingsBefore)
+        }
+    }
+
+    /// settings.json unreadable: ClaudeBar can't tell whether the wrapper runs, so the helpers stay.
+    @Test func helperScriptsStayWhenSettingsAreUnreadable() {
+        let h = home(); write("{ broken", to: h.appendingPathComponent(".claude/settings.json"))
+        let (_, trash) = fakeTrash()
+        _ = ClaudeBarRemoval(home: h, trash: trash).remove()
+        #expect(exists(h, ".claude/claude-bar-statusline.sh"))
+    }
+}
