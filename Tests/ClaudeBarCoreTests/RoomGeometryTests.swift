@@ -143,9 +143,12 @@ func near(_ a: Double, _ b: Double, _ tol: Double = 0.5) -> Bool { abs(a - b) <=
         let c = try RoomCatalogueTests().catalogue(b)
         let building = try #require(Building.parse(building: fixture("rooms/\(b)/building.json"), parts: fixture("rooms/\(b)/room-parts.json")))
         for e in try expected(b).floors {
-            let room = try #require(building.floor(id: e.id)?.room), frame = try #require(FloorFrame(corners: e.corners))
+            let floor = try #require(building.floor(id: e.id))
+            let room = try #require(floor.room), frame = try #require(FloorFrame(corners: e.corners))
+            let grid = try #require(floor.gridSize)
+            #expect(grid == 48, "floor \(e.id) grid")
             let desks = room.desks.compactMap { DeskPlacer.place($0, frame: frame, catalogue: c) }
-            let props = PropPlacer.place(room: room, frame: frame, catalogue: c, desks: desks)
+            let props = PropPlacer.place(room: room, frame: frame, catalogue: c, desks: desks, gridSize: grid)
             #expect(props.map(\.id) == e.props.map(\.id), "floor \(e.id)")
             for (p, x) in zip(props, e.props) {
                 #expect(p.image == x.image && p.mirrored == x.mirrored && p.companionOf == x.companionOf, "\(x.id)")
@@ -156,7 +159,7 @@ func near(_ a: Double, _ b: Double, _ tol: Double = 0.5) -> Bool { abs(a - b) <=
                     #expect(near(s.standAt.u, xs.u, 1e-3) && near(s.standAt.v, xs.v, 1e-3) && s.facing == xs.facing && near(s.lift, xs.lift), "\(xs.id)")
                 }
             }
-            let rugs = PropPlacer.rugs(room: room, frame: frame, catalogue: c)
+            let rugs = PropPlacer.rugs(room: room, frame: frame, catalogue: c, gridSize: grid)
             #expect(rugs.map(\.id) == e.rugs.map(\.id))
             for (r, x) in zip(rugs, e.rugs) { #expect(near(r.rect.minX, x.left) && near(r.rect.minY, x.top) && r.turned == x.turned) }
         }
@@ -169,7 +172,8 @@ func near(_ a: Double, _ b: Double, _ tol: Double = 0.5) -> Bool { abs(a - b) <=
         room.props.append(PropPlacement(id: "ufo", prop: "ufo", u: 0.5, v: 0.5, facing: 0, decor: nil, panels: nil, companionsOff: nil))
         let corners = try #require(building.floor(id: 2)?.corners)
         let frame = try #require(FloorFrame(corners: corners))
-        let props = PropPlacer.place(room: room, frame: frame, catalogue: c, desks: [])
+        let grid = try #require(building.floor(id: 2)?.gridSize)
+        let props = PropPlacer.place(room: room, frame: frame, catalogue: c, desks: [], gridSize: grid)
         #expect(!props.contains { $0.id == "ufo" } && props.contains { $0.prop == "printer" })
     }
 
@@ -180,6 +184,7 @@ func near(_ a: Double, _ b: Double, _ tol: Double = 0.5) -> Bool { abs(a - b) <=
         let building = try #require(Building.parse(building: fixture("rooms/user/building.json"), parts: fixture("rooms/user/room-parts.json")))
         let corners = try #require(building.floor(id: 2)?.corners)
         let frame = try #require(FloorFrame(corners: corners))
+        let grid = try #require(building.floor(id: 2)?.gridSize)
         func placement(_ id: String, _ prop: String, _ u: Double, _ v: Double) -> PropPlacement {
             PropPlacement(id: id, prop: prop, u: u, v: v, facing: 0, decor: nil, panels: nil, companionsOff: nil)
         }
@@ -188,14 +193,14 @@ func near(_ a: Double, _ b: Double, _ tol: Double = 0.5) -> Bool { abs(a - b) <=
             placement("phone", "table-speakerphone", 0.45, 0.46),
             placement("stray", "table-speakerphone", 0.9, 0.9),
         ])
-        let props = PropPlacer.place(room: room, frame: frame, catalogue: c, desks: [])
+        let props = PropPlacer.place(room: room, frame: frame, catalogue: c, desks: [], gridSize: grid)
         #expect(props.map(\.id) == ["table", "phone", "stray"])
         // The table's footprint: depth 126.3 along u, length 126 along v.
         let t = (u0: 0.5 - 126.3 / frame.eu, v0: 0.5 - 126.0 / frame.ev, u1: 0.5, v1: 0.5)
         let share = min(1, max(0, (0.45 + 0.46 - (t.u0 + t.v0)) / (t.u1 + t.v1 - (t.u0 + t.v0))))
         #expect(props[1].box.z == FloorFrame.depthZ(t.u1 + t.v1) + 1 + Int((share * 8 + 0.5).rounded(.down)))
         // Drawn at its anchor (centred in its one cell), lifted by the table's 55.6 px top.
-        let cell = 1.0 / 48
+        let cell = 1.0 / grid
         let a = frame.px(FloorPoint(u: 0.45 - (cell - 25 / frame.eu) / 2, v: 0.46 - (cell - 25 / frame.ev) / 2))
         #expect(near(props[1].rect.minX, a.x - 29.3, 1e-6) && near(props[1].rect.minY, a.y - 32.2 - 55.6, 1e-6))
         // Off any table: on the floor, by its own front corner.
@@ -211,9 +216,10 @@ func near(_ a: Double, _ b: Double, _ tol: Double = 0.5) -> Bool { abs(a - b) <=
         var room = try #require(building.floor(id: 1)?.room)
         let corners = try #require(building.floor(id: 1)?.corners)
         let frame = try #require(FloorFrame(corners: corners))
+        let grid = try #require(building.floor(id: 1)?.gridSize)
         let rug = RugPlacement(id: "r", rug: "round-cream-painted", u: 0.5, v: 0.4, w: 0.3, d: 0.2, turned: nil)
         room.rugs = [rug]
-        let flat = PropPlacer.rugSpots(room: room, frame: frame, catalogue: c)
+        let flat = PropPlacer.rugSpots(room: room, frame: frame, catalogue: c, gridSize: grid)
         #expect(flat.map(\.id) == ["r", "r:rug-left", "r:rug-right"])
         #expect(flat.allSatisfy { $0.owner == "r" && $0.kind == "rug" && $0.lift == 0 })
         // rug-back: at (-0.1676, -0.1664), sleep, front-left.
@@ -224,11 +230,11 @@ func near(_ a: Double, _ b: Double, _ tol: Double = 0.5) -> Bool { abs(a - b) <=
         #expect(flat[1].pose == "sit" && flat[1].facing == "front-right")
 
         room.rugs = [RugPlacement(id: "r", rug: "round-cream-painted", u: 0.5, v: 0.4, w: 0.3, d: 0.2, turned: true)]
-        let turned = PropPlacer.rugSpots(room: room, frame: frame, catalogue: c)
+        let turned = PropPlacer.rugSpots(room: room, frame: frame, catalogue: c, gridSize: grid)
         #expect(near(turned[1].standAt.u, 0.5 + -0.1043 * 0.2, 1e-9) && near(turned[1].standAt.v, 0.4 - 0.2045 * 0.3, 1e-9))
         #expect(turned[1].facing == "front-right")
 
         room.rugs = [RugPlacement(id: "plain", rug: "no-such-rug", u: 0.5, v: 0.4, w: 0.3, d: 0.2, turned: nil)]
-        #expect(PropPlacer.rugSpots(room: room, frame: frame, catalogue: c).isEmpty)
+        #expect(PropPlacer.rugSpots(room: room, frame: frame, catalogue: c, gridSize: grid).isEmpty)
     }
 }

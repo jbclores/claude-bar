@@ -59,10 +59,12 @@ public struct Floor: Equatable, Sendable, Identifiable {
     /// The floor diamond's corners and its room, when building.json gives them.
     public var corners: FloorCorners?
     public var room: FloorRoom?
+    /// Cells along each side of the floor's walk grid (building.json floor.grid.size): sizes props measured in cells.
+    public var gridSize: Double?
 
     public init(id: Int, name: String, repoRoot: String?, floorTexture: RoomTexture?, wallTexture: RoomTexture?,
                 desks: [FloorDesk], elevator: WallItemArt?, hasLoungeSign: Bool,
-                corners: FloorCorners? = nil, room: FloorRoom? = nil) {
+                corners: FloorCorners? = nil, room: FloorRoom? = nil, gridSize: Double? = nil) {
         self.id = id
         self.name = name
         self.repoRoot = repoRoot
@@ -73,6 +75,7 @@ public struct Floor: Equatable, Sendable, Identifiable {
         self.hasLoungeSign = hasLoungeSign
         self.corners = corners
         self.room = room
+        self.gridSize = gridSize
     }
 
     /// Floor 1 is the Lounge in Cat Office (src/world/floors.ts LOUNGE_FLOOR).
@@ -133,7 +136,8 @@ public struct Building: Equatable, Sendable {
                 elevator: items.first { $0.hasPrefix("elevator") }.flatMap(wallItem),
                 hasLoungeSign: items.contains { $0.hasPrefix("sign-lounge") },
                 corners: f["corners"].flatMap { decode($0) },
-                room: f["room"].flatMap { decode($0) })
+                room: f["room"].flatMap { decode($0) },
+                gridSize: ((f["grid"] as? [String: Any])?["size"] as? NSNumber)?.doubleValue)
         }
         guard !floors.isEmpty else { return nil }
         return Building(floors: floors.sorted { $0.id < $1.id })

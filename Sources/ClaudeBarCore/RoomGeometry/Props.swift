@@ -43,8 +43,6 @@ public struct PlacedRug: Equatable, Sendable {
 
 /// Ports room.ts's props, companions, tables, spots, rugs and depth settling.
 public enum PropPlacer {
-    /// Cat Office's floors are all 48 x 48 cells (building.json floor.grid.size).
-    public static let defaultGridSize = 48.0
     static let touchEps = 1e-4
     static let placeholderHeightShare = 0.6
     static let tableTopSteps = 8.0
@@ -369,7 +367,7 @@ public enum PropPlacer {
     /// buildRoomFloor's props (room.ts 944-960: wall seats, table tops, each known placement, then companion parts),
     /// settled in depth as room-office.ts 40 does.
     public static func place(room: FloorRoom, frame: FloorFrame, catalogue: RoomCatalogue, desks: [PlacedDesk],
-                             gridSize: Double = defaultGridSize) -> [PlacedProp] {
+                             gridSize: Double) -> [PlacedProp] {
         let grid = gridSize
         let seats = wallSeats(frame, room.wallItems, catalogue)
         let tables = tableTops(frame, room.props, catalogue, grid: grid)
@@ -394,7 +392,7 @@ public enum PropPlacer {
     }
 
     /// The rugs a room shows (room.ts roomRugs), boxed as RoomShell.tsx Rug draws them in the floor plane.
-    public static func rugs(room: FloorRoom, frame: FloorFrame, catalogue: RoomCatalogue, gridSize: Double = defaultGridSize) -> [PlacedRug] {
+    public static func rugs(room: FloorRoom, frame: FloorFrame, catalogue: RoomCatalogue, gridSize: Double) -> [PlacedRug] {
         let size = frame.plane.size
         return roomRugs(frame, room, catalogue, grid: gridSize).map { r in
             PlacedRug(id: r.id, rug: r.rug, image: catalogue.rugs[r.rug]?.image,
@@ -404,7 +402,7 @@ public enum PropPlacer {
     }
 
     /// The spots on a room's rugs (buildRoomFloor 978-984: roomRugs, then rugSpots), each owned by its rug.
-    public static func rugSpots(room: FloorRoom, frame: FloorFrame, catalogue: RoomCatalogue, gridSize: Double = defaultGridSize) -> [RoomSpot] {
+    public static func rugSpots(room: FloorRoom, frame: FloorFrame, catalogue: RoomCatalogue, gridSize: Double) -> [RoomSpot] {
         roomRugs(frame, room, catalogue, grid: gridSize).flatMap { r -> [RoomSpot] in
             guard let def = catalogue.rugs[r.rug] else { return [] }
             return rugSpots(def, r)
