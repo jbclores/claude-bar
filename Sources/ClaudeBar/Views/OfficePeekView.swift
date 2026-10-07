@@ -124,15 +124,26 @@ struct OfficeRoomView: View {
     var body: some View {
         ZStack(alignment: .top) {
             ZStack(alignment: .topLeading) {
-                RoomBackdrop(floor: floor)
-                if let office = state.office {
-                    room()
+                if let built = state.rooms[floorId] {
+                    // The floor as Cat Office lays it out. Its cats come in a later step: today's cats (desk rows,
+                    // lounge seats, walkers, riders) stand where the simple room has things, so they aren't drawn here.
+                    FloorScene(room: built)
+                    if state.office == nil { offline }
                 } else {
-                    offline
+                    RoomBackdrop(floor: floor)
+                    if state.office != nil {
+                        room()
+                    } else {
+                        offline
+                    }
                 }
             }
-            .overlay(alignment: .topLeading) { WalkersLayer(walks: walks, catIds: state.catIds, legFrames: !reduceMotion, scale: catScale) }
-            .overlay(alignment: .topLeading) { RidersLayer(rides: Array(rides.values), floorId: floorId, catIds: state.catIds, scale: catScale) }
+            .overlay(alignment: .topLeading) {
+                if state.rooms[floorId] == nil { WalkersLayer(walks: walks, catIds: state.catIds, legFrames: !reduceMotion, scale: catScale) }
+            }
+            .overlay(alignment: .topLeading) {
+                if state.rooms[floorId] == nil { RidersLayer(rides: Array(rides.values), floorId: floorId, catIds: state.catIds, scale: catScale) }
+            }
             .environment(\.walkingCats, Set(walks.keys).union(arrivingHere))
             // Cat frames are measured here, before the zoom: in the room's own points.
             .coordinateSpace(name: "roomContent")

@@ -145,7 +145,8 @@ public enum WallItems {
                 }
             }
             if let t = def.transom, !t.isEmpty, !(def.transomOptional ?? false) || item.transom != false {
-                out.append(.repeatX(image: t, rect: CGRect(x: g.x0 - 2, y: g.y0 + (1 - (def.transomAt ?? 0.75)) * gh - bar / 2, width: gw + 4, height: bar)))
+                // room.css .wall-item__transom: background-size 100% 100%, no-repeat (stretched).
+                out.append(.stretch(image: t, rect: CGRect(x: g.x0 - 2, y: g.y0 + (1 - (def.transomAt ?? 0.75)) * gh - bar / 2, width: gw + 4, height: bar)))
             }
             out.append(.nineSlice(image: frame, rect: frameBox, slice: slice))
             return out
