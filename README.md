@@ -46,6 +46,10 @@ The Office tab and the hover peek show Cat Office's building one floor at a time
 cats on their project's floor (else the Desk pool), helpers beside their parent. The floor menu, ▲▼ and the strip pick
 a floor; Follow (on whenever the dropdown opens) shows where things happen. Cats ride the elevator between floors.
 
+Each floor is drawn from that Cat Office's own layout (`building.json` and its catalogues), so a teammate's ClaudeBar
+shows their office. When Cat Office changes how rooms are laid out, re-run the fixtures
+(`npx tsx <claude-bar>/scripts/room-fixtures.ts <in-dir> <out.json>` from the Cat Office folder) and `swift test`.
+
 ## Tests
 
 ```sh

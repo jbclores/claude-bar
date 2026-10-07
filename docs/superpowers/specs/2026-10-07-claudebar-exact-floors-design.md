@@ -1,7 +1,7 @@
 # ClaudeBar Exact Floors — Design
 
 **Date:** 2026-10-07
-**Status:** Draft, awaiting review
+**Status:** Implemented
 **Builds on:** `2026-10-07-claudebar-floors-design.md` (floors, picker, Follow, elevator rides)
 **Related:** `2026-10-07-claudebar-sharing-draft.md` (paused; teammates will use this too)
 

@@ -474,7 +474,7 @@ struct ElevatorArt: View {
     }
 }
 
-/// The Lounge: ten seats on Cat Office's lounge furniture across the whole room, then "+N asleep".
+/// The fallback Lounge (a floor without a usable room): ten seats in a row, then "+N asleep".
 struct LoungeFloor: View {
     let slots: [OfficeAgent?]
     let overflow: Int
@@ -486,36 +486,12 @@ struct LoungeFloor: View {
     @EnvironmentObject var state: AppState
     @Environment(\.officeNight) private var officeNight
 
-    /// Props: (image, maxPixel, frame in room points).
-    static let props: [(String, Int, CGRect)] = [
-        ("assets/room/rugs/round-cream.png", 1024, CGRect(x: 160, y: 96, width: 170, height: 70)),
-        ("assets/room/props/sofa-round.png", 512, CGRect(x: 100, y: 52, width: 104, height: 70)),
-        ("assets/room/props/sofa.png", 512, CGRect(x: 300, y: 52, width: 120, height: 66)),
-        ("assets/room/props/cat-bed-blue.png", 384, CGRect(x: 210, y: 128, width: 56, height: 40)),
-        ("assets/room/props/bean-bag-cream.png", 384, CGRect(x: 92, y: 118, width: 44, height: 44)),
-        ("assets/room/props/bean-bag-brown.png", 384, CGRect(x: 400, y: 118, width: 44, height: 44)),
-        ("assets/room/props/floor-cushion-blue.png", 384, CGRect(x: 300, y: 138, width: 40, height: 26)),
-        ("assets/room/props/floor-cushion-cream.png", 384, CGRect(x: 350, y: 140, width: 40, height: 26)),
-    ]
-    /// Feet points for spots 0…9 (seats on the props above, then the rug).
-    static let spots: [CGPoint] = [
-        CGPoint(x: 135, y: 92), CGPoint(x: 168, y: 92),   // round sofa
-        CGPoint(x: 340, y: 90), CGPoint(x: 380, y: 90),   // sofa
-        CGPoint(x: 238, y: 158),                         // cat bed
-        CGPoint(x: 114, y: 154), CGPoint(x: 422, y: 154), // bean bags
-        CGPoint(x: 320, y: 158), CGPoint(x: 370, y: 160), // cushions
-        CGPoint(x: 260, y: 128),                         // rug
-    ]
+    /// Feet points for the seats: one row across the room (the fallback has no furniture to sit on).
+    static let spots: [CGPoint] = (0..<10).map { CGPoint(x: 50 + CGFloat($0) * 46, y: 150) }
     static let catWidth: CGFloat = 40
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            ForEach(Array(Self.props.enumerated()), id: \.offset) { _, p in
-                SpriteImage(key: p.0, fallback: nil) { await state.art.image(path: p.0, maxPixelSize: p.1) }
-                    .frame(width: p.2.width, height: p.2.height)
-                    .colorMultiply(officeNight ? Night.furniture : .white)
-                    .offset(x: p.2.minX, y: p.2.minY)
-            }
             ForEach(Array(slots.prefix(Self.spots.count).enumerated()), id: \.offset) { i, agent in
                 if let agent {
                     CatView(agent: agent, atDesk: false, width: Self.catWidth, plain: true)
@@ -680,87 +656,6 @@ struct LampLight: View {
         .offset(y: 8)
         .blendMode(.screen)
         .allowsHitTesting(false)
-    }
-}
-
-/// The lounge: a rug, a round sofa and a cat bed, with up to three sleeping cats on them.
-struct Lounge: View {
-    /// Who sleeps where (stable): index = spot.
-    let slots: [OfficeAgent?]
-    let overflow: Int
-    @EnvironmentObject var state: AppState
-
-    /// Where the 1st to 5th cat sleep: the bed, the sofa (two), the rug, the bean bag.
-    static let spots: [CGSize] = [
-        CGSize(width: -40, height: 10), CGSize(width: 18, height: -28), CGSize(width: 46, height: -28),
-        CGSize(width: 20, height: 22), CGSize(width: -50, height: -30),
-    ]
-
-    var body: some View {
-        VStack(spacing: 4) {
-            ZStack {
-                art("assets/room/rugs/round-cream.png", 1024).frame(width: 150).scaleEffect(x: 1, y: 0.45)
-                art("assets/room/props/sofa-round.png", 512).frame(width: 96).offset(x: 34, y: -26)
-                art("assets/room/props/cat-bed-blue.png", 384).frame(width: 52).offset(x: -40, y: 14)
-                art("assets/room/props/bean-bag-cream.png", 384).frame(width: 40).offset(x: -50, y: -24)
-                ForEach(Array(slots.prefix(Self.spots.count).enumerated()), id: \.offset) { i, agent in
-                    if let agent {
-                        CatView(agent: agent, atDesk: false, width: Self.width(i), plain: true)
-                            .offset(Self.spots[i])
-                    }
-                }
-            }
-            .frame(width: Self.size.width, height: Self.size.height)
-            // Feet and hover frames from the spots themselves (an offset doesn't move a view's measured frame).
-            .background(GeometryReader { proxy in
-                let origin = proxy.frame(in: .named("roomContent")).origin
-                Color.clear
-                    .preference(key: CatFeetKey.self, value: feet(origin))
-                    .preference(key: CatFramesKey.self, value: frames(origin))
-            })
-            RoomPill(text: summary)
-        }
-        .frame(width: 170)
-    }
-
-    static let size = CGSize(width: 166, height: 110)
-    static func width(_ spot: Int) -> CGFloat { spot == 0 ? 46 : 38 }
-
-    /// A sleeping cat's rect at spot `i` (CatView plain: width × 0.95, centred on the spot).
-    private static func rect(_ i: Int) -> CGRect {
-        let w = width(i), h = w * 0.95
-        return CGRect(x: size.width / 2 + spots[i].width - w / 2, y: size.height / 2 + spots[i].height - h / 2, width: w, height: h)
-    }
-
-    private func feet(_ origin: CGPoint) -> [String: CGPoint] {
-        var out: [String: CGPoint] = [:]
-        for (i, agent) in slots.prefix(Self.spots.count).enumerated() {
-            guard let agent else { continue }
-            let r = Self.rect(i)
-            out[agent.id] = CGPoint(x: origin.x + r.midX, y: origin.y + r.minY + r.height * 0.9)
-        }
-        return out
-    }
-
-    private func frames(_ origin: CGPoint) -> [String: CGRect] {
-        var out: [String: CGRect] = [:]
-        for (i, agent) in slots.prefix(Self.spots.count).enumerated() {
-            guard let agent else { continue }
-            out[agent.id] = Self.rect(i).offsetBy(dx: origin.x, dy: origin.y)
-        }
-        return out
-    }
-
-    private var summary: String {
-        let asleep = slots.compactMap { $0 }.count + overflow
-        return asleep == 0 ? "lounge · empty" : "lounge · \(asleep) asleep"
-    }
-
-    @Environment(\.officeNight) private var officeNight
-
-    private func art(_ path: String, _ size: Int) -> some View {
-        SpriteImage(key: path, fallback: nil) { await state.art.image(path: path, maxPixelSize: size) }
-            .colorMultiply(officeNight ? Night.furniture : .white)
     }
 }
 
