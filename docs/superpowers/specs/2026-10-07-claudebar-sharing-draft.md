@@ -1,7 +1,7 @@
 # ClaudeBar for the team (setup, no-Cat-Office mode, install or run) — Draft notes
 
 **Date:** 2026-10-07
-**Status:** Paused — Sections 1–2 discussed; Section 1 approved, Section 2 not yet reviewed. Not a spec yet.
+**Status:** Onboarding (Sections 1–2) now specified in `2026-10-07-claudebar-onboarding-design.md`; install / zip still to design.
 
 ## Decisions so far
 
