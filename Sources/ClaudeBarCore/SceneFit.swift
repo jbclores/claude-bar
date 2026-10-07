@@ -25,11 +25,18 @@ public struct SceneFit: Equatable, Sendable {
 
     /// View #2: the floor fills the width (20 world px margin each side), centred across. Down, the room's content
     /// (BuiltRoom.contentBounds) is centred; content taller than the view keeps its top and loses its front, but never
-    /// so far that `keep` (BuiltRoom.catBounds: where cats stand) leaves the view while it fits.
+    /// so far that `keep` (BuiltRoom.catBounds: where cats stand) leaves the view. A `keep` taller than the view at
+    /// that scale shrinks the floor until it fits, `keep` centred down and the floor across.
     public static func fill(floor: FloorFrame, content: CGRect, keep: CGRect? = nil, into size: CGSize) -> SceneFit {
         let c = floor.corners
-        let scale = size.width / CGFloat(c.right.x - c.left.x + 40)
+        let fillWidth = size.width / CGFloat(c.right.x - c.left.x + 40)
         let midX = CGFloat(c.left.x + c.right.x) / 2
+        // Cats' band taller than the view at that scale: shrink until it fits, centred down (margins at the sides).
+        if let keep, keep.height > 0, keep.height * fillWidth > size.height {
+            let scale = min(fillWidth, size.height / keep.height)
+            return SceneFit(scale: scale, origin: CGPoint(x: size.width / 2 - midX * scale, y: size.height / 2 - keep.midY * scale))
+        }
+        let scale = fillWidth
         var y = content.height * scale <= size.height
             ? size.height / 2 - content.midY * scale
             : -content.minY * scale

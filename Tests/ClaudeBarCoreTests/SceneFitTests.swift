@@ -37,6 +37,37 @@ import Testing
         }
     }
 
+    /// Every floor of both fixture buildings that builds (the edge floors that don't are skipped).
+    static func rooms() throws -> [(String, BuiltRoom)] {
+        try ["user", "edge"].flatMap { set -> [(String, BuiltRoom)] in
+            let c = try RoomCatalogueTests().catalogue(set)
+            let b = try #require(Building.parse(building: fixture("rooms/\(set)/building.json"), parts: fixture("rooms/\(set)/room-parts.json")))
+            return b.floors.compactMap { f in RoomGeometry.build(floor: f, catalogue: c).map { ("\(set) \(f.id)", $0) } }
+        }
+    }
+
+    @Test func aCrowdedFloorShrinksSoEveryCatIsInView() throws {
+        let rooms = try Self.rooms()
+        #expect(rooms.count >= 12)
+        for (name, room) in rooms {
+            let keep = room.catBounds(catHeight: 160)
+            let fit = SceneFit.fill(floor: room.frame, content: room.contentBounds(catHeight: 160), keep: keep, into: Self.size)
+            for s in room.seats.map(\.standAt) + room.desks.map(\.standAt) {
+                let feet = room.frame.px(s)
+                let p = fit.point(feet), top = fit.point(WorldPoint(x: feet.x, y: feet.y - 1.1 * 160))
+                #expect(p.y >= -0.01 && p.y <= 180.01 && top.y >= -0.01 && top.y <= 180.01, "\(name): cat at \(top.y)…\(p.y) down")
+                #expect(p.x >= 0 && p.x <= 472, "\(name): cat at \(p.x) across")
+            }
+        }
+    }
+
+    @Test(arguments: [1, 12]) func floorsWhoseCatsFitKeepTheFillWidthScale(id: Int) throws {
+        let room = try BuiltRoomTests().built(id)
+        let c = room.frame.corners
+        let fit = SceneFit.fill(floor: room.frame, content: room.contentBounds(catHeight: 160), keep: room.catBounds(catHeight: 160), into: Self.size)
+        #expect(fit.scale == 472 / CGFloat(c.right.x - c.left.x + 40))
+    }
+
     @Test func tallContentKeepsItsTopUnlessCatsWouldLeave() throws {
         let f = try #require(FloorFrame(corners: try expected("user").floors[1].corners))
         let content = CGRect(x: 0, y: 100, width: 10, height: 5000)
