@@ -11,6 +11,11 @@ final class RoomZoom: ObservableObject {
     /// The room, in the "office" coordinate space (top-left origin, same as the hosting view's).
     var roomRect: CGRect = .zero
     private var dragFrom: CGPoint?
+    /// A click on the room without dragging (office space), and when the last double-click happened: a tap
+    /// that a double-click follows is a zoom, not a click on a cat.
+    @Published private(set) var tap: (point: CGPoint, at: Date)?
+    private(set) var lastDoubleClick: Date?
+    private var pressedAt: CGPoint?
 
     /// The "1×" pill shown while zoomed: clicking it shows the whole room again.
     static let pillSize = CGSize(width: 34, height: 18)
@@ -47,7 +52,10 @@ final class RoomZoom: ObservableObject {
             return true
         case .leftMouseDown:
             guard contains(point) else { return false }
+            pressedAt = event.clickCount == 1 ? point : nil
+            if event.clickCount == 2 { lastDoubleClick = Date() }
             if view.isZoomed && pillRect.contains(point) {
+                pressedAt = nil
                 view.reset()
                 return true
             }
@@ -64,6 +72,8 @@ final class RoomZoom: ObservableObject {
             dragFrom = point
             return true
         case .leftMouseUp:
+            if let pressed = pressedAt, hypot(point.x - pressed.x, point.y - pressed.y) < 4 { tap = (point, Date()) }
+            pressedAt = nil
             guard dragFrom != nil else { return false }
             dragFrom = nil
             return true

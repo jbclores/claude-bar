@@ -41,6 +41,15 @@ final class StatusItemController: NSResponder {
         peekController.view = peekView
         peek.contentViewController = peekController
         peek.contentSize = OfficePeekView.size
+        // The click meow and the elevator ding only play while the office is on screen.
+        for name in [NSPopover.didShowNotification, NSPopover.didCloseNotification] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.state.officeVisible = self.peek.isShown || self.dropdown.isShown
+                }
+            }
+        }
 
         if let button = item.button {
             button.imagePosition = .imageLeft

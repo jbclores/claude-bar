@@ -126,8 +126,11 @@ struct OfficeRoomView: View {
 
     static let height: CGFloat = 180
 
-    private var hovered: OfficeAgent? {
-        guard let point = pointer.location, let office = state.office, zoom.contains(point) else { return nil }
+    private var hovered: OfficeAgent? { pointer.location.flatMap(cat(at:)) }
+
+    /// The frontmost cat at a point in the office space (over the zoomed drawing).
+    private func cat(at point: CGPoint) -> OfficeAgent? {
+        guard let office = state.office, zoom.contains(point) else { return nil }
         // The pointer is over the zoomed drawing: find the room point under it.
         let room = zoom.view.unzoom(CGPoint(x: point.x - zoom.roomRect.minX, y: point.y - zoom.roomRect.minY))
         // The frontmost cat under the pointer (CatHit.frontmost), not whichever the dictionary lists first.
@@ -186,6 +189,14 @@ struct OfficeRoomView: View {
         // Clicks only inside the visible room: the backdrop and cats extend past it, and took the tabs' clicks.
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
+        .onChange(of: zoom.tap?.at) { _, at in
+            guard let tap = zoom.tap, let at, cat(at: tap.point) != nil else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval) {
+                // The first click of a double-click is a zoom, not a pat.
+                if let double = zoom.lastDoubleClick, double >= at { return }
+                state.playSound(.clicked)
+            }
+        }
         .onPreferenceChange(SceneFitKey.self) { fits.merge($0) { $1 } }
         .onPreferenceChange(CatFeetKey.self) { feet in
             shownFeet = feet
@@ -230,6 +241,7 @@ struct OfficeRoomView: View {
                     guard floors.shown(state) == shownAt, rides[id]?.trip == ride.trip else { return }
                     let walk = CatWalk(id: id, agent: ride.agent, path: WalkPath(from: place, to: to), start: Date())
                     walks[id] = walk
+                    state.playSound(.elevator)
                     DispatchQueue.main.asyncAfter(deadline: .now() + walk.duration + CatWalk.hop) {
                         if walks[id]?.start == walk.start { walks[id] = nil }
                     }

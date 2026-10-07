@@ -72,6 +72,10 @@ final class AppState: ObservableObject {
     /// The folder Cat Office was last seen running from (so a moved folder is found without editing the config).
     static let rememberedDirKey = "catOfficeDir"
     private let notifier = Notifier()
+    private let soundPlayer = CatSoundPlayer()
+    private var soundGate = SoundGate()
+    /// The office is on screen (the hover peek, or the dropdown): the click meow and elevator ding only play then.
+    var officeVisible = false
     private let launcher = CatOfficeLauncher()
     private(set) lazy var art: ArtCache = { [officeClient] in ArtCache(baseURL: { officeClient.baseURL }) }()
     /// Cat Office's Bongo Cat cursor over the office room (dropdown and peek).
@@ -231,7 +235,21 @@ final class AppState: ObservableObject {
         input.office = office
         let tracked = StatusModel.trackedSessions(fallback: input.fallbackSessions, office: office)
         let finished = tracker.update(tracked, now: Date())
-        if sideEffects, config.config.notifications { finished.forEach(notifier.post) }
+        if sideEffects {
+            let now = Date()
+            for event in finished {
+                let sound = soundGate.sound(for: .finished(event.key), settings: settings.sounds, now: now)
+                if config.config.notifications {
+                    let volume = settings.sounds.volume
+                    notifier.post(event, sound: sound) { [weak self] s in
+                        Task { @MainActor in self?.soundPlayer.play(s, volume: volume) }
+                    }
+                } else if let sound {
+                    soundPlayer.play(sound, volume: settings.sounds.volume)
+                }
+            }
+            for key in tracker.startedWaiting { playSound(.needsYou(key)) }
+        }
         input.attention = tracker.attention
         input.statusSince = tracker.since
         statusSince = tracker.since
@@ -276,6 +294,25 @@ final class AppState: ObservableObject {
     func setNotifications(_ on: Bool) { setSetting(on, at: ["notifications"]) }
     func setAutoStart(_ on: Bool) { setSetting(on, at: ["catOffice", "autoStart"]) }
     func setHoverPeek(_ on: Bool) { setSetting(on, at: ["hoverPeek"]) }
+
+    /// A cat sound for `event`, if its switch is on and the spacing allows (SoundGate).
+    func playSound(_ event: SoundEvent) {
+        guard sideEffects else { return }
+        if case .clicked = event, !officeVisible { return }
+        if case .elevator = event, !officeVisible { return }
+        guard let sound = soundGate.sound(for: event, settings: settings.sounds, now: Date()) else { return }
+        soundPlayer.play(sound, volume: settings.sounds.volume)
+    }
+
+    func setSound(_ key: String, _ on: Bool) { setSetting(on, at: ["sounds", key]) }
+
+    func setSoundVolume(_ volume: Double) {
+        do { try config.set(min(1, max(0, volume)), at: ["sounds", "volume"]) } catch let e as ConfigError { configError = e.message } catch {}
+        settings = config.config
+    }
+
+    /// The volume slider plays a meow (outside the gate) so you hear the level you picked.
+    func previewSound() { soundPlayer.play(.meow, volume: settings.sounds.volume) }
 
     func setOfficeLighting(_ lighting: OfficeLighting) {
         do { try config.set(lighting.rawValue, at: ["officeLighting"]) } catch let e as ConfigError { configError = e.message } catch {}

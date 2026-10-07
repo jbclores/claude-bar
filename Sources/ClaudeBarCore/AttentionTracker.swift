@@ -18,6 +18,8 @@ public struct AttentionTracker: Sendable {
     public private(set) var attention: Set<String> = []
     /// Session key → when its current status began (the first update counts as the start).
     public private(set) var since: [String: Date] = [:]
+    /// Sessions that started waiting on the user in the last update (never on the first one).
+    public private(set) var startedWaiting: [String] = []
     private var previous: [String: AgentStatus]?
     private var acknowledgedWaiting: Set<String> = []
 
@@ -30,6 +32,7 @@ public struct AttentionTracker: Sendable {
         let before = previous ?? [:]
         var next: [String: AgentStatus] = [:]
         var events: [FinishedEvent] = []
+        startedWaiting = []
         for s in sessions {
             next[s.key] = s.status
             let was = before[s.key]
@@ -38,6 +41,7 @@ public struct AttentionTracker: Sendable {
             switch s.status {
             case .waiting:
                 if !acknowledgedWaiting.contains(s.key) { attention.insert(s.key) }
+                if !first, was != .waiting { startedWaiting.append(s.key) }
             case .working:
                 attention.remove(s.key)
             case .idle, .ended:

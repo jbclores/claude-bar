@@ -53,6 +53,7 @@ public struct Config: Equatable, Sendable {
     /// Show the office peek when the pointer rests on the menu bar icon.
     public var hoverPeek: Bool
     public var officeLighting: OfficeLighting = .auto
+    public var sounds = SoundSettings()
 
     public static let empty = Config(projects: [], catOffice: CatOfficeSettings(), notifications: true)
 
@@ -88,6 +89,13 @@ public struct Config: Equatable, Sendable {
         if let n = root["notifications"] as? Bool { config.notifications = n }
         if let h = root["hoverPeek"] as? Bool { config.hoverPeek = h }
         if let l = (root["officeLighting"] as? String).flatMap(OfficeLighting.init(rawValue:)) { config.officeLighting = l }
+        if let s = root["sounds"] as? [String: Any] {
+            if let v = s["needsYou"] as? Bool { config.sounds.needsYou = v }
+            if let v = s["finished"] as? Bool { config.sounds.finished = v }
+            if let v = s["click"] as? Bool { config.sounds.click = v }
+            if let v = s["elevator"] as? Bool { config.sounds.elevator = v }
+            if let v = (s["volume"] as? NSNumber)?.doubleValue { config.sounds.volume = min(1, max(0, v)) }
+        }
         return config
     }
 }
@@ -157,6 +165,10 @@ public final class ConfigStore {
     }
 
     public func set(_ value: String, at path: [String]) throws {
+        try setValue(value, at: path)
+    }
+
+    public func set(_ value: Double, at path: [String]) throws {
         try setValue(value, at: path)
     }
 

@@ -323,6 +323,7 @@ enum TestZoom {
                 mouse(.leftMouseDown, centre); cursor("held")
                 RunLoop.main.run(until: Date().addingTimeInterval(0.2)); cursor("held 0.2s")
                 mouse(.leftMouseUp, centre); cursor("released")
+                print("tap recorded (press and release without dragging):", zoom.tap != nil)
                 moved(CGPoint(x: centre.x, y: zoom.roomRect.minY - 20)); cursor("outside room")
             }
             let before = state.settings.officeLighting

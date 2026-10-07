@@ -9,5 +9,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 cp "$BIN" "$APP/Contents/MacOS/ClaudeBar"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# The cat sounds (made by scripts/make-sounds.py).
+mkdir -p "$APP/Contents/Resources"
+cp Resources/Sounds/*.wav "$APP/Contents/Resources/"
 codesign --force --sign - "$APP"
 echo "Built $APP"

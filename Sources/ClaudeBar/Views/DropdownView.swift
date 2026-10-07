@@ -260,6 +260,19 @@ struct SettingsTabView: View {
             setting("Start Cat Office with ClaudeBar", state.settings.catOffice.autoStart) { state.setAutoStart($0) }
             setting("Show the office on hover", state.settings.hoverPeek) { state.setHoverPeek($0) }
             Divider()
+            Text("Sounds").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            setting("Meow when a cat needs you", state.settings.sounds.needsYou) { state.setSound("needsYou", $0) }
+            setting("Purr when a cat finishes", state.settings.sounds.finished) { state.setSound("finished", $0) }
+            setting("Meow when I click a cat", state.settings.sounds.click) { state.setSound("click", $0) }
+            setting("Ding when a cat rides the elevator", state.settings.sounds.elevator) { state.setSound("elevator", $0) }
+            HStack(spacing: 8) {
+                Image(systemName: "speaker.fill").font(.caption).foregroundStyle(.secondary)
+                Slider(value: Binding(get: { state.settings.sounds.volume }, set: { state.setSoundVolume($0) }),
+                       in: 0...1) { editing in if !editing { state.previewSound() } }
+                    .controlSize(.small)
+                Image(systemName: "speaker.wave.3.fill").font(.caption).foregroundStyle(.secondary)
+            }
+            Divider()
             HStack(spacing: 14) {
                 Button("Edit Config") { state.editConfig() }
                 Button("Open Log") { state.openLauncherLog() }
