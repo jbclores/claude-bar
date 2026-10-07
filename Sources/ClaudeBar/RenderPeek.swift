@@ -264,9 +264,9 @@ enum TestZoom {
             let before = state.settings.officeLighting
             let light = CGPoint(x: zoom.lightRect.midX, y: zoom.lightRect.midY)
             mouse(.leftMouseDown, light); mouse(.leftMouseUp, light)
-            print("click ☀️/🌙 pill → lighting", before.rawValue, "→", state.settings.officeLighting.rawValue)
+            print("click ☀️/🌙 pill → lighting", before.rawValue, "→", state.settings.officeLighting.rawValue, "· app appearance", NSApp.appearance?.name.rawValue ?? "follows the Mac")
             mouse(.leftMouseDown, light); mouse(.leftMouseUp, light)
-            print("click it again → lighting", state.settings.officeLighting.rawValue)
+            print("click it again → lighting", state.settings.officeLighting.rawValue, "· app appearance", NSApp.appearance?.name.rawValue ?? "follows the Mac")
             state.setOfficeLighting(before)
             exit(0)
         } }

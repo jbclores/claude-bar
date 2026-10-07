@@ -50,7 +50,8 @@ struct OfficeRoomView: View {
         return office.agents.first { $0.id == id }
     }
 
-    private var night: Bool { state.settings.officeLighting.isNight(systemDark: colorScheme == .dark) }
+    /// The app's appearance already follows the ☀️/🌙 setting (AppState.applyLighting).
+    private var night: Bool { colorScheme == .dark }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -73,7 +74,7 @@ struct OfficeRoomView: View {
                 .background(Capsule().fill(.black.opacity(0.45)))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, 8).padding(.top, 6)
-                .help(night ? "Switch the office to day" : "Switch the office to night")
+                .help(night ? "Switch ClaudeBar to day" : "Switch ClaudeBar to night")
             if zoom.view.isZoomed {
                 Text("1×").font(.system(size: 10, weight: .semibold)).foregroundStyle(.white)
                     .frame(width: RoomZoom.pillSize.width, height: RoomZoom.pillSize.height)
@@ -160,7 +161,7 @@ struct RoomBackdrop: View {
     }
 }
 
-/// Whether the office is drawn at night: the Office lighting setting (Auto follows the Mac).
+/// Whether the office is drawn at night: ClaudeBar's appearance (the ☀️/🌙 setting; Auto follows the Mac).
 private struct OfficeNightKey: EnvironmentKey {
     static let defaultValue = false
 }

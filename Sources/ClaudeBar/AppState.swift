@@ -105,7 +105,10 @@ final class AppState: ObservableObject {
         refreshing = true
         config.reload()
         configError = config.error
-        if settings != config.config { settings = config.config }
+        if settings != config.config {
+            settings = config.config
+            applyLighting()
+        }
         officeSettings.set(config.config.catOffice)
         let projects = config.config.projects
         let snapshots = snapshots, sessions = sessions, git = git
@@ -206,12 +209,24 @@ final class AppState: ObservableObject {
     func setOfficeLighting(_ lighting: OfficeLighting) {
         do { try config.set(lighting.rawValue, at: ["officeLighting"]) } catch let e as ConfigError { configError = e.message } catch {}
         settings = config.config
+        applyLighting()
     }
 
     /// The office's ☀️/🌙 pill: the opposite of what's showing now.
     func toggleOfficeLighting() {
-        let dark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        setOfficeLighting(settings.officeLighting.toggled(systemDark: dark))
+        setOfficeLighting(settings.officeLighting.toggled(systemDark: Self.systemDark))
+    }
+
+    /// Day or night for all of ClaudeBar (dropdown, peek, office); Auto follows the Mac.
+    func applyLighting() {
+        let lighting = settings.officeLighting
+        let target: NSAppearance? = lighting == .auto ? nil : NSAppearance(named: lighting == .night ? .darkAqua : .aqua)
+        if NSApp.appearance?.name != target?.name { NSApp.appearance = target }
+    }
+
+    /// The Mac's own appearance (ignoring ClaudeBar's override).
+    private static var systemDark: Bool {
+        UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
     }
 
     private func setSetting(_ value: Bool, at path: [String]) {
