@@ -96,10 +96,15 @@ public struct StatusLineSetup: Sendable {
 
     /// A record is live only while ClaudeBar's status line (or its wrapper) is what settings.json runs.
     func recordIsLive() -> Bool {
-        guard readOriginal() != nil else { return false }
-        // By the command alone: the user may have edited the script itself since (restore keeps their edit).
+        guard let record = readOriginal() else { return false }
         guard let settings = try? readSettings(), let command = command(in: settings) else { return false }
-        return command.contains(Self.wrapperName) || namesOurScript(command)
+        if command.contains(Self.wrapperName) { return true }
+        guard namesOurScript(command) else { return false }
+        // We backed up their script: whatever is there now (even an edit of ours) is ours to swap back; restore keeps it.
+        if record.scriptBackup != nil { return true }
+        // Nothing of theirs was backed up: a script without ClaudeBar's marker is one they put there since (e.g. /statusline).
+        let text = try? String(contentsOf: file(Self.scriptName), encoding: .utf8)
+        return text?.contains(Self.marker) == true
     }
 
     public var canRestore: Bool { recordIsLive() }
