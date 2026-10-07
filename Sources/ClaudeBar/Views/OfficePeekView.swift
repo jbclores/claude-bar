@@ -64,6 +64,46 @@ struct OfficeRoomView: View {
     /// Who sits where, per floor, kept between updates so cats keep their desks and seats.
     @State private var seatings: [Int: FloorSeating] = [:]
     @State private var walks: [String: CatWalk] = [:]
+    /// Each agent's floor at the last update, to notice floor changes.
+    @State private var floorOf: [String: Int] = [:]
+    /// Rides in progress, by agent id.
+    @State private var rides: [String: Rider] = [:]
+
+    /// Changes when any agent's floor changes.
+    private var floorKey: String {
+        let agents = state.office?.agents ?? []
+        return agents.compactMap { a in FloorPlan.floorId(for: a, among: agents, in: state.building).map { "\(a.id)@\($0)" } }
+            .sorted().joined(separator: ",")
+    }
+
+    private func noticeFloorChanges() {
+        let agents = state.office?.agents ?? []
+        var next: [String: Int] = [:]
+        for a in agents { if let f = FloorPlan.floorId(for: a, among: agents, in: state.building) { next[a.id] = f } }
+        guard !reduceMotion else { floorOf = next; return }
+        let now = Date()
+        var waiting = 0
+        for (id, to) in next {
+            guard let from = floorOf[id], from != to, let agent = agents.first(where: { $0.id == id }) else { continue }
+            // The walk to the elevator, from where the cat last stood on the shown floor (if it was there).
+            let door = ElevatorArt.door()
+            let place = CGPoint(x: door.x + ElevatorTrip.waitingOffset(index: waiting), y: door.y)
+            let walkIn = from == floorId ? lastFeet[id].map { WalkPath(from: $0, to: place) } : nil
+            let speed = WalkPath.speed(for: id, base: CatWalk.baseSpeed)
+            let trip = ElevatorTrip(from: from, to: to, start: now, walkIn: TimeInterval((walkIn?.length ?? 0) / speed))
+            rides[id] = Rider(id: id, agent: agent, trip: trip, walkIn: walkIn, waitIndex: waiting)
+            waiting += 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + trip.doneTime.timeIntervalSince(now) + 0.1) {
+                if rides[id]?.trip == trip { rides[id] = nil }
+            }
+        }
+        floorOf = next
+    }
+
+    /// Cats riding up to the shown floor: their spot stays empty until they've walked out of the elevator.
+    private var arrivingHere: Set<String> {
+        Set(rides.values.filter { $0.trip.to == floorId && Date() < $0.trip.doneTime }.map(\.id))
+    }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     static let height: CGFloat = 180
@@ -89,8 +129,9 @@ struct OfficeRoomView: View {
                     offline
                 }
             }
-            .overlay(alignment: .topLeading) { WalkersLayer(walks: walks, catIds: state.catIds, legFrames: !reduceMotion) }
-            .environment(\.walkingCats, Set(walks.keys))
+            .overlay(alignment: .topLeading) { WalkersLayer(walks: walks, catIds: state.catIds, legFrames: !reduceMotion, scale: catScale) }
+            .overlay(alignment: .topLeading) { RidersLayer(rides: Array(rides.values), floorId: floorId, catIds: state.catIds, scale: catScale) }
+            .environment(\.walkingCats, Set(walks.keys).union(arrivingHere))
             // Cat frames are measured here, before the zoom: in the room's own points.
             .coordinateSpace(name: "roomContent")
             .scaleEffect(zoom.view.scale, anchor: .topLeading)
@@ -117,6 +158,8 @@ struct OfficeRoomView: View {
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
         .onPreferenceChange(CatFeetKey.self) { feet in startWalks(to: feet) }
         .onChange(of: seatKey, initial: true) { _, _ in updateSeating() }
+        .onChange(of: floorKey, initial: true) { _, _ in noticeFloorChanges() }
+        // Rides are kept across a floor switch, so Follow moving to the arrival floor shows the arrival.
         .onChange(of: floorId) { _, _ in
             // A different floor: show the whole room and don't walk anyone across from the last floor.
             zoom.reset()
@@ -132,6 +175,23 @@ struct OfficeRoomView: View {
         let now = Date()
 
         for (id, to) in feet {
+            // Riding in: it walks out of the elevator once it has arrived, from where it appeared.
+            if let ride = rides[id], ride.trip.to == floorId {
+                guard walks[id] == nil, lastFeet[id] == nil else { continue }
+                let delay = max(0, ride.trip.doneTime.timeIntervalSince(now))
+                let door = ElevatorArt.door()
+                let place = CGPoint(x: door.x + ElevatorTrip.waitingOffset(index: ride.waitIndex), y: door.y)
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    let walk = CatWalk(id: id, agent: ride.agent, path: WalkPath(from: place, to: to), start: Date())
+                    walks[id] = walk
+                    DispatchQueue.main.asyncAfter(deadline: .now() + walk.duration + CatWalk.hop) {
+                        if walks[id]?.start == walk.start { walks[id] = nil }
+                    }
+                }
+                continue
+            }
+            // Riding out: the rider draws its walk to the elevator.
+            if let ride = rides[id], ride.trip.from == floorId { continue }
             guard let from = walks[id]?.position(at: now) ?? lastFeet[id], hypot(to.x - from.x, to.y - from.y) > 12,
                   let agent = state.office?.agents.first(where: { $0.id == id }) else { continue }
             let walk = CatWalk(id: id, agent: agent, path: WalkPath(from: from, to: to), start: now)
@@ -153,6 +213,9 @@ struct OfficeRoomView: View {
     }
 
     private var floorId: Int { floors.shown(state) }
+    /// Desks in two rows are drawn smaller; walking and riding cats match them.
+    static let twoRowScale: CGFloat = 0.56
+    private var catScale: CGFloat { !floor.isLounge && floor.desks.count > 6 ? Self.twoRowScale : 1 }
     private var floor: Floor { state.building.floor(id: floorId) ?? Building.fallback.floors[0] }
     private var floorCats: [OfficeAgent] { FloorPlan.cats(on: floorId, agents: state.office?.agents ?? [], in: state.building) }
     /// Changes when who's on the shown floor, or their status or desk, changes.
@@ -209,7 +272,7 @@ struct OfficeRoomView: View {
                 }
                 if floor.desks.isEmpty { RoomPill(text: "No desks on this floor") }
             }
-            .scaleEffect(twoRows ? 0.56 : 1, anchor: .bottomLeading)
+            .scaleEffect(twoRows ? Self.twoRowScale : 1, anchor: .bottomLeading)
             // A scale doesn't shrink the layout: a fixed height keeps two rows from growing the room.
             .frame(height: twoRows ? Self.height - RoomBackdrop.wallHeight - 14 : nil, alignment: .bottomLeading)
             .padding(.leading, 36)
@@ -401,6 +464,65 @@ struct LoungeFloor: View {
             if let a { out[a.id] = CGRect(x: o.x + Self.spots[i].x - w / 2, y: o.y + Self.spots[i].y - h * 0.9, width: w, height: h) }
         }
         return out
+    }
+}
+
+/// A cat riding the elevator between floors.
+struct Rider: Equatable {
+    let id: String
+    let agent: OfficeAgent
+    let trip: ElevatorTrip
+    let walkIn: WalkPath?
+    let waitIndex: Int
+}
+
+struct RidersLayer: View {
+    let rides: [Rider]
+    let floorId: Int
+    let catIds: [String]
+    var scale: CGFloat = 1
+    @EnvironmentObject var state: AppState
+    @Environment(\.officeNight) private var officeNight
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: rides.isEmpty)) { context in
+            ZStack(alignment: .topLeading) {
+                ForEach(rides, id: \.id) { ride in rider(ride, now: context.date) }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private func rider(_ ride: Rider, now: Date) -> some View {
+        let door = ElevatorArt.door()
+        let place = CGPoint(x: door.x + ElevatorTrip.waitingOffset(index: ride.waitIndex), y: door.y)
+        switch (ride.trip.phase(at: now), ride.trip.from == floorId, ride.trip.to == floorId) {
+        case (.walkingIn, true, _):
+            let speed = WalkPath.speed(for: ride.id, base: CatWalk.baseSpeed)
+            let d = CGFloat(now.timeIntervalSince(ride.trip.start)) * speed
+            let path = ride.walkIn ?? WalkPath(from: place, to: place)
+            sprite(ride, feet: path.position(atDistance: d), direction: path.direction(atDistance: d),
+                   frame: WalkPath.frame(distance: d, stride: CatWalk.stride, phase: WalkPath.phase(for: ride.id)), alpha: 1)
+        case (.boarding(let p), true, _):
+            sprite(ride, feet: place, direction: "back-left", frame: 0, alpha: 1 - p)
+        case (.arriving(let p), _, true):
+            sprite(ride, feet: place, direction: "front-right", frame: 0, alpha: p)
+        default:
+            EmptyView()
+        }
+    }
+
+    private func sprite(_ ride: Rider, feet: CGPoint, direction: String, frame: Int, alpha: Double) -> some View {
+        let cat = CatPicker.cat(for: ride.agent, catIds: catIds)
+        let s = DeskComposition.catScale * DeskStation.scale * scale
+        return SpriteImage(key: "walk-\(cat)-\(direction)-\(frame)", fallback: Theme.color(ride.agent.status)) {
+            await state.art.walkImage(cat: cat, direction: direction, frame: frame)
+        }
+        .frame(width: 360 * s, height: 380 * s)
+        .colorMultiply(officeNight ? Night.furniture : .white)
+        .opacity(alpha)
+        .offset(x: feet.x - 180 * s, y: feet.y - 300 * s)
     }
 }
 
@@ -851,6 +973,8 @@ struct WalkersLayer: View {
     let walks: [String: CatWalk]
     let catIds: [String]
     let legFrames: Bool
+    /// The floor's cat size (smaller on two-row floors).
+    var scale: CGFloat = 1
     @EnvironmentObject var state: AppState
     @Environment(\.officeNight) private var officeNight
 
@@ -875,7 +999,7 @@ struct WalkersLayer: View {
         // The hop: a small arc once there.
         let hopT = arrived ? min(1, now.timeIntervalSince(walk.start) - walk.duration) / CatWalk.hop : 0
         let lift = arrived ? CGFloat(sin(Double.pi * max(0, min(1, hopT)))) * 2 : 0
-        let s = DeskComposition.catScale * DeskStation.scale
+        let s = DeskComposition.catScale * DeskStation.scale * scale
         let size = CGSize(width: 360 * s, height: 380 * s)
         return SpriteImage(key: "walk-\(cat)-\(direction)-\(frame)", fallback: Theme.color(walk.agent.status)) {
             await state.art.walkImage(cat: cat, direction: direction, frame: frame)
