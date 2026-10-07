@@ -56,8 +56,11 @@ public struct CatOfficeLauncher: Sendable {
         return (try? await URLSession.shared.data(for: request)) != nil
     }
 
+    /// Node.js (with npm) is installed where ClaudeBar can start Cat Office with it.
+    public static func hasNode(home: String) -> Bool { nodeBinDir(home: home) != nil }
+
     /// The first folder holding both `npm` and `node`: the system folders, then Volta, then the newest nvm version.
-    static func nodeBinDir(home: String, systemDirs: [String] = ["/opt/homebrew/bin", "/usr/local/bin"]) -> String? {
+    public static func nodeBinDir(home: String, systemDirs: [String] = ["/opt/homebrew/bin", "/usr/local/bin"]) -> String? {
         let fm = FileManager.default
         var candidates = systemDirs + [home + "/.volta/bin"]
         let nvm = home + "/.nvm/versions/node"

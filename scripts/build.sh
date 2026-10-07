@@ -14,5 +14,13 @@ mkdir -p "$APP/Contents/Resources"
 cp Resources/Sounds/*.wav "$APP/Contents/Resources/"
 # The help guide (the ? panel's "Full guide").
 cp -R Resources/Help "$APP/Contents/Resources/Help"
+# Onboarding: the patch, its older versions (for upgrades, no git needed in the app), and the scripts.
+SETUP="$APP/Contents/Resources/Setup"
+mkdir -p "$SETUP/patch-history"
+cp patches/cat-office.patch scripts/patch-cat-office.sh scripts/stop-cat-office.sh scripts/statusline-command.sh "$SETUP/"
+i=0
+for rev in $(git log --reverse --format=%h -- patches/cat-office.patch 2>/dev/null); do
+  i=$((i+1)); git show "$rev:patches/cat-office.patch" > "$SETUP/patch-history/$(printf '%02d' $i).patch"
+done
 codesign --force --sign - "$APP"
 echo "Built $APP"

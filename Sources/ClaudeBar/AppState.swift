@@ -379,6 +379,31 @@ final class AppState: ObservableObject {
         UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
     }
 
+    func setSetup(_ s: SetupSettings) {
+        do {
+            try config.set(s.seen, at: ["setup", "seen"])
+            if let state = s.state { try config.set(state.rawValue, at: ["setup", "state"]) }
+        } catch let e as ConfigError { configError = e.message } catch {}
+        settings = config.config
+    }
+
+    func setCatOfficeDir(_ dir: String?) {
+        guard let dir else { return }
+        do { try config.set(dir, at: ["catOffice", "dir"]) } catch let e as ConfigError { configError = e.message } catch {}
+        settings = config.config
+    }
+
+    /// From before onboarding existed: a working setup counts as done, so its window doesn't open by itself.
+    func inferSetupIfNeeded(env: SetupEnvironment = .real) async -> Bool {
+        guard !settings.setup.seen else { return false }
+        var patched: Bool?
+        if let dir = settings.catOffice.dir { patched = await SetupActions.isPatched(dir, env: env) }
+        let inferred = SetupSettings.inferred(catOfficeDir: settings.catOffice.dir, bridgeDir: SetupActions.runningDir(env: env),
+                                              patched: patched, statusLine: SetupActions.statusLine(env: env).state())
+        if let inferred { setSetup(inferred) }
+        return SetupSettings.opensByItself(settings.setup, inferred: inferred)
+    }
+
     private func setSetting(_ value: Bool, at path: [String]) {
         do { try config.set(value, at: path) } catch let e as ConfigError { configError = e.message } catch {}
         settings = config.config
