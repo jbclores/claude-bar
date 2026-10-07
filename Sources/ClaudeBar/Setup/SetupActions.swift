@@ -1,5 +1,6 @@
 import ClaudeBarCore
 import Foundation
+import ServiceManagement
 
 /// Where setup reads and writes: the real Mac, or temp folders for the click test.
 struct SetupEnvironment: Sendable {
@@ -12,6 +13,13 @@ struct SetupEnvironment: Sendable {
 
     /// Something answers HTTP at Cat Office's address (injected so tests and renders never reach a real Cat Office).
     var answers: @Sendable (URL) async -> Bool = { await CatOfficeLauncher.answers($0) }
+
+    /// "Also remove ClaudeBar" turns Launch at Login off (injected so tests never touch the real login item).
+    var launchAtLoginOff: @Sendable () -> Void = {
+        if SMAppService.mainApp.status == .enabled { try? SMAppService.mainApp.unregister() }
+    }
+    /// The Cat Office folder last seen running (injected so tests never find the real one and unpatch it).
+    var rememberedDir: @Sendable () -> String? = { UserDefaults.standard.string(forKey: AppState.rememberedDirKey) }
 
     static var real: SetupEnvironment {
         let home = Paths.home

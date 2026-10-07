@@ -315,6 +315,8 @@ struct SettingsTabView: View {
             if let restoreMessage {
                 Text(restoreMessage).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
+            Button("Undo ClaudeBar's changes…") { UndoWindow.shared.open(state: state) }
+                .buttonStyle(.link).font(.caption)
             Divider()
             Text("Sounds").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             setting("Meow when a cat needs you", state.settings.sounds.needsYou) { state.setSound("needsYou", $0) }

@@ -85,6 +85,14 @@ final class AppState: ObservableObject {
     /// The full guide that ships inside the app (Resources/Help/guide.html).
     var helpGuide: URL? { Bundle.main.url(forResource: "guide", withExtension: "html", subdirectory: "Help") }
 
+    /// "What ClaudeBar changes" (its own page: macOS drops #anchors when opening a local file).
+    var changesPage: URL? { Bundle.main.url(forResource: "changes", withExtension: "html", subdirectory: "Help") }
+
+    func openChangesPage() {
+        guard let url = changesPage else { return }
+        NSWorkspace.shared.open(url)
+    }
+
     func openHelpGuide() {
         guard let url = helpGuide else { return }
         NSWorkspace.shared.open(url)

@@ -378,7 +378,7 @@ struct SetupView: View {
     }
 }
 
-private extension View {
+extension View {
     /// A stable accessibility id, and the control's frame in the window for the click test.
     func setupTarget(_ id: String) -> some View {
         accessibilityIdentifier(id)

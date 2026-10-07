@@ -11,6 +11,7 @@ enum RenderPeek {
         if TestTabs.runIfRequested(state: state) { return true }
         if TestZoom.runIfRequested(state: state) { return true }
         if TestSetup.runIfRequested() { return true }
+        if TestUndo.runIfRequested() { return true }
         // `--render-help <out.png>`: the ? help panel.
         if let out = flag("--render-help")?.0 {
             renderWindow(HelpPanel().environmentObject(state), width: 340, to: out)
@@ -26,6 +27,15 @@ enum RenderPeek {
             let args = CommandLine.arguments
             guard let model = setupModel(step: args[i + 1], state: state) else { print("unknown setup step \(args[i + 1])"); exit(1) }
             renderWindow(SetupView(model: model).environmentObject(state), width: SetupView.size.width,
+                         to: URL(fileURLWithPath: args[i + 2]))
+            return true
+        }
+        // `--render-undo <choose|choose-running|choose-greyed|done|done-failed|done-removed> <out.png>`: the undo window
+        // over a temp environment (never the real Mac).
+        if let i = CommandLine.arguments.firstIndex(of: "--render-undo"), i + 2 < CommandLine.arguments.count {
+            let args = CommandLine.arguments
+            guard let model = undoModel(mode: args[i + 1], state: state) else { print("unknown undo mode \(args[i + 1])"); exit(1) }
+            renderWindow(UndoView(model: model).environmentObject(state), width: UndoView.size.width,
                          to: URL(fileURLWithPath: args[i + 2]))
             return true
         }
@@ -173,6 +183,59 @@ private func setupModel(step: String, state: AppState) -> SetupModel? {
             model.results["start"] = StepResult(ok: true, text: "Cat Office is running: restart it to load the patch.")
             model.needsRestart = true
         }
+    default: return nil
+    }
+    return model
+}
+
+/// A temp environment for undo renders and the click test: never the real home, Cat Office, login item or address.
+private func undoEnvironment() -> (SetupEnvironment, URL) {
+    let fm = FileManager.default
+    let root = fm.temporaryDirectory.appendingPathComponent("claudebar-undo-\(UUID().uuidString)").resolvingSymlinksInPath()
+    let home = root.appendingPathComponent("home")
+    let claude = home.appendingPathComponent(".claude")
+    try? fm.createDirectory(at: claude, withIntermediateDirectories: true)
+    var env = SetupEnvironment(home: home, claudeDir: claude, resources: SetupEnvironment.real.resources,
+                               bridgeFile: root.appendingPathComponent("bridge.json"))
+    env.answers = { _ in false }
+    env.launchAtLoginOff = {}
+    env.rememberedDir = { nil }
+    return (env, root)
+}
+
+/// The undo window in a fixed state (rows and results set directly; `load()` never runs).
+@MainActor
+private func undoModel(mode: String, state: AppState) -> UndoModel? {
+    let (env, _) = undoEnvironment()
+    let model = UndoModel(state: state, env: env)
+    let dir = env.home.appendingPathComponent("Documents/projects/cat-office").path
+    let all = UndoPlan.rows(catOfficeDir: dir, unpatch: .patched, statusLine: .wrapped(original: "npx ccstatusline"),
+                            canRestore: true, home: env.home.path)
+    model.rows = all
+    model.ticked = UndoPlan.startTicks(all)
+    switch mode {
+    case "choose": model.phase = .choose
+    case "choose-running": model.phase = .choose; model.somethingAnswers = true
+    case "choose-greyed":
+        model.rows = UndoPlan.rows(catOfficeDir: dir, unpatch: .cannotUndo, statusLine: .claudeBar, canRestore: false, home: env.home.path)
+        model.ticked = UndoPlan.startTicks(model.rows)
+        model.phase = .choose
+    case "done":
+        model.results = [.unpatch: StepResult(ok: true, text: "Cat Office is unpatched (a backup of the changed files is in .cat-office/)."),
+                         .statusLine: StepResult(ok: true, text: "Your old status line is back.")]
+        model.doneLines = UndoText.doneLines(results: [.unpatch: true, .statusLine: true], leftOut: false)
+        model.needsRestart = true
+        model.phase = .done
+    case "done-failed":
+        model.results = [.unpatch: StepResult(ok: false, text: UndoText.failedSafe + " ClaudeBar couldn't take its patch out cleanly; your backups are in \(dir)/.cat-office/."),
+                         .statusLine: StepResult(ok: true, text: "Your old status line is back.")]
+        model.doneLines = UndoText.doneLines(results: [.unpatch: false, .statusLine: true], leftOut: false)
+        model.phase = .done
+    case "done-removed":
+        model.results = [.statusLine: StepResult(ok: true, text: "Your old status line is back."),
+                         .remove: StepResult(ok: true, text: "Launch at Login is off, and ClaudeBar's files are in the Trash.")]
+        model.doneLines = UndoText.doneLines(results: [.statusLine: true, .remove: true], leftOut: false)
+        model.phase = .done
     default: return nil
     }
     return model
@@ -522,6 +585,76 @@ enum TestSetup {
                         }
                     } }
                 }
+            }
+        }
+        return true
+    }
+}
+
+/// `ClaudeBar --test-undo`: the undo window over a temp home only (ClaudeBar's status line installed there with a
+/// record, and ClaudeBar's four folders), offscreen. Clicks only the recorded target undo-run, then prints the results,
+/// the temp statusLine, and which temp folders are left. "Also remove" stays unticked, so all four must remain.
+@MainActor
+enum TestUndo {
+    static func runIfRequested() -> Bool {
+        guard CommandLine.arguments.contains("--test-undo") else { return false }
+        setvbuf(stdout, nil, _IOLBF, 0)
+        let (env, root) = undoEnvironment()
+        let fm = FileManager.default
+        try? Data(#"{"model":"opus"}"#.utf8).write(to: env.claudeDir.appendingPathComponent("settings.json"))
+        // A script of the user's own is already there, so installing ClaudeBar's keeps a record to restore from.
+        try? Data("#!/bin/bash\necho mine\n".utf8).write(to: env.claudeDir.appendingPathComponent("statusline-command.sh"))
+        do { try SetupActions.statusLine(env: env).useClaudeBar() } catch { print("couldn't install the temp status line: \(error)"); exit(1) }
+        let removal = ClaudeBarRemoval(home: env.home)
+        for f in removal.folders { try? fm.createDirectory(at: f, withIntermediateDirectories: true) }
+        let state = AppState(config: ConfigStore(file: root.appendingPathComponent("projects.json")))
+        state.sideEffects = false
+        print("temp root:", root.path)
+
+        UndoWindow.shared.open(state: state, env: env, offscreen: true)
+        guard let model = UndoWindow.shared.model,
+              let window = NSApp.windows.first(where: { $0.title == UndoText.title }) else { print("undo window didn't open"); exit(1) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 12) { print("timed out in phase \(model.phase)"); exit(1) }
+
+        func click(_ id: String) -> Bool {
+            guard let frame = SetupTargets.frames[id], let content = window.contentView else { print("target \(id) not found"); return false }
+            let target = NSRect(x: frame.minX, y: window.frame.height - frame.maxY, width: frame.width, height: frame.height)
+            let point = NSPoint(x: target.midX, y: target.midY)
+            guard let frameView = content.superview else { print("undo window has no frame view"); exit(1) }
+            guard let hit = content.hitTest(frameView.convert(point, from: nil)) else { print("nothing under \(id)"); return false }
+            let hitFrame = hit.convert(hit.bounds, to: nil)
+            guard abs(hitFrame.midX - target.midX) < 4, abs(hitFrame.midY - target.midY) < 4 else {
+                print("refusing to click \(id): \(type(of: hit)) at \(hitFrame) isn't the target at \(target)"); return false
+            }
+            print("click \(id) at window \(point) (hits \(type(of: hit)))")
+            NSApp.postEvent(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                               windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0)!, atStart: false)
+            window.sendEvent(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
+            return true
+        }
+        func when(_ done: @escaping @MainActor () -> Bool, _ then: @escaping @MainActor () -> Void) {
+            let deadline = Date().addingTimeInterval(8)
+            func poll() {
+                if done() { then(); return }
+                guard Date() < deadline else { print("gave up waiting in phase \(model.phase)"); exit(1) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { MainActor.assumeIsolated { poll() } }
+            }
+            poll()
+        }
+
+        when({ model.phase == .choose && SetupTargets.frames["undo-run"] != nil }) {
+            print("rows:", model.rows.map { "\($0.kind.rawValue)\($0.available ? "" : "(greyed)")" }.joined(separator: ", "),
+                  "· ticked:", model.ticked.map(\.rawValue).sorted().joined(separator: ", "))
+            guard click("undo-run") else { exit(1) }
+            when({ model.phase == .done && !model.working }) {
+                for kind in UndoRow.Kind.allCases { if let r = model.results[kind] { print("result \(kind.rawValue): \(r.ok ? "✓" : "✗") \(r.text)") } }
+                print("done lines:", model.doneLines.joined(separator: " | "))
+                let settings = (try? Data(contentsOf: env.claudeDir.appendingPathComponent("settings.json")))
+                    .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+                print("temp settings.json statusLine:", settings?["statusLine"].map { "\($0)" } ?? "none")
+                print("temp folders left:", removal.folders.filter { fm.fileExists(atPath: $0.path) }.count, "of 4")
+                exit(0)
             }
         }
         return true
