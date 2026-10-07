@@ -26,6 +26,8 @@ public struct PlacedWallItem: Equatable, Sendable {
     public var isElevator: Bool
     /// The art's height kept (px from the box's top) when the catalogue cuts it at a `sill`; the box stays whole.
     public var clipHeight: Double?
+    /// Its lit copies (a wall light's, a window decoration's), in the box's own px, drawn over it at night.
+    public var glows: [GlowPiece] = []
 }
 
 public struct ElevatorSpot: Equatable, Sendable {
@@ -42,6 +44,8 @@ public struct PlacedFixture: Equatable, Sendable {
     public var mirrored: Bool
     public var rect: CGRect
     public var box: OccluderBox
+    /// Its lit parts (RoomProps.tsx Fixture glow), over `rect`.
+    public var glow: RoomGlow? = nil
 }
 
 public enum WallItems {
@@ -157,20 +161,41 @@ public enum WallItems {
                 out.append(.stretch(image: m, rect: CGRect(x: x, y: g.y0, width: mw, height: g.y1 - g.y0)))
             }
         }
-        // RoomShell.tsx DecorArt (153-179): the unlit art; the glow copy is not drawn.
+        // RoomShell.tsx DecorArt (153-179): the unlit art (its lit copy is one of the item's `glows`).
         if let d = def.decor {
-            if d.kind == "strip" {
-                // Repeated a whole number of times across the glass, along its top.
-                let k = max(1, Int((gw / d.width + 0.5).rounded(.down)))
-                for i in 0..<k {
-                    out.append(.decor(image: d.image, rect: CGRect(x: g.x0 + Double(i) * gw / Double(k), y: g.y0 + 1, width: gw / Double(k), height: d.height)))
-                }
-            } else {
-                // Tied to the glass's top, centred, no taller than the glass leaves room for.
-                let h = max(8, min(d.height, gh - 6))
-                let w = d.width * h / d.height
-                out.append(.decor(image: d.image, rect: CGRect(x: g.x0 + (gw - w) / 2, y: g.y0, width: w, height: h)))
-            }
+            out += decorRects(def, d, width: width, height: height).map { .decor(image: d.image, rect: $0) }
+        }
+        return out
+    }
+
+    /// RoomShell.tsx DecorArt: where a window's decoration goes over its glass, in the item box's px.
+    private static func decorRects(_ def: WallItemDef, _ d: WindowDecorDef, width: Double, height: Double) -> [CGRect] {
+        let g = glass(def, width: width, height: height)
+        let gw = g.x1 - g.x0, gh = g.y1 - g.y0
+        if d.kind == "strip" {
+            // Repeated a whole number of times across the glass, along its top.
+            let k = max(1, Int((gw / d.width + 0.5).rounded(.down)))
+            return (0..<k).map { i in CGRect(x: g.x0 + Double(i) * gw / Double(k), y: g.y0 + 1, width: gw / Double(k), height: d.height) }
+        }
+        // Tied to the glass's top, centred, no taller than the glass leaves room for.
+        let h = max(8, min(d.height, gh - 6))
+        let w = d.width * h / d.height
+        return [CGRect(x: g.x0 + (gw - w) / 2, y: g.y0, width: w, height: h)]
+    }
+
+    /// RoomShell.tsx 287-313: a wall light's lit parts over its whole box (the right wall's own copy where it has its
+    /// own art), and a window decoration's, lit, where its art hangs.
+    static func glows(_ def: WallItemDef, _ item: WallItemPlacement, width: Double, height: Double) -> [GlowPiece] {
+        var out: [GlowPiece] = []
+        let right = item.wall == .right && def.imageRight != nil
+        if def.kind == "decor",
+           let g = RoomGlow.make(image: (right ? def.emissiveImageRight : def.emissiveImage) ?? image(item, def),
+                                 mask: right ? def.emissiveRight : def.emissive, modes: def.glowModes) {
+            out.append(GlowPiece(glow: g, rect: CGRect(x: 0, y: 0, width: width, height: height)))
+        }
+        if def.kind == "window", let d = def.decor,
+           let g = RoomGlow.make(image: d.emissiveImage ?? d.image, mask: d.emissive, modes: d.glowModes) {
+            out += decorRects(def, d, width: width, height: height).map { GlowPiece(glow: g, rect: $0) }
         }
         return out
     }
@@ -186,6 +211,7 @@ public enum WallItems {
         let mir = mirrored(item, def)
         let art = image(item, def)
         let pieces = def.kind == "window" ? windowPieces(def, item, width: s.width, height: s.height) : []
+        let lit = glows(def, item, width: s.width, height: s.height)
         var plate: CGRect?
         if let p = def.plate, let img = def.image, !img.isEmpty {
             plate = CGRect(x: left + (mir ? s.width - p.x - p.width : p.x), y: top + p.y, width: p.width, height: p.height)
@@ -194,7 +220,7 @@ public enum WallItems {
             id: item.id, item: item.item, wall: item.wall, image: art, mirrored: mir,
             box: CGRect(x: left, y: top, width: s.width, height: s.height), plate: plate, pieces: pieces,
             isElevator: def.kind == "elevator",
-            clipHeight: def.kind != "window" && art != nil ? def.sill.map { $0 + 1 } : nil)
+            clipHeight: def.kind != "window" && art != nil ? def.sill.map { $0 + 1 } : nil, glows: lit)
     }
 
     // MARK: room.ts 340-362
@@ -225,8 +251,11 @@ public enum WallItems {
         let half = s.width / 2 / length(frame, item.wall)
         let out = (def.reach ?? 0) * frame.outUnit(item.wall)
         let front = FloorFrame.wallFloorPoint(item.wall, at: min(1, item.at + half), out: out)
+        let right = item.wall == .right && def.imageRight != nil
         return PlacedFixture(
             id: item.id, image: image(item, def), mirrored: mir, rect: rect,
-            box: OccluderBox.make(front: front, rect: rect, back: max(0, item.at - half), id: item.id))
+            box: OccluderBox.make(front: front, rect: rect, back: max(0, item.at - half), id: item.id),
+            glow: RoomGlow.make(image: (right ? def.emissiveImageRight : def.emissiveImage) ?? image(item, def),
+                                mask: right ? def.emissiveRight : def.emissive, modes: def.glowModes))
     }
 }

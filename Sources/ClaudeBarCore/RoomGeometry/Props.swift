@@ -29,6 +29,8 @@ public struct PlacedProp: Equatable, Sendable {
     /// A companion part: the placement id of the prop it comes with.
     public var companionOf: String?
     public var cover: [WorldPoint]?
+    /// Its lit copy at night (RoomProps.tsx glow), over `rect`, mirrored with it.
+    public var glow: RoomGlow? = nil
 }
 
 /// A rug as drawn (RoomShell.tsx Rug): its box in floor-plane px (FloorFrame.plane).
@@ -255,9 +257,10 @@ public enum PropPlacer {
         let own = count.flatMap { n in def.panels?.sizes?.first { $0.panels == n } }
         let sprite: PropSprite?
         if turned { sprite = def.rear }
-        else if let own { sprite = PropSprite(image: own.image, width: own.width, height: own.height, anchor: own.anchor) }
+        else if let own { sprite = PropSprite(image: own.image, width: own.width, height: own.height, anchor: own.anchor, emissive: own.emissive) }
         else if let image = def.image {
-            sprite = PropSprite(image: image, width: def.width ?? 0, height: def.height ?? 0, anchor: def.anchor ?? WorldPoint(x: 0, y: 0))
+            sprite = PropSprite(image: image, width: def.width ?? 0, height: def.height ?? 0, anchor: def.anchor ?? WorldPoint(x: 0, y: 0),
+                                emissive: def.emissive)
         } else { sprite = nil }
         let mirrored = facing % 2 == 1
         let rect: CGRect
@@ -283,7 +286,11 @@ public enum PropPlacer {
         let prop = PlacedProp(
             id: placement.id, prop: placement.prop, image: sprite?.image, mirrored: mirrored, footprint: footprint, rect: rect, box: box,
             spots: placement.decor == true ? [] : propSpots(frame, def, placement, footprint, drop: drop, grid: grid),
-            companionOf: nil, cover: def.cover)
+            companionOf: nil, cover: def.cover,
+            // RoomProps.tsx 139, 178: the switched-on art (only for the prop's own picture) inside the sprite's mask.
+            glow: sprite.flatMap { s in
+                RoomGlow.make(image: s.image == def.image ? (def.emissiveImage ?? s.image) : s.image, mask: s.emissive, modes: def.glowModes)
+            })
         return Placed(prop: prop, hasPanels: def.panels != nil, onTable: table != nil, tableBit: isTableBit(def))
     }
 

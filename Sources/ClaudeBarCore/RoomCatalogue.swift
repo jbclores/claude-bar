@@ -76,6 +76,8 @@ public struct WindowDecorDef: Codable, Equatable, Sendable {
     public var emissive: String?
     public var width: Double
     public var height: Double
+    /// Lighting modes it's lit in; absent: whenever the lamps are on.
+    public var glowModes: [String]?
 }
 
 public struct WallItemDef: Codable, Equatable, Sendable {
@@ -122,6 +124,12 @@ public struct WallItemDef: Codable, Equatable, Sendable {
     public var sill: Double?
     public var decor: WindowDecorDef?
     public var color: String?
+    /// A wall light's glow mask and switched-on art (the right wall's own where it has its own art), and its modes.
+    public var emissive: String?
+    public var emissiveImage: String?
+    public var emissiveRight: String?
+    public var emissiveImageRight: String?
+    public var glowModes: [String]?
 }
 
 public struct PropSprite: Codable, Equatable, Sendable {
@@ -129,6 +137,8 @@ public struct PropSprite: Codable, Equatable, Sendable {
     public var width: Double
     public var height: Double
     public var anchor: WorldPoint
+    /// Alpha mask of the parts of this picture that give light.
+    public var emissive: String?
 }
 
 /// One art size of a panel row (the JSON's `sizes` is a list of these, fewest panels first).
@@ -138,6 +148,7 @@ public struct PanelSize: Codable, Equatable, Sendable {
     public var width: Double
     public var height: Double
     public var anchor: WorldPoint
+    public var emissive: String?
 }
 
 public struct PanelDef: Codable, Equatable, Sendable {
@@ -204,6 +215,11 @@ public struct PropDef: Codable, Equatable, Sendable {
     /// Added to the brief: a table's top (table bits stand on it) and the corner prop's open share.
     public var top: PropTop?
     public var notch: Double?
+    /// Alpha mask of the parts that give light (a lamp's shade), the prop drawn switched on, and the lighting modes
+    /// it glows in (absent: whenever the lamps are on).
+    public var emissive: String?
+    public var emissiveImage: String?
+    public var glowModes: [String]?
 }
 
 public struct DeskDef: Codable, Equatable, Sendable {
