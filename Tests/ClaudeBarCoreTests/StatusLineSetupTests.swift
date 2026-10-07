@@ -270,4 +270,31 @@ import Testing
         #expect(s2.state() == .claudeBar && s2.canRestore)
         _ = dir; _ = dir2
     }
+
+    @Test func unreadableSettingsNeverArchiveALiveRecord() throws {
+        let (s, dir) = try setup(theirsCmd)
+        try s.useClaudeBar()
+        let good = read(dir, "settings.json")!, record = read(dir, StatusLineSetup.originalName)
+        try write(dir, "settings.json", "{ broken")
+        let names = files(dir)
+        #expect(throws: (any Error).self) { try s.useClaudeBar() }
+        #expect(throws: (any Error).self) { try s.wrap() }
+        #expect(throws: (any Error).self) { try s.restore() }
+        #expect(read(dir, StatusLineSetup.originalName) == record && files(dir) == names)
+        #expect(!files(dir).contains { $0.contains("-stale-") })
+        try write(dir, "settings.json", good)
+        #expect(s.canRestore)
+        try s.restore()
+        #expect(s.state() == .own(command: "npx ccstatusline"))
+    }
+
+    @Test func wrapRefusesWhenRestoringWouldLandOnAClaudeBarScript() throws {
+        let (s, dir) = try setup(#"{"statusLine":{"type":"command","command":"bash ~/.claude/statusline-command.sh"}}"#)
+        try write(dir, "statusline-command.sh", "#!/bin/bash\n# older ClaudeBar writes ~/.claude/claude-bar\n")
+        try s.useClaudeBar()
+        #expect(s.state() == .claudeBar && s.canRestore)
+        let before = read(dir, "settings.json"), names = files(dir)
+        #expect(throws: (any Error).self) { try s.wrap() }
+        #expect(read(dir, "settings.json") == before && files(dir) == names && s.state() == .claudeBar)
+    }
 }

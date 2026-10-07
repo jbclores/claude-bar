@@ -78,6 +78,7 @@ public struct StatusLineSetup: Sendable {
 
     /// A record that outlived ClaudeBar's status line (it was changed by hand) is archived, never restored.
     func archiveStaleRecord() throws {
+        _ = try readSettings()   // unreadable settings: throw before changing anything
         guard readOriginal() != nil, !recordIsLive() else { return }
         var candidate = "\(Self.originalName)-stale-\(stamp)"
         var n = 2
@@ -173,6 +174,8 @@ public struct StatusLineSetup: Sendable {
             // Work out what restoring would give back before changing anything.
             guard let back = originalCommand(record), !back.contains(Self.wrapperName),
                   record.scriptBackup != nil || !namesOurScript(back) else { throw unable }
+            if let backup = record.scriptBackup, namesOurScript(back),
+               let text = try? String(contentsOf: file(backup), encoding: .utf8), text.contains(Self.marker) { throw unable }
             try restore()
         } else {
             try archiveStaleRecord()
@@ -196,6 +199,9 @@ public struct StatusLineSetup: Sendable {
 
     /// Back to what the user had before ClaudeBar changed it. Checks everything first; nothing of the user's is deleted.
     public func restore() throws {
+        guard (try? readSettings()) != nil else {
+            throw StatusLineError(message: "~/.claude/settings.json isn't valid JSON; nothing was changed")
+        }
         guard let original = readOriginal(), recordIsLive() else {
             throw StatusLineError(message: "There is nothing of ClaudeBar's to undo: the status line was changed since")
         }
