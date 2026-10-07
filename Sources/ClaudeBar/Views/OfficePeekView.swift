@@ -185,6 +185,8 @@ struct OfficeRoomView: View {
         .background(GeometryReader { proxy in
             Color.clear.onAppear { zoom.roomRect = proxy.frame(in: .named("office")) }
                 .onChange(of: proxy.frame(in: .named("office"))) { _, rect in zoom.roomRect = rect }
+                // Off screen (another tab): no room, so the cursor, clicks and scrolls there belong to that tab.
+                .onDisappear { zoom.roomRect = .zero }
         })
         // Clicks only inside the visible room: the backdrop and cats extend past it, and took the tabs' clicks.
         .contentShape(RoundedRectangle(cornerRadius: 10))

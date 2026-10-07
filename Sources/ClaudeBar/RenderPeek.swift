@@ -209,6 +209,7 @@ enum TestTabs {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     if controller.preferredContentSize.height > 0 { window.setContentSize(controller.preferredContentSize) }
                     capture(name)
+                    print("  room area on \(name):", controller.roomZoom.roomRect == .zero ? "none" : "\(controller.roomZoom.roomRect)")
                     print("clicked \(name) (hit \(hit.map { String(describing: type(of: $0)) } ?? "nothing")) →",
                           UserDefaults.standard.string(forKey: TabSelection.key) ?? "-", "· dropdown height", controller.preferredContentSize.height)
                     next()
