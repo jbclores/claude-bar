@@ -59,33 +59,56 @@ out=$(printf '%s' "$json" | HOME="$home" CLAUDE_BAR_DIR="$home/cb" CLAUDEBAR_STA
 out=$(printf '%s' "$json" | HOME="$home" CLAUDE_BAR_DIR="$home/cb" bash "$REPO/scripts/statusline-command.sh")
 [ -n "$out" ] && ok "normal status line still prints" || bad "normal status line"
 
-# A real stop exits 0: a stand-in "node" process whose cwd is inside a temp folder (never the real Cat Office).
+# stop-cat-office.sh against stand-in "node" processes in temp folders (never the real Cat Office). Each stand-in
+# gets a unique argument so pgrep finds exactly it; the tiny binary ignores its arguments.
 stopmini=$(mktemp -d); mkdir -p "$stopmini/server/agent-bridge" "$stopmini/bin"; echo '{}' > "$stopmini/package.json"
 # (a copied system binary is killed on Apple silicon, so build a tiny one)
 printf '#include <unistd.h>\nint main(void){sleep(60);return 0;}\n' > "$stopmini/n.c"
 clang -o "$stopmini/bin/node" "$stopmini/n.c" 2>/dev/null
+standin() { # <cwd> <tag> [args…]: starts a stand-in node from <cwd>; prints its pid
+  local cwd="$1" tag="$2"; shift 2
+  (cd "$cwd" && exec "$stopmini/bin/node" "$tag" "$@" >/dev/null 2>&1 &)
+  sleep 1; pgrep -f "$stopmini/bin/node $tag" | head -1
+}
 if [ ! -x "$stopmini/bin/node" ]; then echo "SKIP real stop (no C compiler)"; else
-(cd "$stopmini" && exec "$stopmini/bin/node" 60 >/dev/null 2>&1 &)
-sleep 1; standin=$(pgrep -f "$stopmini/bin/node" | head -1)
-if [ -z "$standin" ]; then bad "stop: stand-in process didn't start"; else
+# A plain node in the folder (a Claude Code session, tsc --watch, a test runner) isn't Cat Office's dev server.
+plain=$(standin "$stopmini" plain-session 60)
+if [ -z "$plain" ]; then bad "plain stand-in didn't start"; else
   out=$(CAT_OFFICE_BRIDGE_FILE=/nonexistent bash "$REPO/scripts/stop-cat-office.sh" "$stopmini" 2>&1); code=$?
-  if [ $code = 0 ] && ! kill -0 "$standin" 2>/dev/null; then ok "stop kills the running process and exits 0"; else bad "stop ($code: $out)"; kill "$standin" 2>/dev/null; fi
+  if [ $code = 0 ] && kill -0 "$plain" 2>/dev/null; then ok "a plain node in the folder (not the dev server) is not stopped"
+  else bad "plain node was stopped ($code: $out)"; fi
+  kill "$plain" 2>/dev/null
 fi
-# The bridge file's pid (cwd outside the folder, so only the bridge names it), read without python3: a python3 that
-# fails first in PATH stands for a Mac without the developer tools (its shim pops an install dialog).
+# Cat Office's dev server: a node in the folder running vite is stopped.
+vite=$(standin "$stopmini" dev-server "$stopmini/node_modules/.bin/vite")
+if [ -z "$vite" ]; then bad "vite stand-in didn't start"; else
+  out=$(CAT_OFFICE_BRIDGE_FILE=/nonexistent bash "$REPO/scripts/stop-cat-office.sh" "$stopmini" 2>&1); code=$?
+  if [ $code = 0 ] && ! kill -0 "$vite" 2>/dev/null; then ok "stop kills the vite dev server in the folder and exits 0"; else bad "vite stop ($code: $out)"; kill "$vite" 2>/dev/null; fi
+fi
+# The bridge file's pid, read without python3: a python3 that fails first in PATH stands for a Mac without the
+# developer tools (its shim pops an install dialog). The stand-in's command line isn't vite, so only the bridge names it.
 fakebin=$(mktemp -d); printf '#!/bin/sh\ntouch "%s/python-ran"; exit 1\n' "$fakebin" > "$fakebin/python3"; chmod +x "$fakebin/python3"
-(cd / && exec "$stopmini/bin/node" 60 >/dev/null 2>&1 &)
-sleep 1; standin=$(pgrep -f "$stopmini/bin/node" | head -1)
-if [ -z "$standin" ]; then bad "bridge stop: stand-in process didn't start"; else
+bridged=$(standin "$stopmini" bridged 60)
+if [ -z "$bridged" ]; then bad "bridge stop: stand-in process didn't start"; else
   other=$(mktemp -d)
-  printf '{"pid": %s, "dir": "%s"}' "$standin" "$other" > "$fakebin/bridge-other.json"
+  printf '{"pid": %s, "dir": "%s"}' "$bridged" "$other" > "$fakebin/bridge-other.json"
   out=$(PATH="$fakebin:$PATH" CAT_OFFICE_BRIDGE_FILE="$fakebin/bridge-other.json" bash "$REPO/scripts/stop-cat-office.sh" "$stopmini" --check 2>&1)
   [[ "$out" == *"nothing running"* ]] && ok "bridge pid of another folder is not stopped" || bad "bridge other folder ($out)"
-  printf '{"pid": %s, "dir": "%s"}' "$standin" "$stopmini" > "$fakebin/bridge.json"
+  printf '{"pid": %s, "dir": "%s"}' "$bridged" "$stopmini" > "$fakebin/bridge.json"
   out=$(PATH="$fakebin:$PATH" CAT_OFFICE_BRIDGE_FILE="$fakebin/bridge.json" bash "$REPO/scripts/stop-cat-office.sh" "$stopmini" 2>&1); code=$?
-  if [ $code = 0 ] && ! kill -0 "$standin" 2>/dev/null && [ ! -e "$fakebin/python-ran" ]; then ok "stop finds the bridge pid without python3"
-  else bad "bridge stop ($code: $out; python ran: $([ -e "$fakebin/python-ran" ] && echo yes || echo no))"; kill "$standin" 2>/dev/null; fi
+  if [ $code = 0 ] && ! kill -0 "$bridged" 2>/dev/null && [ ! -e "$fakebin/python-ran" ]; then ok "stop finds the bridge pid without python3"
+  else bad "bridge stop ($code: $out; python ran: $([ -e "$fakebin/python-ran" ] && echo yes || echo no))"; kill "$bridged" 2>/dev/null; fi
   rm -rf "$other"
+fi
+# A stale bridge whose pid is now something else (not node/npm), even running from the folder, is not stopped.
+(cd "$stopmini" && exec /bin/sleep 61 >/dev/null 2>&1 &)
+sleep 1; sleeper=$(pgrep -f "^/bin/sleep 61$" | head -1)
+if [ -z "$sleeper" ]; then bad "stale bridge: sleep didn't start"; else
+  printf '{"pid": %s, "dir": "%s"}' "$sleeper" "$stopmini" > "$fakebin/bridge-stale.json"
+  out=$(CAT_OFFICE_BRIDGE_FILE="$fakebin/bridge-stale.json" bash "$REPO/scripts/stop-cat-office.sh" "$stopmini" 2>&1); code=$?
+  if [ $code = 0 ] && kill -0 "$sleeper" 2>/dev/null; then ok "a stale bridge pid naming a non-node process is not stopped"
+  else bad "stale bridge pid was stopped ($code: $out)"; fi
+  kill "$sleeper" 2>/dev/null
 fi
 rm -rf "$fakebin"
 fi

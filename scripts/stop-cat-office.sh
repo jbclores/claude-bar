@@ -1,6 +1,7 @@
 #!/bin/bash
-# Stops Cat Office's dev server for a folder — only its node/npm processes, never shells or editors open in the
-# folder, and never this script or the shells above it.
+# Stops Cat Office's dev server for a folder — only its node/npm dev server processes, never shells, editors, Claude
+# Code sessions or other node tools (tsc --watch, test runners) open in the folder, and never this script or the
+# shells above it.
 # Usage: stop-cat-office.sh <cat-office-dir> [--check]
 #   --check  only lists what it would stop
 # Exit: 0 stopped (or nothing running); 1 it didn't stop, or this script runs inside Cat Office.
@@ -20,9 +21,14 @@ cwd_of() { lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p'; }
 inside() { [ "$1" = "$FROM" ] || case "$1" in "$FROM"/*) true;; *) false;; esac; }
 # npm renames itself ("npm run dev"): compare the first word only.
 is_node_or_npm() { case "$(basename "$(ps -o comm= -p "$1" 2>/dev/null | awk '{print $1}')")" in node|npm) true;; *) false;; esac; }
+# Cat Office's dev server by its command line: vite, or npm running the dev script.
+is_dev_server() {
+  case "$(ps -o command= -p "$1" 2>/dev/null)" in */vite*|*" vite"*|vite*|*"npm run dev"*|*"npm-cli.js run dev"*) true;; *) false;; esac
+}
 
-# Cat Office's dev server: the pid in its bridge file (patched Cat Office) when it names this folder, else node/npm
-# processes running from the folder. Plus their npm parent when it runs from the folder too.
+# Cat Office's dev server: the pid in its bridge file (patched Cat Office) when it names this folder and is a live
+# node/npm process running from it (a stale bridge's pid may be anything now), else node/npm processes running from
+# the folder whose command line is the dev server. Plus their npm parent when it runs from the folder too.
 pids=""
 if [ -f "$BRIDGE" ]; then
   # plutil, not python3: on a Mac without the developer tools, python3 is a shim that pops an install dialog.
@@ -30,11 +36,12 @@ if [ -f "$BRIDGE" ]; then
   bpid=$(/usr/bin/plutil -extract pid raw -o - "$BRIDGE" 2>/dev/null || true)
   breal=""; [ -n "$bdir" ] && [ -d "$bdir" ] && breal=$(cd "$bdir" 2>/dev/null && pwd -P || true)
   case "$bpid" in ''|*[!0-9]*) bpid="";; esac
-  [ -n "$bpid" ] && [ -n "$breal" ] && [ "$breal" = "$FROM" ] && kill -0 "$bpid" 2>/dev/null && pids="$bpid"
+  [ -n "$bpid" ] && [ -n "$breal" ] && [ "$breal" = "$FROM" ] && kill -0 "$bpid" 2>/dev/null \
+    && is_node_or_npm "$bpid" && inside "$(cwd_of "$bpid")" && pids="$bpid"
 fi
 if [ -z "$pids" ]; then
   for p in $(lsof -a -c node -c npm -d cwd -Fp 2>/dev/null | sed -n 's/^p//p' | sort -u); do
-    inside "$(cwd_of "$p")" && is_node_or_npm "$p" && pids="$pids $p"
+    inside "$(cwd_of "$p")" && is_node_or_npm "$p" && is_dev_server "$p" && pids="$pids $p"
   done
 fi
 for p in $pids; do
