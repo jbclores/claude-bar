@@ -66,7 +66,24 @@ public struct StatusLineSetup: Sendable {
         return command(in: ["statusLine": object])
     }
 
-    public var canRestore: Bool { readOriginal() != nil }
+    /// A record is live only while ClaudeBar's status line (or its wrapper) is what settings.json runs.
+    func recordIsLive() -> Bool {
+        guard readOriginal() != nil else { return false }
+        // By the command alone: the user may have edited the script itself since (restore keeps their edit).
+        guard let settings = try? readSettings(), let command = command(in: settings) else { return false }
+        return command.contains(Self.wrapperName) || namesOurScript(command)
+    }
+
+    public var canRestore: Bool { recordIsLive() }
+
+    /// A record that outlived ClaudeBar's status line (it was changed by hand) is archived, never restored.
+    func archiveStaleRecord() throws {
+        guard readOriginal() != nil, !recordIsLive() else { return }
+        var candidate = "\(Self.originalName)-stale-\(stamp)"
+        var n = 2
+        while FileManager.default.fileExists(atPath: file(candidate).path) { candidate = "\(Self.originalName)-stale-\(stamp)-\(n)"; n += 1 }
+        try FileManager.default.moveItem(at: file(Self.originalName), to: file(candidate))
+    }
 
     /// True when `command` runs ~/.claude/statusline-command.sh itself (written with ~, $HOME or the absolute home path).
     func namesOurScript(_ command: String) -> Bool {
@@ -133,6 +150,7 @@ public struct StatusLineSetup: Sendable {
     /// ClaudeBar's status line. The user's previous status line and script (if any) are recorded and backed up first.
     public func useClaudeBar() throws {
         if case .wrapped = state() { try restore() }
+        try archiveStaleRecord()
         let settings = try readSettings()
         let previous = statusLine(in: settings)
         var backup: String?
@@ -150,10 +168,16 @@ public struct StatusLineSetup: Sendable {
 
     /// Keeps the user's own status line: ClaudeBar's hook saves its data quietly, then their command runs unchanged.
     public func wrap() throws {
-        if case .claudeBar = state(), canRestore { try restore() }
-        guard case .own(let theirs) = state(), !theirs.contains(Self.wrapperName) else {
-            throw StatusLineError(message: "There is no status line of your own to keep (or it is already kept)")
+        let unable = StatusLineError(message: "There is no status line of your own to keep (or it is already kept)")
+        if case .claudeBar = state(), let record = readOriginal() {
+            // Work out what restoring would give back before changing anything.
+            guard let back = originalCommand(record), !back.contains(Self.wrapperName),
+                  record.scriptBackup != nil || !namesOurScript(back) else { throw unable }
+            try restore()
+        } else {
+            try archiveStaleRecord()
         }
+        guard case .own(let theirs) = state(), !theirs.contains(Self.wrapperName) else { throw unable }
         let settings = try readSettings()
         try Data(script.utf8).write(to: file(Self.hookName), options: .atomic)
         let quoted = "'" + theirs.replacingOccurrences(of: "'", with: "'\\''") + "'"
@@ -172,8 +196,17 @@ public struct StatusLineSetup: Sendable {
 
     /// Back to what the user had before ClaudeBar changed it. Checks everything first; nothing of the user's is deleted.
     public func restore() throws {
-        guard let original = readOriginal() else { return }
+        guard let original = readOriginal(), recordIsLive() else {
+            throw StatusLineError(message: "There is nothing of ClaudeBar's to undo: the status line was changed since")
+        }
         var settings = try readSettings()
+        var restored: [String: Any]?
+        if let text = original.statusLine {
+            guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] else {
+                throw StatusLineError(message: "ClaudeBar's saved copy of your status line is unreadable, so nothing was changed")
+            }
+            restored = object
+        }
         if let backup = original.scriptBackup, !FileManager.default.fileExists(atPath: file(backup).path) {
             throw StatusLineError(message: "The backup of your status line script (\(backup)) is missing, so nothing was changed")
         }
@@ -190,8 +223,8 @@ public struct StatusLineSetup: Sendable {
                 try FileManager.default.moveItem(at: temp, to: scriptFile)
             }
         }
-        if let text = original.statusLine, let object = try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] {
-            settings["statusLine"] = object
+        if let restored {
+            settings["statusLine"] = restored
         } else {
             settings.removeValue(forKey: "statusLine")
         }

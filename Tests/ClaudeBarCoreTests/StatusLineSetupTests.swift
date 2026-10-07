@@ -142,11 +142,11 @@ import Testing
         #expect(!(read(dir, "settings.json") ?? "").contains(StatusLineSetup.wrapperName))
     }
 
-    @Test func restoreTwiceIsANoOp() throws {
+    @Test func restoreTwiceThrowsAndChangesNothing() throws {
         let (s, dir) = try setup(theirsCmd)
         try s.useClaudeBar(); try s.restore()
         let after = read(dir, "settings.json"), names = files(dir)
-        try s.restore()
+        #expect(throws: (any Error).self) { try s.restore() }
         #expect(read(dir, "settings.json") == after && files(dir) == names)
     }
 
@@ -226,5 +226,48 @@ import Testing
         let input = Pipe(), output = Pipe(); p.standardInput = input; p.standardOutput = output
         try p.run(); try input.fileHandleForWriting.close(); p.waitUntilExit()
         #expect(String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) == "line1\ntick\n")
+    }
+
+    func handSet(_ dir: URL, _ command: String) throws {
+        var d = try settings(dir); d["statusLine"] = ["type": "command", "command": command]
+        try JSONSerialization.data(withJSONObject: d).write(to: dir.appendingPathComponent("settings.json"))
+    }
+
+    @Test func aHandChangedStatusLineMakesTheRecordStaleAfterClaudeBar() throws {
+        let (s, dir) = try setup(theirsCmd)
+        try s.useClaudeBar()
+        try handSet(dir, "my-new-line")
+        #expect(!s.canRestore)
+        let before = read(dir, "settings.json"), names = files(dir)
+        #expect(throws: (any Error).self) { try s.restore() }
+        #expect(read(dir, "settings.json") == before && files(dir) == names)
+        try s.useClaudeBar()
+        #expect(files(dir).contains { $0.hasPrefix("claude-bar-statusline-original.json-stale-") })
+        try s.restore()
+        #expect(s.state() == .own(command: "my-new-line"))
+    }
+
+    @Test func aHandChangedStatusLineMakesTheRecordStaleAfterWrap() throws {
+        let (s, dir) = try setup(theirsCmd)
+        try s.wrap()
+        try handSet(dir, "my-new-line")
+        #expect(!s.canRestore)
+        #expect(throws: (any Error).self) { try s.restore() }
+        try s.wrap()
+        try s.restore()
+        #expect(s.state() == .own(command: "my-new-line"))
+    }
+
+    @Test func wrapThatCannotProceedLeavesClaudeBarInstalled() throws {
+        let (s, dir) = try setup(#"{"model":"opus"}"#)
+        try s.useClaudeBar()          // nothing of theirs recorded (no statusLine, no script), so no record
+        #expect(throws: (any Error).self) { try s.wrap() }
+        #expect(s.state() == .claudeBar)
+        // A record whose original was "no statusLine": wrap must refuse without undoing the install.
+        let (s2, dir2) = try setup(#"{"statusLine":{"type":"static","text":"hi"}}"#)
+        try s2.useClaudeBar()
+        #expect(throws: (any Error).self) { try s2.wrap() }
+        #expect(s2.state() == .claudeBar && s2.canRestore)
+        _ = dir; _ = dir2
     }
 }
