@@ -53,8 +53,8 @@ import Testing
 
     @Test func desksKeepStoredOrderAndOrientation() throws {
         let f = try #require(try building().floor(id: 12))
-        #expect(f.desks == [FloorDesk(id: "f12-desk-1", design: "s1-walnut", flip: true, rear: false),
-                            FloorDesk(id: "f12-desk-2", design: "s3-mint", flip: false, rear: true)])
+        #expect(f.desks == [FloorDesk(id: "f12-desk-1", design: "s1-walnut", flip: true, rear: false, u: 0.9, v: 0.1),
+                            FloorDesk(id: "f12-desk-2", design: "s3-mint", flip: false, rear: true, u: 0.1, v: 0.3)])
     }
 
     @Test func loungeAndDeskPoolAreFound() throws {

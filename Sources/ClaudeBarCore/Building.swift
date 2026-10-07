@@ -32,12 +32,17 @@ public struct FloorDesk: Equatable, Sendable {
     public var design: String
     public var flip: Bool
     public var rear: Bool
+    /// Where it stands on the floor's own axes (0 when building.json gives none).
+    public var u: Double
+    public var v: Double
 
-    public init(id: String, design: String, flip: Bool, rear: Bool) {
+    public init(id: String, design: String, flip: Bool, rear: Bool, u: Double = 0, v: Double = 0) {
         self.id = id
         self.design = design
         self.flip = flip
         self.rear = rear
+        self.u = u
+        self.v = v
     }
 }
 
@@ -51,6 +56,24 @@ public struct Floor: Equatable, Sendable, Identifiable {
     public var desks: [FloorDesk]
     public var elevator: WallItemArt?
     public var hasLoungeSign: Bool
+    /// The floor diamond's corners and its room, when building.json gives them.
+    public var corners: FloorCorners?
+    public var room: FloorRoom?
+
+    public init(id: Int, name: String, repoRoot: String?, floorTexture: RoomTexture?, wallTexture: RoomTexture?,
+                desks: [FloorDesk], elevator: WallItemArt?, hasLoungeSign: Bool,
+                corners: FloorCorners? = nil, room: FloorRoom? = nil) {
+        self.id = id
+        self.name = name
+        self.repoRoot = repoRoot
+        self.floorTexture = floorTexture
+        self.wallTexture = wallTexture
+        self.desks = desks
+        self.elevator = elevator
+        self.hasLoungeSign = hasLoungeSign
+        self.corners = corners
+        self.room = room
+    }
 
     /// Floor 1 is the Lounge in Cat Office (src/world/floors.ts LOUNGE_FLOOR).
     public var isLounge: Bool { id == 1 }
@@ -98,7 +121,8 @@ public struct Building: Equatable, Sendable {
             let items = (room["wallItems"] as? [[String: Any]] ?? []).compactMap { $0["item"] as? String }
             let desks = (room["desks"] as? [[String: Any]] ?? []).compactMap { d -> FloorDesk? in
                 guard let did = d["id"] as? String, let design = d["desk"] as? String else { return nil }
-                return FloorDesk(id: did, design: design, flip: d["flip"] as? Bool ?? false, rear: d["rear"] as? Bool ?? false)
+                return FloorDesk(id: did, design: design, flip: d["flip"] as? Bool ?? false, rear: d["rear"] as? Bool ?? false,
+                                 u: (d["u"] as? NSNumber)?.doubleValue ?? 0, v: (d["v"] as? NSNumber)?.doubleValue ?? 0)
             }
             return Floor(
                 id: id, name: f["name"] as? String ?? "Floor \(id)",
@@ -107,7 +131,9 @@ public struct Building: Equatable, Sendable {
                 wallTexture: texture(room["wall"] as? String, in: "walls"),
                 desks: desks,
                 elevator: items.first { $0.hasPrefix("elevator") }.flatMap(wallItem),
-                hasLoungeSign: items.contains { $0.hasPrefix("sign-lounge") })
+                hasLoungeSign: items.contains { $0.hasPrefix("sign-lounge") },
+                corners: f["corners"].flatMap { decode($0) },
+                room: f["room"].flatMap { decode($0) })
         }
         guard !floors.isEmpty else { return nil }
         return Building(floors: floors.sorted { $0.id < $1.id })
