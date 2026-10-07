@@ -50,7 +50,7 @@ public struct CatOfficeLauncher: Sendable {
     }
 
     /// True when anything answers HTTP at `url` within 2 seconds.
-    static func answers(_ url: URL) async -> Bool {
+    public static func answers(_ url: URL) async -> Bool {
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 2)
         request.httpMethod = "GET"
         return (try? await URLSession.shared.data(for: request)) != nil

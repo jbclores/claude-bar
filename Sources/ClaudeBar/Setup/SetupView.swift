@@ -14,7 +14,6 @@ struct SetupView: View {
     @EnvironmentObject var state: AppState
     static let size = CGSize(width: 460, height: 420)
     static let restartWarning = "This stops Cat Office's dev server and ends any Claude sessions running inside Cat Office."
-    static let runningPatchWarning = "Cat Office is running: patching restarts it, which ends any Claude sessions running inside Cat Office."
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -260,8 +259,8 @@ struct SetupView: View {
             if model.chosen != nil {
                 VStack(alignment: .leading, spacing: 4) {
                     choice($model.patch, "Patch Cat Office", "Matching cats, helpers, and usage without a terminal.", result: "patch")
-                    if model.patch, model.running {
-                        Text(Self.runningPatchWarning).font(.caption).foregroundStyle(Theme.waiting)
+                    if let warning = model.patchWarning {
+                        Text(warning).font(.caption).foregroundStyle(Theme.waiting)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.leading, 20)
                     }
@@ -280,6 +279,7 @@ struct SetupView: View {
             }
         }
         .disabled(model.working)
+        .task(id: model.chosen) { await model.probe() }
     }
 
     private func choice(_ isOn: Binding<Bool>, _ title: String, _ line: String, result key: String) -> some View {

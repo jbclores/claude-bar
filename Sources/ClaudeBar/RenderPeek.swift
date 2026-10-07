@@ -20,7 +20,7 @@ enum RenderPeek {
             renderWindow(DropdownView(forcedTab: tab).environmentObject(state).environmentObject(PeekPointer()), width: 500, to: out)
             return true
         }
-        // `--render-setup <welcome|find|find-searching|connect|done|done-restart> <out.png>`: the setup window over
+        // `--render-setup <welcome|find|find-searching|connect|connect-running-unpatched|done|done-restart> <out.png>`: the setup window over
         // temp folders only (a fake home with one Cat Office, a claude folder with its own status line).
         if let i = CommandLine.arguments.firstIndex(of: "--render-setup"), i + 2 < CommandLine.arguments.count {
             let args = CommandLine.arguments
@@ -149,8 +149,11 @@ private func setupModel(step: String, state: AppState) -> SetupModel? {
     try? fm.createDirectory(at: claude, withIntermediateDirectories: true)
     try? Data(#"{"name":"cat-office"}"#.utf8).write(to: office.appendingPathComponent("package.json"))
     try? Data(#"{"statusLine":{"type":"command","command":"npx ccstatusline"}}"#.utf8).write(to: claude.appendingPathComponent("settings.json"))
-    let env = SetupEnvironment(home: home, claudeDir: claude, resources: root.appendingPathComponent("resources"),
+    var env = SetupEnvironment(home: home, claudeDir: claude, resources: root.appendingPathComponent("resources"),
                                bridgeFile: root.appendingPathComponent("bridge.json"))
+    // Never the real Cat Office's address: nothing answers, except in the one mode that shows an unpatched, running copy.
+    let answering = step == "connect-running-unpatched"
+    env.answers = { _ in answering }
     let model = SetupModel(state: state, env: env)
     // The finder over the temp home only (not the real saved folder).
     model.candidates = CatOfficeFinder.candidates(running: nil, saved: nil, roots: CatOfficeFinder.defaultRoots(home: home.path))
@@ -160,6 +163,7 @@ private func setupModel(step: String, state: AppState) -> SetupModel? {
     case "find": model.step = .find
     case "find-searching": model.step = .find; model.searching = true
     case "connect": model.step = .connect
+    case "connect-running-unpatched": model.step = .connect; model.somethingAnswers = true
     case "done", "done-restart":
         model.step = .done
         model.results["usage"] = StepResult(ok: true, text: "Your status line is kept; ClaudeBar reads its data quietly.")
@@ -438,8 +442,9 @@ enum TestSetup {
         try? fm.createDirectory(at: office.appendingPathComponent("server/agent-bridge"), withIntermediateDirectories: true)
         try? fm.createDirectory(at: claude, withIntermediateDirectories: true)
         try? Data(#"{"name":"cat-office"}"#.utf8).write(to: office.appendingPathComponent("package.json"))
-        let env = SetupEnvironment(home: home, claudeDir: claude, resources: SetupEnvironment.real.resources,
+        var env = SetupEnvironment(home: home, claudeDir: claude, resources: SetupEnvironment.real.resources,
                                    bridgeFile: root.appendingPathComponent("bridge.json"))
+    env.answers = { _ in false }   // never probe the real Cat Office
         let configFile = root.appendingPathComponent("projects.json")
         let state = AppState(config: ConfigStore(file: configFile))
         state.sideEffects = false

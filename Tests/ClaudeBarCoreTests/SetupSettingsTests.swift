@@ -95,3 +95,32 @@ import Testing
                 == "Full · Cat Office at /Users/xy/co")
     }
 }
+
+@Suite struct PatchWarningTests {
+    private func w(patch: Bool = true, here: Bool = false, answers: Bool = false, other: Bool = false, patched: Bool? = false) -> String? {
+        SetupSettings.patchWarning(patch: patch, runningHere: here, somethingAnswers: answers, bridgeNamesAnotherFolder: other, alreadyPatched: patched)
+    }
+
+    @Test func noWarningWhenNotPatching() {
+        #expect(w(patch: false, here: true, answers: true) == nil)
+    }
+
+    @Test func noWarningWhenAlreadyPatched() {
+        #expect(w(here: true, answers: true, patched: true) == nil)
+    }
+
+    @Test func runningHereWarns() {
+        #expect(w(here: true, answers: true)?.hasPrefix("Cat Office is running: patching restarts it") == true)
+        #expect(w(here: true, patched: nil)?.hasPrefix("Cat Office is running:") == true)
+    }
+
+    @Test func unknownCopyAnsweringWarnsConditionally() {
+        #expect(w(answers: true)?.hasPrefix("If Cat Office is running from this folder, patching restarts it") == true)
+        #expect(w(answers: true, patched: nil) != nil)
+    }
+
+    @Test func anotherFolderRunningOrNothingAnsweringIsQuiet() {
+        #expect(w(answers: true, other: true) == nil)
+        #expect(w() == nil)
+    }
+}

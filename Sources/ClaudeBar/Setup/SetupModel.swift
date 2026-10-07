@@ -22,6 +22,10 @@ final class SetupModel: ObservableObject {
     @Published var results: [String: StepResult] = [:]
     /// Cat Office is running and the patch changed it: the Done step offers Restart.
     @Published var needsRestart = false
+    /// Something answers at Cat Office's address (probed once the folder is chosen; an unpatched copy writes no bridge).
+    @Published var somethingAnswers = false
+    /// The chosen folder is patched (nil: unknown), from a dry run.
+    @Published var alreadyPatched: Bool?
     @Published private(set) var statusLine: StatusLineState = .none
 
     let state: AppState
@@ -42,6 +46,32 @@ final class SetupModel: ObservableObject {
             || SetupActions.runningDir(env: env).map(Paths.normalize) == Paths.normalize(chosen)
     }
 
+    /// A live bridge names a folder other than the chosen one.
+    var bridgeNamesAnotherFolder: Bool {
+        guard let chosen, let dir = SetupActions.runningDir(env: env) else { return false }
+        return Paths.normalize(dir) != Paths.normalize(chosen)
+    }
+
+    /// The Connect step's warning under the Patch line.
+    var patchWarning: String? {
+        SetupSettings.patchWarning(patch: patch, runningHere: running, somethingAnswers: somethingAnswers,
+                                   bridgeNamesAnotherFolder: bridgeNamesAnotherFolder, alreadyPatched: alreadyPatched)
+    }
+
+    /// Probes (off the main thread) whether something answers at Cat Office's address and whether the chosen folder is
+    /// already patched, for the warning.
+    func probe() async {
+        guard let dir = chosen else { somethingAnswers = false; alreadyPatched = nil; return }
+        let url = state.settings.catOffice.url
+        let answers = env.answers
+        async let up = answers(url)
+        async let done = SetupActions.isPatched(dir, env: env)
+        let (a, p) = await (up, done)
+        guard chosen == dir else { return }   // the choice changed meanwhile
+        somethingAnswers = a
+        alreadyPatched = p
+    }
+
     /// Looks for Cat Office off the main thread (the usual places can be slow, and macOS may ask for folder access).
     func find() async {
         step = .find
@@ -52,6 +82,7 @@ final class SetupModel: ObservableObject {
         let roots = CatOfficeFinder.defaultRoots(home: env.home.path)
         candidates = await Task.detached { CatOfficeFinder.candidates(running: running, saved: saved, roots: roots) }.value
         chosen = candidates.first?.path
+        await probe()
     }
 
     func choose(_ path: String) -> Bool {

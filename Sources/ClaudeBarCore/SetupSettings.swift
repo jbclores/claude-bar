@@ -39,6 +39,22 @@ public struct SetupSettings: Equatable, Sendable {
         return inferred(catOfficeDir: dir, bridgeDir: bridgeDir, patched: isPatched, statusLine: statusLine)
     }
 
+    /// The Connect step's warning under "Patch Cat Office": patching makes Vite reload, which ends Claude sessions running
+    /// inside Cat Office. Known when the chosen copy is running (`runningHere`); a possibility when something answers at
+    /// Cat Office's address and no live bridge names another folder (an unpatched copy writes no bridge). Nil when not
+    /// patching or already patched (nothing changes, no reload).
+    public static func patchWarning(patch: Bool, runningHere: Bool, somethingAnswers: Bool, bridgeNamesAnotherFolder: Bool,
+                                    alreadyPatched: Bool?) -> String? {
+        guard patch, alreadyPatched != true else { return nil }
+        if runningHere {
+            return "Cat Office is running: patching restarts it, which ends any Claude sessions running inside Cat Office."
+        }
+        if somethingAnswers, !bridgeNamesAnotherFolder {
+            return "If Cat Office is running from this folder, patching restarts it, which ends any Claude sessions running inside Cat Office."
+        }
+        return nil
+    }
+
     /// After "Restore my old status line": usage is off, so a full setup is now reduced.
     public func afterStatusLineRestore() -> SetupSettings {
         state == .full ? SetupSettings(seen: seen, state: .reduced) : self

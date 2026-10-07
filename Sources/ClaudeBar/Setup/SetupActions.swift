@@ -10,6 +10,9 @@ struct SetupEnvironment: Sendable {
     /// Apple's command line tools are installed (ClaudeBar's status line runs python3 and git).
     var toolsInstalled: @Sendable () -> Bool = { StatusLineSetup.commandLineToolsInstalled() }
 
+    /// Something answers HTTP at Cat Office's address (injected so tests and renders never reach a real Cat Office).
+    var answers: @Sendable (URL) async -> Bool = { await CatOfficeLauncher.answers($0) }
+
     static var real: SetupEnvironment {
         let home = Paths.home
         return SetupEnvironment(home: home, claudeDir: home.appendingPathComponent(".claude"),
