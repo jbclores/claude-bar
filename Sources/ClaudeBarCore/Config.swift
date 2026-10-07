@@ -54,6 +54,7 @@ public struct Config: Equatable, Sendable {
     public var hoverPeek: Bool
     public var officeLighting: OfficeLighting = .auto
     public var sounds = SoundSettings()
+    public var setup = SetupSettings()
 
     public static let empty = Config(projects: [], catOffice: CatOfficeSettings(), notifications: true)
 
@@ -96,6 +97,10 @@ public struct Config: Equatable, Sendable {
             if let v = s["elevator"] as? Bool { config.sounds.elevator = v }
             if let v = s["music"] as? Bool { config.sounds.music = v }
             if let v = (s["volume"] as? NSNumber)?.doubleValue { config.sounds.volume = min(1, max(0, v)) }
+        }
+        if let s = root["setup"] as? [String: Any] {
+            if let v = s["seen"] as? Bool { config.setup.seen = v }
+            if let v = (s["state"] as? String).flatMap(SetupState.init(rawValue:)) { config.setup.state = v }
         }
         return config
     }
