@@ -67,6 +67,25 @@ import Testing
         return x
     }
 
+    @Test func helperTakesTheNearestDeskOnTheFloor() {
+        // Three desks in a line on the floor; the parent at the far end, so the next desk in list order is NOT the nearest.
+        let corners = FloorCorners(top: WorldPoint(x: 1000, y: 0), left: WorldPoint(x: 0, y: 500), bottom: WorldPoint(x: 1000, y: 1000), right: WorldPoint(x: 2000, y: 500))
+        let desks = [FloorDesk(id: "a", design: "s1-oak", flip: false, rear: false, u: 0.1, v: 0.1),
+                     FloorDesk(id: "b", design: "s1-oak", flip: false, rear: false, u: 0.9, v: 0.9),
+                     FloorDesk(id: "c", design: "s1-oak", flip: false, rear: false, u: 0.85, v: 0.8)]
+        var f = Floor(id: 12, name: "x", repoRoot: "/w", floorTexture: nil, wallTexture: nil, desks: desks, elevator: nil, hasLoungeSign: false)
+        f.corners = corners
+        let previous = FloorPlan.seating(on: f, agents: [a("p")], previous: nil)
+        var placed = previous; placed.desks = [nil, "p", nil]
+        let s = FloorPlan.seating(on: f, agents: [a("p"), a("h", parent: "p")], previous: placed)
+        #expect(s.desks == [nil, "p", "h"])
+    }
+
+    @Test func loungeUsesTheRoomsSeatCount() {
+        let s = FloorPlan.seating(on: lounge, agents: (0..<9).map { a("c\($0)", .idle) }, previous: nil, seats: 6)
+        #expect(s.lounge.count == 6 && s.loungeOverflow == 3)
+    }
+
     @Test func aNewMainAgentTakesAHelpersDesk() {
         // The parent and its 3 helpers fill all 4 desks; then a second main agent starts on this project.
         let before = FloorPlan.seating(on: floor, agents: [a("p"), a("h1", parent: "p"), a("h2", parent: "p"), a("h3", parent: "p")], previous: nil)

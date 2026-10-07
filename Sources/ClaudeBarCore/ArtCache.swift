@@ -183,6 +183,24 @@ public final class ArtCache: @unchecked Sendable {
         return Building.parse(building: floors, parts: parts)
     }
 
+    /// Cat Office's room catalogue (room parts, props, desks, wall-item art), refreshed when Cat Office answers,
+    /// else the cached copies. Only a catalogue that parses replaces the cached files.
+    public func roomCatalogue() async -> RoomCatalogue? {
+        let paths = ["data/room-parts.json", "data/props.json", "data/desks.json", "src/world/wall-item-art.json"]
+        let files = paths.map { dir.appendingPathComponent($0.replacingOccurrences(of: "/", with: "_")) }
+        if let parts = await fetch(paths[0]), let props = await fetch(paths[1]), let desks = await fetch(paths[2]) {
+            let art = await fetch(paths[3])
+            if let catalogue = RoomCatalogue.parse(roomParts: parts, props: props, desks: desks, wallItemArt: art) {
+                for (data, file) in zip([parts, props, desks], files) { save(data, to: file) }
+                if let art { save(art, to: files[3]) }
+                return catalogue
+            }
+        }
+        guard let parts = try? Data(contentsOf: files[0]), let props = try? Data(contentsOf: files[1]),
+              let desks = try? Data(contentsOf: files[2]) else { return nil }
+        return RoomCatalogue.parse(roomParts: parts, props: props, desks: desks, wallItemArt: try? Data(contentsOf: files[3]))
+    }
+
     public func catImage(cat: String, pose: CatPose, direction: String? = nil) async -> Data? {
         guard let catalog = await catalog() else { return nil }
         return await image(path: catalog.path(cat: cat, pose: pose, direction: direction))

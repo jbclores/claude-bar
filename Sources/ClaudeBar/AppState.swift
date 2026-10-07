@@ -24,7 +24,23 @@ final class AppState: ObservableObject {
     @Published private(set) var officeLaunch = OfficeLaunch.none
     @Published private(set) var catIds: [String] = []
     /// Cat Office's floors (the fallback Lounge until it has loaded).
-    @Published private(set) var building = Building.fallback
+    @Published private(set) var building = Building.fallback { didSet { rebuildRooms() } }
+    /// Cat Office's room parts, props and desks (nil until loaded).
+    @Published private(set) var catalogue: RoomCatalogue? { didSet { rebuildRooms() } }
+    /// Each floor's built room, by floor id (floors without a room, corners or catalogue are absent).
+    @Published private(set) var rooms: [Int: BuiltRoom] = [:]
+
+    private func rebuildRooms() {
+        guard let c = catalogue else { rooms = [:]; return }
+        rooms = Dictionary(building.floors.compactMap { f in RoomGeometry.build(floor: f, catalogue: c).map { (f.id, $0) } },
+                           uniquingKeysWith: { first, _ in first })
+    }
+
+    private func loadCatalogue() {
+        Task { @MainActor in
+            if let c = await art.roomCatalogue(), c != catalogue { catalogue = c }
+        }
+    }
 
     /// Where Follow points now (FloorPlan.followTarget).
     var followFloor: Int {
@@ -78,7 +94,7 @@ final class AppState: ObservableObject {
         }
         // Cat Office adds a floor when a new project shows up.
         buildingTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.loadBuilding() }
+            Task { @MainActor in self?.loadBuilding(); self?.loadCatalogue() }
         }
         // Give the feed a moment to connect; start Cat Office only if it's still unreachable.
         Task { @MainActor in
@@ -235,6 +251,7 @@ final class AppState: ObservableObject {
                 recompute()
             }
             loadBuilding()
+            loadCatalogue()
         }
     }
 

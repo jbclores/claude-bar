@@ -72,6 +72,17 @@ import Testing
         #expect(await offline.building()?.floors.map(\.id) == [1, 6, 12])
     }
 
+    @Test func aBrokenCatalogueKeepsTheGoodCachedCopy() async throws {
+        let dir = makeTempDir()
+        for f in ["room-parts", "props", "desks"] {
+            try fixture("rooms/user/\(f).json").write(to: dir.appendingPathComponent("data_\(f).json"))
+        }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [BrokenBuildingProtocol.self]
+        let cache = ArtCache(dir: dir, baseURL: { URL(string: "http://stub.test")! }, session: URLSession(configuration: config))
+        #expect(await cache.roomCatalogue()?.desks["s1-walnut"] != nil)
+    }
+
     static func png(width: Int, height: Int) -> Data? {
         guard let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),

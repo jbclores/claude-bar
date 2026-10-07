@@ -47,7 +47,7 @@ public struct FloorSeating: Equatable, Sendable {
 extension FloorPlan {
     public static func deskPosition(_ index: Int) -> (row: Int, column: Int) { (index / 6, index % 6) }
 
-    public static func seating(on floor: Floor, agents: [OfficeAgent], previous: FloorSeating?) -> FloorSeating {
+    public static func seating(on floor: Floor, agents: [OfficeAgent], previous: FloorSeating?, seats loungeSeats: Int? = nil) -> FloorSeating {
         var s = FloorSeating()
         let byName = { (x: OfficeAgent, y: OfficeAgent) in x.name.localizedCaseInsensitiveCompare(y.name) == .orderedAscending }
         let mains = agents.filter { !$0.isSubagent }.sorted(by: byName)
@@ -60,8 +60,9 @@ extension FloorPlan {
         func parentId(of helper: OfficeAgent) -> String? { mains.first { $0.name == helper.parentName }?.id }
 
         if floor.isLounge {
-            s.lounge = StableSlots.assign(mains.map(\.id), previous: previous?.lounge ?? [], count: FloorSeating.loungeSpots)
-            s.loungeOverflow = max(0, mains.count - FloorSeating.loungeSpots)
+            let spots = loungeSeats ?? FloorSeating.loungeSpots
+            s.lounge = StableSlots.assign(mains.map(\.id), previous: previous?.lounge ?? [], count: spots)
+            s.loungeOverflow = max(0, mains.count - spots)
             for h in helpers {
                 if let p = parentId(of: h), s.lounge.contains(p) { beside(h, p) }
                 else if s.queue.count < FloorSeating.queueShown { s.queue.append(h.id) } else { s.queueOverflow += 1 }
@@ -85,6 +86,7 @@ extension FloorPlan {
             }
         }
         let helperIds = Set(helpers.map(\.id))
+        let frame = floor.corners.flatMap { FloorFrame(corners: $0) }
         for m in unseated {
             if let i = seats.indices.first(where: free) { seats[i] = m.id }
             // A main agent outranks a helper kept at a desk from last time: the helper goes to stand beside its parent.
@@ -97,6 +99,14 @@ extension FloorPlan {
             let parentDesk = p.flatMap { pid in seats.firstIndex(of: pid) }
             let nearest = seats.indices.filter(free).min { x, y in
                 guard let pd = parentDesk else { return x < y }
+                if let frame {
+                    let p = frame.px(FloorPoint(u: floor.desks[pd].u, v: floor.desks[pd].v))
+                    func dist(_ i: Int) -> Double {
+                        let q = frame.px(FloorPoint(u: floor.desks[i].u, v: floor.desks[i].v))
+                        return hypot(q.x - p.x, q.y - p.y)
+                    }
+                    return dist(x) < dist(y)
+                }
                 let (pr, pc) = deskPosition(pd), (xr, xc) = deskPosition(x), (yr, yc) = deskPosition(y)
                 return abs(xr - pr) + abs(xc - pc) < abs(yr - pr) + abs(yc - pc)
             }
