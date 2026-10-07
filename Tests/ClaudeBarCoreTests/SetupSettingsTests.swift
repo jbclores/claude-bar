@@ -57,3 +57,33 @@ import Testing
         #expect(!SetupSettings.opensByItself(SetupSettings(seen: true, state: nil), inferred: nil))
     }
 }
+
+@Suite struct SetupEntryPointTests {
+    @Test func officeCardOnlyWhenNotSetUpOrReduced() {
+        // Not set up: .noCatOffice, or no state and no Cat Office known.
+        #expect(SetupSettings(seen: true, state: .noCatOffice).card(catOfficeKnown: true) == .notSetUp)
+        #expect(SetupSettings().card(catOfficeKnown: false) == .notSetUp)
+        // No state but a Cat Office is known (configured or running): no card.
+        #expect(SetupSettings(seen: true, state: nil).card(catOfficeKnown: true) == nil)
+        #expect(SetupSettings(seen: true, state: .reduced).card(catOfficeKnown: true) == .reduced)
+        #expect(SetupSettings(seen: true, state: .full).card(catOfficeKnown: true) == nil)
+        #expect(SetupSettings(seen: true, state: .full).card(catOfficeKnown: false) == nil)
+    }
+
+    @Test func settingsLineShortensTheFolder() {
+        let home = "/Users/x"
+        #expect(SetupSettings(seen: true, state: .full).line(catOfficeDir: "/Users/x/Documents/co", home: home)
+                == "Full · Cat Office at ~/Documents/co")
+        #expect(SetupSettings(seen: true, state: .reduced).line(catOfficeDir: "/Users/x/co", home: home)
+                == "Some extras are off · Cat Office at ~/co")
+        #expect(SetupSettings(seen: true, state: .full).line(catOfficeDir: "/opt/co", home: home)
+                == "Full · Cat Office at /opt/co")
+        #expect(SetupSettings(seen: true, state: .noCatOffice).line(catOfficeDir: nil, home: home) == "Cat Office isn't set up")
+        #expect(SetupSettings().line(catOfficeDir: nil, home: home) == "Cat Office isn't set up")
+        // A known folder without a recorded state (inferred, patch unknown): just where it is.
+        #expect(SetupSettings(seen: true, state: nil).line(catOfficeDir: "/Users/x/co", home: home) == "Cat Office at ~/co")
+        // "/Users/xy" is not inside "/Users/x".
+        #expect(SetupSettings(seen: true, state: .full).line(catOfficeDir: "/Users/xy/co", home: home)
+                == "Full · Cat Office at /Users/xy/co")
+    }
+}

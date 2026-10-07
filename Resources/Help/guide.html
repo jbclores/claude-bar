@@ -126,19 +126,27 @@ status. Add folders from the tab, or edit the list with <b>Settings → Edit Con
 <p class="tip">Sounds never pile up: at most one every 3 seconds, and the same cat won't repeat an alert within a minute.</p>
 
 <h2 id="problems">If something's wrong</h2>
+<h3>Setting up ClaudeBar (or setting it up again)</h3>
+<p>The first time ClaudeBar runs, a <b>Set up ClaudeBar</b> window finds your Cat Office, then offers to patch it, show
+your usage in the menu bar, and start it. Nothing changes until you click <b>Continue</b> on the Connect step.
+<b>Skip for now</b> (or closing the window) skips it, and it won't open by itself again. To run it again any time, use
+<b>Settings → Set up ClaudeBar…</b>, or the card at the top of the Office tab ("Cat Office isn't set up yet" or
+"Some extras are off"). If ClaudeBar replaced your status line, <b>Settings → Restore my old status line</b> puts
+yours back.</p>
 <h3>"Cat Office isn't running"</h3>
 <p>Click <b>Start</b> in the office. If it doesn't start, open your Cat Office folder in Terminal and run
 <code>npm run dev</code>; ClaudeBar finds it on its own. <b>Settings → Open Log</b> shows what happened when ClaudeBar
 tried to start it.</p>
 <h3>No usage numbers in the menu bar</h3>
-<p>The numbers come from Claude Code's status line. Install ClaudeBar's status line hook (from the ClaudeBar folder:
-<code>scripts/install-statusline.sh</code>), then send any message in Claude Code.</p>
+<p>The numbers come from Claude Code's status line. Turn on <b>Usage in the menu bar</b> in
+<b>Settings → Set up ClaudeBar…</b> (or, from the ClaudeBar folder, run <code>scripts/install-statusline.sh</code>),
+then send any message in Claude Code.</p>
 <h3>A cat on the wrong floor, or a floor missing</h3>
 <p>Floors and layouts come from your Cat Office. New floors appear within a minute; reopen the dropdown to refresh.
 If you edited a room in Cat Office, save it there first.</p>
 <h3>The cats don't match the browser, or helpers don't show</h3>
-<p>Those need ClaudeBar's small patch to Cat Office. Ask whoever set up your ClaudeBar to apply it
-(<code>scripts/patch-cat-office.sh</code>).</p>
+<p>Those need ClaudeBar's small patch to Cat Office. Tick <b>Patch Cat Office</b> in
+<b>Settings → Set up ClaudeBar…</b>, then restart Cat Office when it asks.</p>
 <h3>No sound</h3>
 <p>Check <b>Settings → Sounds</b> and the volume slider, and your Mac's volume. The finished purr is muted while Focus
 or Do Not Disturb is on.</p>

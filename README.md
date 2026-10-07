@@ -18,6 +18,22 @@ and copy the new build over the old one.
 
 Config: `~/.config/claude-bar/projects.json` (Add Folder… / Edit Config in the dropdown).
 
+## Setting up ClaudeBar
+
+On first launch ClaudeBar opens a small **Set up ClaudeBar** window (Welcome → Find Cat Office → Connect → Done). It
+finds your Cat Office (or lets you choose its folder, or say you don't use it), then on Connect offers to patch Cat
+Office, turn on usage in the menu bar (Claude Code's status line; your own is kept, ClaudeBar reads its data
+quietly), and start Cat Office. Nothing on your Mac changes until you click Continue on Connect.
+
+- **Skipping:** "Skip for now" (or closing the window) skips setup; it won't open by itself again. A Mac that's already
+  set up (Cat Office known and the status line in place) never sees the window.
+- **Reopening:** Settings → **Set up ClaudeBar…**, or the card in the Office tab ("Cat Office isn't set up yet · Set
+  up…", or "Some extras are off · Fix…" when the patch or usage is off).
+- **Undo the status line:** Settings → **Restore my old status line** (shown while ClaudeBar's status line is on).
+- **Click test** (temp folders only, offscreen): `build/ClaudeBar.app/Contents/MacOS/ClaudeBar --test-setup`.
+
+The scripts below still work for doing it by hand.
+
 ## Cat Office patch (same cats as the browser, found wherever it lives)
 
 To move Cat Office and patch it in one go (stops it, moves it, patches it, updates the config, starts it):

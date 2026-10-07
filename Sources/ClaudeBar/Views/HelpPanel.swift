@@ -36,8 +36,9 @@ struct HelpPanel: View {
                         ("Settings", "Launch at login, notifications, starting Cat Office, the hover peek, and the sounds."),
                     ])
                     section("If something's wrong", [
+                        ("First time?", "Settings → Set up ClaudeBar…"),
                         ("\"Cat Office isn't running\"", "Click Start in the office, or open your Cat Office folder and run npm run dev."),
-                        ("No usage numbers", "Claude Code's status line hook isn't installed: see the full guide."),
+                        ("No usage numbers", "Turn on usage in Settings → Set up ClaudeBar…, then send a message in Claude Code."),
                         ("A cat on the wrong floor", "Floors come from Cat Office: wait a minute, or reopen the dropdown."),
                         ("No sound", "Check Settings → Sounds and the volume; Focus mutes the finished purr."),
                     ])

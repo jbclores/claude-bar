@@ -207,6 +207,10 @@ struct OfficeTabView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Known Cat Office: configured, or its feed is live.
+            if let card = state.settings.setup.card(catOfficeKnown: state.settings.catOffice.dir != nil || state.office != nil) {
+                SetupCard(reduced: card == .reduced) { SetupWindow.shared.open(state: state) }
+            }
             FloorPicker()
             OfficeRoomView()
             if let rows = state.output.office {
@@ -221,6 +225,22 @@ struct OfficeTabView: View {
             case .ended: pointer.location = nil
             }
         }
+    }
+}
+
+/// "Cat Office isn't set up yet · Set up…" (or, reduced: "Some extras are off · Fix…").
+struct SetupCard: View {
+    let reduced: Bool
+    let open: () -> Void
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: reduced ? "exclamationmark.circle" : "pawprint").foregroundStyle(reduced ? Theme.waiting : .secondary)
+            Text(reduced ? "Some extras are off" : "Cat Office isn't set up yet").font(.callout)
+            Spacer()
+            Button(reduced ? "Fix…" : "Set up…", action: open).buttonStyle(.link)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))
     }
 }
 
@@ -256,6 +276,8 @@ struct ProjectsTabView: View {
 
 struct SettingsTabView: View {
     @EnvironmentObject var state: AppState
+    /// What "Restore my old status line" did (its error, or that it worked).
+    @State private var restoreMessage: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -263,6 +285,30 @@ struct SettingsTabView: View {
             setting("Notify when a cat finishes", state.settings.notifications) { state.setNotifications($0) }
             setting("Start Cat Office with ClaudeBar", state.settings.catOffice.autoStart) { state.setAutoStart($0) }
             setting("Show the office on hover", state.settings.hoverPeek) { state.setHoverPeek($0) }
+            Divider()
+            HStack {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Setup").font(.callout)
+                    Text(state.settings.setup.line(catOfficeDir: state.settings.catOffice.dir, home: NSHomeDirectory()))
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                }
+                Spacer()
+                Button("Set up ClaudeBar…") { SetupWindow.shared.open(state: state) }.buttonStyle(.link).font(.caption)
+            }
+            if SetupActions.statusLine(env: .real).canRestore {
+                Button("Restore my old status line") {
+                    do {
+                        try SetupActions.statusLine(env: .real).restore()
+                        restoreMessage = "Your old status line is back."
+                    } catch {
+                        restoreMessage = (error as? StatusLineError)?.message ?? error.localizedDescription
+                    }
+                }
+                .buttonStyle(.link).font(.caption)
+            }
+            if let restoreMessage {
+                Text(restoreMessage).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
             Divider()
             Text("Sounds").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             setting("Meow when a cat needs you", state.settings.sounds.needsYou) { state.setSound("needsYou", $0) }

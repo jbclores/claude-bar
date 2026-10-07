@@ -55,7 +55,12 @@ final class AppState: ObservableObject {
     /// The cat for the menu bar icon (nil: show the plain cat symbol).
     @Published private(set) var menuCat: MenuBarCat?
 
-    let config = ConfigStore()
+    let config: ConfigStore
+
+    /// `config` defaults to the real projects.json; the setup click test passes a temp one.
+    init(config: ConfigStore = ConfigStore()) {
+        self.config = config
+    }
     private let snapshots = SnapshotReader()
     private let sessions = LiveSessionReader()
     private let git = GitBranchReader()

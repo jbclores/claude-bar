@@ -32,4 +32,29 @@ public struct SetupSettings: Equatable, Sendable {
     public static func opensByItself(_ s: SetupSettings, inferred: SetupSettings?) -> Bool {
         !s.seen && inferred == nil
     }
+
+    public enum Card: Equatable, Sendable { case notSetUp, reduced }
+
+    /// The Office tab's card: "isn't set up" for no Cat Office (chosen, or no state and none known), "Some extras are
+    /// off" for reduced; nothing for a full setup or an inferred one whose Cat Office is known.
+    public func card(catOfficeKnown: Bool) -> Card? {
+        switch state {
+        case .noCatOffice: .notSetUp
+        case .reduced: .reduced
+        case .full: nil
+        case nil: catOfficeKnown ? nil : .notSetUp
+        }
+    }
+
+    /// Settings' setup line: "Full · Cat Office at ~/…", "Some extras are off · Cat Office at ~/…", or
+    /// "Cat Office isn't set up".
+    public func line(catOfficeDir: String?, home: String) -> String {
+        guard state != .noCatOffice, let dir = catOfficeDir else { return "Cat Office isn't set up" }
+        let shown = dir.hasPrefix(home + "/") ? "~" + dir.dropFirst(home.count) : dir
+        switch state {
+        case .full: return "Full · Cat Office at \(shown)"
+        case .reduced: return "Some extras are off · Cat Office at \(shown)"
+        default: return "Cat Office at \(shown)"
+        }
+    }
 }

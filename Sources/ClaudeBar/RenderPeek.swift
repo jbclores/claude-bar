@@ -10,6 +10,7 @@ enum RenderPeek {
         if RenderLabel.runIfRequested(state: state) { return true }
         if TestTabs.runIfRequested(state: state) { return true }
         if TestZoom.runIfRequested(state: state) { return true }
+        if TestSetup.runIfRequested() { return true }
         // `--render-help <out.png>`: the ? help panel.
         if let out = flag("--render-help")?.0 {
             renderWindow(HelpPanel().environmentObject(state), width: 340, to: out)
@@ -417,5 +418,106 @@ enum TestZoom {
         if view is ZoomingContainer { return view.subviews.first }
         for sub in view.subviews { if let found = findHost(in: sub) { return found } }
         return nil
+    }
+}
+
+/// `ClaudeBar --test-setup`: the setup window over temp folders only (a temp home with a mini Cat Office, an empty
+/// claude folder, a temp bridge file, and an AppState over a temp projects.json), offscreen. Clicks only the recorded
+/// targets setup-setup, setup-continue (Find) and setup-continue (Connect, with Patch and Start unticked first), and
+/// prints the step and chosen folder after each, then the results, the temp statusLine and the setup state.
+@MainActor
+enum TestSetup {
+    static func runIfRequested() -> Bool {
+        guard CommandLine.arguments.contains("--test-setup") else { return false }
+        setvbuf(stdout, nil, _IOLBF, 0)
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("claudebar-setup-test-\(UUID().uuidString)").resolvingSymlinksInPath()
+        let home = root.appendingPathComponent("home")
+        let office = home.appendingPathComponent("Documents/projects/cat-office")
+        let claude = home.appendingPathComponent(".claude")
+        try? fm.createDirectory(at: office.appendingPathComponent("server/agent-bridge"), withIntermediateDirectories: true)
+        try? fm.createDirectory(at: claude, withIntermediateDirectories: true)
+        try? Data(#"{"name":"cat-office"}"#.utf8).write(to: office.appendingPathComponent("package.json"))
+        let env = SetupEnvironment(home: home, claudeDir: claude, resources: SetupEnvironment.real.resources,
+                                   bridgeFile: root.appendingPathComponent("bridge.json"))
+        let configFile = root.appendingPathComponent("projects.json")
+        let state = AppState(config: ConfigStore(file: configFile))
+        state.sideEffects = false
+        print("temp root:", root.path)
+        print("config:", state.config.file.path)
+
+        SetupWindow.shared.open(state: state, env: env, offscreen: true)
+        guard let model = SetupWindow.shared.model,
+              let window = NSApp.windows.first(where: { $0.title == "Set up ClaudeBar" }) else { print("setup window didn't open"); exit(1) }
+        // Never hang: the run is over in a few seconds.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 12) { print("timed out at step \(model.step)"); exit(1) }
+
+        func report(_ after: String) {
+            print("after \(after): step \(model.step) · chosen \(model.chosen ?? "none")")
+        }
+        /// Clicks the recorded target `id` (nothing else); false when it isn't on screen or something else is under it.
+        func click(_ id: String) -> Bool {
+            guard let frame = SetupTargets.frames[id], let content = window.contentView else { print("target \(id) not found"); return false }
+            // SwiftUI's .global here is the whole window (title bar included), from its top-left.
+            let target = NSRect(x: frame.minX, y: window.frame.height - frame.maxY, width: frame.width, height: frame.height)
+            let point = NSPoint(x: target.midX, y: target.midY)
+            guard let hit = content.hitTest(content.superview!.convert(point, from: nil)) else { print("nothing under \(id)"); return false }
+            let hitFrame = hit.convert(hit.bounds, to: nil)
+            // Never click something else: the control under the point must be the recorded one.
+            guard abs(hitFrame.midX - target.midX) < 4, abs(hitFrame.midY - target.midY) < 4 else {
+                print("refusing to click \(id): \(type(of: hit)) at \(hitFrame) isn't the target at \(target)"); return false
+            }
+            print("click \(id) at window \(point) (hits \(type(of: hit)))")
+            // Queue the mouse-up first: a native button tracks a press by reading it from the event queue.
+            NSApp.postEvent(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                               windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0)!, atStart: false)
+            window.sendEvent(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
+            return true
+        }
+        /// Waits (polling, up to 8s) for `done`, then runs `then`.
+        func when(_ done: @escaping @MainActor () -> Bool, _ then: @escaping @MainActor () -> Void) {
+            let deadline = Date().addingTimeInterval(8)
+            func poll() {
+                if done() { then(); return }
+                guard Date() < deadline else { print("gave up waiting at step \(model.step)"); exit(1) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { MainActor.assumeIsolated { poll() } }
+            }
+            poll()
+        }
+
+        print("start: step \(model.step)")
+        when({ SetupTargets.frames["setup-setup"] != nil }) {
+            guard click("setup-setup") else { exit(1) }
+            when({ model.step == .find && !model.searching && SetupTargets.frames["setup-continue"] != nil }) {
+                report("setup-setup")
+                guard click("setup-continue") else { exit(1) }
+                when({ model.step == .connect }) {
+                    report("setup-continue (Find)")
+                    model.patch = false
+                    model.start = false
+                    print("on Connect: patch \(model.patch) · usage \(model.usage) · start \(model.start)")
+                    // Let the window redraw (and re-record Continue) before clicking it.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { MainActor.assumeIsolated {
+                        guard click("setup-continue") else { exit(1) }
+                        when({ model.step == .done && !model.working }) {
+                            report("setup-continue (Connect)")
+                            for key in model.results.keys.sorted() {
+                                let r = model.results[key]!
+                                print("result \(key): \(r.ok ? "✓" : "✗") \(r.text)")
+                            }
+                            let settings = (try? Data(contentsOf: claude.appendingPathComponent("settings.json")))
+                                .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+                            print("temp settings.json statusLine:", settings?["statusLine"].map { "\($0)" } ?? "none")
+                            print("setup state:", state.settings.setup.state?.rawValue ?? "nil", "· seen:", state.settings.setup.seen,
+                                  "· catOffice.dir:", state.settings.catOffice.dir ?? "nil")
+                            print("chosen is the temp Cat Office:", model.chosen == office.path)
+                            exit(0)
+                        }
+                    } }
+                }
+            }
+        }
+        return true
     }
 }
