@@ -35,7 +35,7 @@ controls your Claude agents, projects or git.
 | `~/.config/claude-bar/` | ClaudeBar's settings | — (its own) |
 | `~/.claude/claude-bar/` | ClaudeBar's usage files | — (its own) |
 | `~/.claude/settings.json` | only the `statusLine` entry | `settings.json.claude-bar-backup-<time>` |
-| `~/.claude/statusline-command.sh` | ClaudeBar's script, only if you chose it | `statusline-command.sh.claude-bar-backup-<time>` |
+| `~/.claude/statusline-command.sh` | ClaudeBar's script, only if you chose it; plus small helper files `claude-bar-*` next to it | `statusline-command.sh.claude-bar-backup-<time>` |
 | your Cat Office folder | the patch | `.cat-office/patch-backup-<time>/` |
 
 Patching or unpatching Cat Office restarts it, which ends the Claude sessions running inside Cat Office (you're warned
