@@ -35,6 +35,7 @@ final class StatusItemController: NSResponder {
             content: OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(peekZoom).environmentObject(peekFloors),
             size: OfficePeekView.size, zoom: peekZoom)
         peekView.onPointer = { [weak self] point in self?.peekPointer(point) }
+        peekView.cursor = state.roomCursor
         let peekController = NSViewController()
         peekController.view = peekView
         peek.contentViewController = peekController
@@ -170,6 +171,8 @@ final class StatusItemController: NSResponder {
 /// Hosts the peek and reports the pointer (top-left origin, nil when it leaves), even while ClaudeBar is inactive.
 final class PeekContainerView: NSView {
     var onPointer: ((CGPoint?) -> Void)?
+    /// Bongo Cat over the room, as in Cat Office.
+    var cursor: RoomCursor?
     private let zoom: RoomZoom
     private var host: NSView!
 
@@ -181,7 +184,7 @@ final class PeekContainerView: NSView {
         host.frame = bounds
         host.autoresizingMask = [.width, .height]
         addSubview(host)
-        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .mouseMoved, .cursorUpdate, .activeAlways, .inVisibleRect],
                                        owner: self, userInfo: nil))
     }
 
@@ -191,10 +194,15 @@ final class PeekContainerView: NSView {
 
     override func mouseEntered(with event: NSEvent) { report(event) }
     override func mouseMoved(with event: NSEvent) { report(event) }
-    override func mouseExited(with event: NSEvent) { onPointer?(nil) }
+    override func mouseExited(with event: NSEvent) {
+        onPointer?(nil)
+        cursor?.moved(inRoom: false)
+    }
 
     private func report(_ event: NSEvent) {
-        onPointer?(convert(event.locationInWindow, from: nil))
+        let point = convert(event.locationInWindow, from: nil)
+        onPointer?(point)
+        cursor?.moved(inRoom: zoom.contains(point))
     }
 
     // Zoom and pan over the room (pinch, ⌘-scroll, scroll, drag, double-click), even while ClaudeBar isn't active.
@@ -215,9 +223,18 @@ final class PeekContainerView: NSView {
 
     override func magnify(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.magnify(with: event) } }
     override func scrollWheel(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.scrollWheel(with: event) } }
-    override func mouseDown(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.mouseDown(with: event) } }
+    override func mouseDown(with event: NSEvent) {
+        cursor?.pressed()
+        if !zoom.handle(event, at: officePoint(event)) { super.mouseDown(with: event) }
+    }
     override func mouseDragged(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.mouseDragged(with: event) } }
-    override func mouseUp(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.mouseUp(with: event) } }
+    override func mouseUp(with event: NSEvent) {
+        cursor?.released()
+        if !zoom.handle(event, at: officePoint(event)) { super.mouseUp(with: event) }
+    }
+    override func cursorUpdate(with event: NSEvent) {
+        if cursor?.inRoom == true { cursor?.moved(inRoom: true) } else { super.cursorUpdate(with: event) }
+    }
 }
 
 @MainActor

@@ -78,11 +78,15 @@ final class RoomZoom: ObservableObject {
 final class ZoomingContainer: NSView {
     private let host: NSView
     private let zoom: RoomZoom
+    private let cursor: RoomCursor?
 
-    init(_ host: NSView, zoom: RoomZoom) {
+    init(_ host: NSView, zoom: RoomZoom, cursor: RoomCursor? = nil) {
         self.host = host
         self.zoom = zoom
+        self.cursor = cursor
         super.init(frame: .zero)
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .cursorUpdate, .activeAlways, .inVisibleRect],
+                                       owner: self, userInfo: nil))
         translatesAutoresizingMaskIntoConstraints = false
         host.translatesAutoresizingMaskIntoConstraints = false
         addSubview(host)
@@ -118,7 +122,21 @@ final class ZoomingContainer: NSView {
 
     override func magnify(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.magnify(with: event) } }
     override func scrollWheel(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.scrollWheel(with: event) } }
-    override func mouseDown(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.mouseDown(with: event) } }
+    override func mouseDown(with event: NSEvent) {
+        cursor?.pressed()
+        if !zoom.handle(event, at: officePoint(event)) { super.mouseDown(with: event) }
+    }
     override func mouseDragged(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.mouseDragged(with: event) } }
-    override func mouseUp(with event: NSEvent) { if !zoom.handle(event, at: officePoint(event)) { super.mouseUp(with: event) } }
+    override func mouseUp(with event: NSEvent) {
+        cursor?.released()
+        if !zoom.handle(event, at: officePoint(event)) { super.mouseUp(with: event) }
+    }
+
+    // Bongo Cat over the room (Cat Office's cursor); the host's own cursors everywhere else.
+    override func mouseMoved(with event: NSEvent) { cursor?.moved(inRoom: zoom.contains(officePoint(event))); super.mouseMoved(with: event) }
+    override func mouseEntered(with event: NSEvent) { cursor?.moved(inRoom: zoom.contains(officePoint(event))) }
+    override func mouseExited(with event: NSEvent) { cursor?.moved(inRoom: false) }
+    override func cursorUpdate(with event: NSEvent) {
+        if cursor?.inRoom == true { cursor?.moved(inRoom: true) } else { super.cursorUpdate(with: event) }
+    }
 }

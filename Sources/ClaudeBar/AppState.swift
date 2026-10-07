@@ -74,6 +74,8 @@ final class AppState: ObservableObject {
     private let notifier = Notifier()
     private let launcher = CatOfficeLauncher()
     private(set) lazy var art: ArtCache = { [officeClient] in ArtCache(baseURL: { officeClient.baseURL }) }()
+    /// Cat Office's Bongo Cat cursor over the office room (dropdown and peek).
+    private(set) lazy var roomCursor = RoomCursor(art: art)
     private var tracker = AttentionTracker()
     private var files: StatusInput?
     private var timer: Timer?

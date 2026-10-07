@@ -142,7 +142,7 @@ final class DropdownController: NSViewController {
 
         // Each SwiftUI piece in a plain container: a hosting view claims clicks beyond its own frame when its
         // content draws outside it (the office's cats do), which took the tab control's clicks.
-        let stack = NSStackView(views: [BoundedContainer(header), tabs, ZoomingContainer(content, zoom: roomZoom)])
+        let stack = NSStackView(views: [BoundedContainer(header), tabs, ZoomingContainer(content, zoom: roomZoom, cursor: state.roomCursor)])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10

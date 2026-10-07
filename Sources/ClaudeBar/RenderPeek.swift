@@ -308,6 +308,23 @@ enum TestZoom {
             let pill = CGPoint(x: zoom.pillRect.midX, y: zoom.pillRect.midY)
             mouse(.leftMouseDown, pill); mouse(.leftMouseUp, pill)
             report("click 1× pill")
+            // Bongo Cat: hover over the room, press and hold there (the centre, already clicked above), release,
+            // then move (no click) up to the floor picker row, outside the room.
+            if let container = host.superview {
+                @MainActor func moved(_ p: CGPoint) {
+                    container.mouseMoved(with: NSEvent.mouseEvent(with: .mouseMoved, location: windowPoint(p), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                                  windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!)
+                }
+                @MainActor func cursor(_ step: String) {
+                    let bongo = NSCursor.current.image.size == NSSize(width: 32, height: 32)
+                    print("cursor", step, "→", state.roomCursor.frame.map { "\($0)" } ?? "arrow", "· shown:", bongo ? "bongo" : (NSCursor.current == .arrow ? "arrow" : "other"))
+                }
+                moved(centre); cursor("over room")
+                mouse(.leftMouseDown, centre); cursor("held")
+                RunLoop.main.run(until: Date().addingTimeInterval(0.2)); cursor("held 0.2s")
+                mouse(.leftMouseUp, centre); cursor("released")
+                moved(CGPoint(x: centre.x, y: zoom.roomRect.minY - 20)); cursor("outside room")
+            }
             let before = state.settings.officeLighting
             // The theme button: right end of the usage header's top row (the header is the stack's first view).
             if let header = window.contentView?.subviews.first {
