@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 
 /// World px onto a view's points: a uniform scale and an origin (view #2: the floor fills the width with a 20 world-px
-/// margin each side, centred across; the floor parallelogram's middle centred down, walls and front trimmed).
+/// margin each side, centred across; the room's content centred down).
 public struct SceneFit: Equatable, Sendable {
     /// Points per world px.
     public let scale: CGFloat
@@ -23,11 +23,21 @@ public struct SceneFit: Equatable, Sendable {
         CGRect(x: origin.x + r.minX * scale, y: origin.y + r.minY * scale, width: r.width * scale, height: r.height * scale)
     }
 
-    public static func fill(floor: FloorFrame, into size: CGSize) -> SceneFit {
+    /// View #2: the floor fills the width (20 world px margin each side), centred across. Down, the room's content
+    /// (BuiltRoom.contentBounds) is centred; content taller than the view keeps its top and loses its front, but never
+    /// so far that `keep` (BuiltRoom.catBounds: where cats stand) leaves the view while it fits.
+    public static func fill(floor: FloorFrame, content: CGRect, keep: CGRect? = nil, into size: CGSize) -> SceneFit {
         let c = floor.corners
         let scale = size.width / CGFloat(c.right.x - c.left.x + 40)
         let midX = CGFloat(c.left.x + c.right.x) / 2
-        let midY = CGFloat(c.top.y + c.bottom.y) / 2
-        return SceneFit(scale: scale, origin: CGPoint(x: size.width / 2 - midX * scale, y: size.height / 2 - midY * scale))
+        var y = content.height * scale <= size.height
+            ? size.height / 2 - content.midY * scale
+            : -content.minY * scale
+        if let keep, keep.height * scale <= size.height {
+            // keep.maxY lands at or above the bottom, keep.minY at or below the top.
+            y = min(y, size.height - keep.maxY * scale)
+            y = max(y, -keep.minY * scale)
+        }
+        return SceneFit(scale: scale, origin: CGPoint(x: size.width / 2 - midX * scale, y: y))
     }
 }

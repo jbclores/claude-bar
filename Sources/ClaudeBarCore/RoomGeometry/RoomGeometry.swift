@@ -25,6 +25,30 @@ extension BuiltRoom {
     public var boxes: [OccluderBox] {
         desks.map(\.box) + props.map(\.box) + fixtures.map(\.box)
     }
+
+    /// Cat Office's building.json catHeight (world px), used while the building's own value isn't parsed.
+    public static let defaultCatHeight = 160.0
+
+    /// Where cats can stand, with their figures (world px): a standing cat's figure (1.1 × catHeight above its
+    /// feet, as RoomGeometry.figure) on every seat, desk work spot and the elevator's spot. nil without any.
+    public func catBounds(catHeight: Double) -> CGRect? {
+        let spots = seats.map(\.standAt) + desks.map(\.standAt) + (elevator.map { [$0.standAt] } ?? [])
+        return spots.map { s -> CGRect in
+            let feet = frame.px(s)
+            return CGRect(x: feet.x, y: feet.y - 1.1 * catHeight, width: 0, height: 1.1 * catHeight)
+        }.reduce(nil as CGRect?) { acc, r in acc.map { $0.union(r) } ?? r }
+    }
+
+    /// What a view of the room should show (world px): every desk, prop and fixture, and catBounds.
+    public func contentBounds(catHeight: Double) -> CGRect {
+        let items = (desks.map(\.rect) + props.map(\.rect) + fixtures.map(\.rect)).reduce(nil as CGRect?) { acc, r in acc.map { $0.union(r) } ?? r }
+        switch (items, catBounds(catHeight: catHeight)) {
+        case let (a?, b?): return a.union(b)
+        case let (a?, nil): return a
+        case let (nil, b?): return b
+        default: return bounds
+        }
+    }
 }
 
 public enum RoomGeometry {

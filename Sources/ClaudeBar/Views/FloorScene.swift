@@ -23,7 +23,9 @@ struct FloorScene: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let fit = SceneFit.fill(floor: room.frame, into: proxy.size)
+            let cat = BuiltRoom.defaultCatHeight
+            let fit = SceneFit.fill(floor: room.frame, content: room.contentBounds(catHeight: cat),
+                                    keep: room.catBounds(catHeight: cat), into: proxy.size)
             let scale = RoomImageCache.quantized(fit.scale * Self.pixelsPerPoint)
             let frame = fit.rect(RoomImageCache.imageBounds(room))
             ZStack(alignment: .topLeading) {
