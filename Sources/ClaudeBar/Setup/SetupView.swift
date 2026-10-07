@@ -138,7 +138,7 @@ struct SetupView: View {
             .setupTarget("setup-setup")
             Button("Skip for now") { model.skip() }
                 .buttonStyle(.link)
-                .setupTarget("setup-skip")
+                .setupTarget("setup-skip-welcome")
         }
         .frame(maxWidth: .infinity)
     }
@@ -334,8 +334,10 @@ struct SetupView: View {
             if let start = model.results["start"], !start.ok, start.text.contains("Node.js") {
                 Link("Get Node.js at nodejs.org ↗", destination: URL(string: "https://nodejs.org")!).font(.callout)
             }
-            Text("Usage appears after your next message in Claude Code.")
-                .font(.callout).foregroundStyle(.secondary)
+            if model.results["usage"]?.ok == true {
+                Text("Usage appears after your next message in Claude Code.")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
             if model.needsRestart {
                 VStack(alignment: .leading, spacing: 4) {
                     Button {
@@ -373,5 +375,7 @@ private extension View {
     func setupTarget(_ id: String) -> some View {
         accessibilityIdentifier(id)
             .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { SetupTargets.frames[id] = $0 }
+            // Gone with its step: the click test only ever sees targets that are on screen.
+            .onDisappear { SetupTargets.frames[id] = nil }
     }
 }

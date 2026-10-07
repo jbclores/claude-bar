@@ -54,6 +54,7 @@ final class SetupModel: ObservableObject {
         let real = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
         guard CatOfficeFinder.isCatOffice(real) else { choiceError = "That folder isn't Cat Office."; return false }
         choiceError = nil
+        if chosen == nil { patch = true; start = true }   // re-ticked after "I don't use Cat Office"
         if !candidates.contains(where: { $0.path == real }) {
             candidates.insert(CatOfficeCandidate(path: real, modified: Date(), running: false), at: 0)
         }
@@ -140,7 +141,9 @@ final class SetupModel: ObservableObject {
                 }
             }
         }
-        let setupState: SetupState = chosen == nil ? .noCatOffice : (patched == true ? .full : .reduced)
+        // Full: patched AND usage on (ClaudeBar's status line, or theirs kept with ClaudeBar reading it).
+        let usageOn: Bool = switch SetupActions.statusLine(env: env).state() { case .claudeBar, .wrapped: true; default: false }
+        let setupState: SetupState = chosen == nil ? .noCatOffice : (patched == true && usageOn ? .full : .reduced)
         state.setSetup(SetupSettings(seen: true, state: setupState))
         step = .done
     }
@@ -151,9 +154,12 @@ final class SetupModel: ObservableObject {
         working = true
         defer { working = false }
         switch await SetupActions.restartCatOffice(dir, env: env, settings: state.settings.catOffice) {
-        case .started, .alreadyRunning:
+        case .started:
             results["start"] = StepResult(ok: true, text: "Cat Office restarted.")
             needsRestart = false
+        case .alreadyRunning:
+            // Something else answers Cat Office's address: nothing in the chosen folder was restarted.
+            results["start"] = StepResult(ok: false, text: "Cat Office didn't restart: another copy is running at its address.")
         case .failed(let why): results["start"] = StepResult(ok: false, text: "Cat Office didn't restart: \(why)")
         case .notConfigured, .npmNotFound: results["start"] = StepResult(ok: false, text: "Cat Office didn't restart: it needs Node.js.")
         }
