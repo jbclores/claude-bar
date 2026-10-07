@@ -138,6 +138,17 @@ printf 'edited after patching\n' > "$e/$first"; before=$(tree_sum "$e")
 CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo "$e" >/dev/null 2>&1; code=$?
 [ $code = 3 ] && [ "$(tree_sum "$e")" = "$before" ] && ok "undo after an edit: exit 3, nothing changed" || bad "undo after an edit (got $code)"
 
+# A Cat Office ClaudeBar never patched (no .cat-office/patch-backup-*) that the patch doesn't fit (a newer version):
+# nothing of ClaudeBar's to take out, so "Not patched", never a greyed row.
+nf=$(mktemp -d); cp -R "$orig/." "$nf/"; printf 'a newer Cat Office\n' > "$nf/$first"; before=$(cd "$nf" && find . | sort | md5 -q)
+out=$(CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo --dry-run "$nf" 2>&1); code=$?
+out2=$(CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo "$nf" 2>&1); code2=$?
+[ $code = 0 ] && [ $code2 = 0 ] && [[ "$out" == "Not patched"* ]] && [[ "$out2" == "Not patched"* ]] \
+  && [ "$(cd "$nf" && find . | sort | md5 -q)" = "$before" ] && [ "$(tree_sum "$nf")" != "$(tree_sum "$orig")" ] \
+  && ok "undo on a never-patched Cat Office the patch doesn't fit: Not patched, exit 0, nothing changed" \
+  || bad "undo never-patched misfit ($code: $out / $code2: $out2)"
+rm -rf "$nf"
+
 CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo "$notco" >/dev/null 2>&1; code=$?
 [ $code = 2 ] && ok "undo on a non-Cat Office folder exits 2" || bad "undo non-Cat Office (got $code)"
 bash "$REPO/scripts/patch-cat-office.sh" --dry-run "$u" >/dev/null 2>&1; code=$?

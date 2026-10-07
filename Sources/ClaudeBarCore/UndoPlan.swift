@@ -5,7 +5,8 @@ public enum UnpatchCheck: Equatable, Sendable {
     /// "Would unpatch": the patch (or an older version of it) comes out cleanly.
     case patched
     case notPatched
-    /// Exit 3: a patched file changed since, or a version ClaudeBar doesn't know.
+    /// Exit 3: ClaudeBar patched this folder (it has a patch backup), but the patch doesn't come out cleanly: a patched
+    /// file changed since (edited, or a Cat Office update), or a version ClaudeBar doesn't know.
     case cannotUndo
     /// No Cat Office folder, not Cat Office, or the check couldn't run.
     case unknown
@@ -97,7 +98,7 @@ public enum UndoText {
     public static let removeDetail = "Turns off Launch at Login, then ClaudeBar quits (drag the app to the Trash yourself). "
         + "Its own files go to the Trash, so you can still get them back."
     public static let noRecord = "ClaudeBar has no record of your earlier status line, so it won't guess. Here's how to change it by hand."
-    public static let cannotUnpatch = "ClaudeBar can't take its patch out cleanly (a patched file changed since), so it won't guess. "
+    public static let cannotUnpatch = "ClaudeBar can't take its patch out cleanly (this Cat Office changed since ClaudeBar patched it), so it won't guess. "
         + "Here's how to do it by hand."
     public static let allDone = "All done. Your Mac is back the way it was before ClaudeBar."
     public static let extrasBack = "Want the extras back later? Settings → Set up ClaudeBar… puts them back in a minute."

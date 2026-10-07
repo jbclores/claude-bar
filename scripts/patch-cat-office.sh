@@ -8,7 +8,8 @@
 # Usage: patch-cat-office.sh [--undo [--dry-run]] <cat-office-dir>
 # Env: CAT_OFFICE_PATCH (patch file), CAT_OFFICE_PATCH_HISTORY (folder of older NN.patch, newest highest; used instead
 # of git). Exit: 0 patched / already patched (undo: unpatched / would unpatch / not patched), 2 not Cat Office,
-# 3 the patch doesn't fit (undo: doesn't come out cleanly), 64 usage.
+# 3 the patch doesn't fit (undo: ClaudeBar patched this folder, per its .cat-office/patch-backup-*, but the patch doesn't
+# come out cleanly), 64 usage.
 set -euo pipefail
 USAGE="usage: patch-cat-office.sh [--undo [--dry-run]] <cat-office-dir>"
 UNDO=0; DRY=0
@@ -74,6 +75,9 @@ if [ "$UNDO" = 1 ]; then
   fi
   if [ -z "$REV" ]; then
     if patch -d "$DIR" -p1 --dry-run -s -f < "$PATCH" >/dev/null 2>&1; then echo "Not patched: $DIR"; exit 0; fi
+    # Neither fits. Only a folder ClaudeBar patched (it always leaves a backup) holds a patch to take out; any other
+    # (e.g. a newer Cat Office setup never patched) has nothing of ClaudeBar's in it.
+    if ! ls -d "$DIR"/.cat-office/patch-backup-* >/dev/null 2>&1; then echo "Not patched: $DIR"; exit 0; fi
     echo "Can't take the patch out of this Cat Office cleanly; nothing was changed." >&2; exit 3
   fi
   if [ "$DRY" = 1 ]; then rm -f "$REV"; echo "Would unpatch $DIR"; exit 0; fi
