@@ -36,6 +36,7 @@ final class StatusItemController: NSResponder {
             size: OfficePeekView.size, zoom: peekZoom)
         peekView.onPointer = { [weak self] point in self?.peekPointer(point) }
         peekView.cursor = state.roomCursor
+        peekView.onEnterRoom = { [weak self] in self?.activateForPeek() }
         let peekController = NSViewController()
         peekController.view = peekView
         peek.contentViewController = peekController
@@ -113,6 +114,8 @@ final class StatusItemController: NSResponder {
 
     @objc private func toggleDropdown() {
         showTimer?.invalidate()
+        // Opening the dropdown keeps ClaudeBar active on purpose: don't hand focus back when the peek goes.
+        appBeforePeek = nil
         peek.performClose(nil)
         if dropdown.isShown {
             dropdown.performClose(nil)
@@ -149,6 +152,25 @@ final class StatusItemController: NSResponder {
         if overPeek { hideTimer?.invalidate() } else { scheduleHide() }
     }
 
+    /// The app that was active before the pointer went into the peek's room: it gets focus back when the peek closes.
+    private var appBeforePeek: NSRunningApplication?
+
+    /// Bongo Cat only shows while ClaudeBar is active: activate it when the pointer goes into the peek's room.
+    private func activateForPeek() {
+        guard !NSApp.isActive else { return }
+        appBeforePeek = NSWorkspace.shared.frontmostApplication
+        NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.async { [weak self] in self?.state.roomCursor.moved(inRoom: true) }
+    }
+
+    /// The peek closed: hand focus back to the app that had it, unless the dropdown has since been opened.
+    private func returnFocusAfterPeek() {
+        defer { appBeforePeek = nil }
+        guard let app = appBeforePeek, NSApp.isActive, !dropdown.isShown,
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+        app.activate()
+    }
+
     private func scheduleHide() {
         hideTimer?.invalidate()
         hideTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: false) { [weak self] _ in
@@ -156,6 +178,7 @@ final class StatusItemController: NSResponder {
                 guard let self, !self.overIcon, !self.overPeek else { return }
                 self.peek.performClose(nil)
                 self.pointer.location = nil
+                self.returnFocusAfterPeek()
             }
         }
     }
@@ -173,6 +196,8 @@ final class PeekContainerView: NSView {
     var onPointer: ((CGPoint?) -> Void)?
     /// Bongo Cat over the room, as in Cat Office.
     var cursor: RoomCursor?
+    /// The pointer went into the room (macOS only shows an active app's cursor, so the controller activates ClaudeBar).
+    var onEnterRoom: (() -> Void)?
     private let zoom: RoomZoom
     private var host: NSView!
 
@@ -202,7 +227,9 @@ final class PeekContainerView: NSView {
     private func report(_ event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         onPointer?(point)
-        cursor?.moved(inRoom: zoom.contains(point))
+        let inRoom = zoom.contains(point)
+        if inRoom, cursor?.inRoom != true { onEnterRoom?() }
+        cursor?.moved(inRoom: inRoom)
     }
 
     // Zoom and pan over the room (pinch, ⌘-scroll, scroll, drag, double-click), even while ClaudeBar isn't active.
