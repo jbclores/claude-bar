@@ -105,7 +105,7 @@ struct DropdownView: View {
         .padding(DropdownLayout.padding)
         .frame(width: DropdownLayout.width)
         .environmentObject(RoomZoom())
-        .environmentObject(FloorSelection())
+        .environmentObject(FloorSelection.forRender())
     }
 }
 

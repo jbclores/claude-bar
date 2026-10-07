@@ -82,7 +82,7 @@ struct OfficeRoomView: View {
     var body: some View {
         ZStack(alignment: .top) {
             ZStack(alignment: .topLeading) {
-                RoomBackdrop()
+                RoomBackdrop(floor: floor)
                 if let office = state.office {
                     room()
                 } else {
@@ -169,9 +169,7 @@ struct OfficeRoomView: View {
         let byId = Dictionary(floorCats.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         return Group {
             if floor.isLounge {
-                Lounge(slots: Array(seating.lounge.prefix(Lounge.spots.count)).map { $0.flatMap { byId[$0] } },
-                       overflow: seating.loungeOverflow + seating.lounge.dropFirst(Lounge.spots.count).compactMap { $0 }.count)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                LoungeFloor(slots: seating.lounge.map { $0.flatMap { byId[$0] } }, overflow: seating.loungeOverflow)
             } else {
                 deskGrid(seating, byId)
             }
@@ -183,8 +181,10 @@ struct OfficeRoomView: View {
     /// The floor's own desks in rows of 6 (shrunk to fit two rows), helpers beside their parents, a queue at the right.
     private func deskGrid(_ seating: FloorSeating, _ byId: [String: OfficeAgent]) -> some View {
         let rows = stride(from: 0, to: floor.desks.count, by: 6).map { Array($0..<min($0 + 6, floor.desks.count)) }
+        let twoRows = rows.count > 1
         return HStack(alignment: .bottom, spacing: 6) {
-            VStack(alignment: .leading, spacing: 2) {
+            // Two rows overlap a little (the back row's names tuck under the front row's desks), then shrink to fit.
+            VStack(alignment: .leading, spacing: twoRows ? -24 : 2) {
                 ForEach(rows, id: \.self) { row in
                     HStack(alignment: .bottom, spacing: 4) {
                         ForEach(row, id: \.self) { i in
@@ -209,7 +209,9 @@ struct OfficeRoomView: View {
                 }
                 if floor.desks.isEmpty { RoomPill(text: "No desks on this floor") }
             }
-            .scaleEffect(rows.count > 1 ? 0.72 : 1, anchor: .bottomLeading)
+            .scaleEffect(twoRows ? 0.56 : 1, anchor: .bottomLeading)
+            // A scale doesn't shrink the layout: a fixed height keeps two rows from growing the room.
+            .frame(height: twoRows ? Self.height - RoomBackdrop.wallHeight - 14 : nil, alignment: .bottomLeading)
             .padding(.leading, 36)
             .frame(maxWidth: .infinity, alignment: .leading)
             if !seating.queue.isEmpty {
@@ -243,32 +245,162 @@ struct OfficeRoomView: View {
     }
 }
 
-/// Cat Office's own room art: a plaster back wall over a birch floor, a plant and a lamp.
+/// The floor's own wall and floor textures, its elevator, the Lounge sign, a plant and a lamp.
 struct RoomBackdrop: View {
+    let floor: Floor
     @EnvironmentObject var state: AppState
     @Environment(\.officeNight) private var officeNight
+
+    /// The back wall's height and where the floor starts (the floor line).
+    static let wallHeight: CGFloat = 46
 
     var body: some View {
         let night = officeNight
         ZStack(alignment: .topLeading) {
             VStack(spacing: 0) {
-                roomArt("assets/room/walls/plaster.png", size: 1024, mode: .fill).frame(height: 46).clipped()
+                texture(floor.wallTexture?.image ?? "assets/room/walls/plaster.png", color: floor.wallTexture?.color ?? "#fdeee0")
+                    .frame(height: Self.wallHeight).clipped()
                 Rectangle().fill(Color(hex: 0x73503F)).frame(height: 3)
-                roomArt("assets/room/floors/birch.png", size: 1024, mode: .tile).frame(maxHeight: .infinity)
+                texture(floor.floorTexture?.image ?? "assets/room/floors/birch.png", color: floor.floorTexture?.color ?? "#eadbc8")
+                    .frame(maxHeight: .infinity)
             }
-            .background(Color(hex: 0xEADBC8)) // until the art has loaded, or if it can't
-            // Night: walls and floor shift to a deep blue (a colour shift, not a grey veil); the furniture stays lit.
             .colorMultiply(night ? Night.room : .white)
-            roomArt("assets/room/props/tall-plant.png", size: 480, mode: .fit).frame(height: 52).offset(x: 8, y: 22)
+            ElevatorArt(floor: floor).offset(x: ElevatorArt.leading, y: 0)
+            if floor.hasLoungeSign {
+                roomArt("assets/room/wall-items/sign-lounge.png", size: 512).frame(width: 43, height: 20)
+                    .frame(maxWidth: .infinity).offset(y: 12)
+                    .colorMultiply(night ? Night.furniture : .white)
+            }
+            roomArt("assets/room/props/tall-plant.png", size: 480).frame(height: 52).offset(x: ElevatorArt.leading + 64, y: 22)
                 .colorMultiply(night ? Night.furniture : .white)
             if night { LampLight() }
-            roomArt("assets/room/props/floor-lamp.png", size: 480, mode: .fit).frame(height: 64)
+            roomArt("assets/room/props/floor-lamp.png", size: 480).frame(height: 64)
                 .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 14).offset(y: 12)
+                .colorMultiply(night ? Night.furniture : .white)
         }
     }
 
-    private func roomArt(_ path: String, size: Int, mode: SpriteImage.Mode) -> SpriteImage {
-        SpriteImage(key: path, fallback: nil, mode: mode) { await state.art.image(path: path, maxPixelSize: size) }
+    /// A texture tiled at Retina scale, on its own colour until it loads.
+    private func texture(_ path: String, color: String) -> some View {
+        SpriteImage(key: path, fallback: nil, mode: .tile) { await state.art.image(path: path, maxPixelSize: 1024) }
+            .background(Color(hexString: color))
+    }
+
+    private func roomArt(_ path: String, size: Int) -> some View {
+        SpriteImage(key: path, fallback: nil, mode: .fit) { await state.art.image(path: path, maxPixelSize: size) }
+    }
+}
+
+extension Color {
+    /// "#rrggbb" (Cat Office's room-parts colours).
+    init(hexString: String) {
+        self.init(hex: UInt32(hexString.trimmingCharacters(in: CharacterSet(charactersIn: "#")), radix: 16) ?? 0xEADBC8)
+    }
+}
+
+/// The floor's elevator (Cat Office's wall item) standing on the floor line at the left of the back wall, with the
+/// floor number on its plate (room-parts.json plate rect and colour; font 0.8 × plate height).
+struct ElevatorArt: View {
+    let floor: Floor
+    @EnvironmentObject var state: AppState
+    @Environment(\.officeNight) private var officeNight
+
+    static let leading: CGFloat = 8
+    static let height: CGFloat = 54
+
+    /// Where riders wait and appear: in front of the door, on the floor.
+    static func door() -> CGPoint { CGPoint(x: leading + 26, y: RoomBackdrop.wallHeight + 16) }
+
+    var body: some View {
+        if let art = floor.elevator {
+            let k = Self.height / art.size.height
+            SpriteImage(key: art.image, fallback: nil) { await state.art.image(path: art.image, maxPixelSize: 512) }
+                .frame(width: art.size.width * k, height: Self.height)
+                .overlay(alignment: .topLeading) {
+                    if let plate = art.plate {
+                        Text("\(floor.id)")
+                            .font(.system(size: max(6, plate.height * k * 0.8), weight: .bold).monospacedDigit())
+                            .foregroundStyle(Color(hex: 0x5B4636))
+                            .frame(width: plate.width * k, height: plate.height * k)
+                            .background(Color(hexString: art.plateColor ?? "#f4ece6"))
+                            .offset(x: plate.minX * k, y: plate.minY * k)
+                    }
+                }
+                .colorMultiply(officeNight ? Night.furniture : .white)
+                // Standing on the floor line: its foot at the wall's base.
+                .offset(y: RoomBackdrop.wallHeight + 3 - Self.height + 6)
+        }
+    }
+}
+
+/// The Lounge: ten seats on Cat Office's lounge furniture across the whole room, then "+N asleep".
+struct LoungeFloor: View {
+    let slots: [OfficeAgent?]
+    let overflow: Int
+    @EnvironmentObject var state: AppState
+    @Environment(\.officeNight) private var officeNight
+
+    /// Props: (image, maxPixel, frame in room points).
+    static let props: [(String, Int, CGRect)] = [
+        ("assets/room/rugs/round-cream.png", 1024, CGRect(x: 160, y: 96, width: 170, height: 70)),
+        ("assets/room/props/sofa-round.png", 512, CGRect(x: 100, y: 52, width: 104, height: 70)),
+        ("assets/room/props/sofa.png", 512, CGRect(x: 300, y: 52, width: 120, height: 66)),
+        ("assets/room/props/cat-bed-blue.png", 384, CGRect(x: 210, y: 128, width: 56, height: 40)),
+        ("assets/room/props/bean-bag-cream.png", 384, CGRect(x: 92, y: 118, width: 44, height: 44)),
+        ("assets/room/props/bean-bag-brown.png", 384, CGRect(x: 400, y: 118, width: 44, height: 44)),
+        ("assets/room/props/floor-cushion-blue.png", 384, CGRect(x: 300, y: 138, width: 40, height: 26)),
+        ("assets/room/props/floor-cushion-cream.png", 384, CGRect(x: 350, y: 140, width: 40, height: 26)),
+    ]
+    /// Feet points for spots 0…9 (seats on the props above, then the rug).
+    static let spots: [CGPoint] = [
+        CGPoint(x: 135, y: 92), CGPoint(x: 168, y: 92),   // round sofa
+        CGPoint(x: 340, y: 90), CGPoint(x: 380, y: 90),   // sofa
+        CGPoint(x: 238, y: 158),                         // cat bed
+        CGPoint(x: 114, y: 154), CGPoint(x: 422, y: 154), // bean bags
+        CGPoint(x: 320, y: 158), CGPoint(x: 370, y: 160), // cushions
+        CGPoint(x: 260, y: 128),                         // rug
+    ]
+    static let catWidth: CGFloat = 40
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(Array(Self.props.enumerated()), id: \.offset) { _, p in
+                SpriteImage(key: p.0, fallback: nil) { await state.art.image(path: p.0, maxPixelSize: p.1) }
+                    .frame(width: p.2.width, height: p.2.height)
+                    .colorMultiply(officeNight ? Night.furniture : .white)
+                    .offset(x: p.2.minX, y: p.2.minY)
+            }
+            ForEach(Array(slots.prefix(Self.spots.count).enumerated()), id: \.offset) { i, agent in
+                if let agent {
+                    CatView(agent: agent, atDesk: false, width: Self.catWidth, plain: true)
+                        .offset(x: Self.spots[i].x - Self.catWidth / 2, y: Self.spots[i].y - Self.catWidth * 0.95 * 0.9)
+                }
+            }
+            RoomPill(text: overflow > 0 ? "lounge · \(slots.compactMap { $0 }.count + overflow) asleep" : "lounge")
+                .offset(x: 200, y: 4 + RoomBackdrop.wallHeight + 110)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(GeometryReader { proxy in
+            let origin = proxy.frame(in: .named("roomContent")).origin
+            Color.clear
+                .preference(key: CatFeetKey.self, value: feet(origin))
+                .preference(key: CatFramesKey.self, value: frames(origin))
+        })
+    }
+
+    private func feet(_ o: CGPoint) -> [String: CGPoint] {
+        var out: [String: CGPoint] = [:]
+        for (i, a) in slots.prefix(Self.spots.count).enumerated() { if let a { out[a.id] = CGPoint(x: o.x + Self.spots[i].x, y: o.y + Self.spots[i].y) } }
+        return out
+    }
+
+    private func frames(_ o: CGPoint) -> [String: CGRect] {
+        var out: [String: CGRect] = [:]
+        let w = Self.catWidth, h = w * 0.95
+        for (i, a) in slots.prefix(Self.spots.count).enumerated() {
+            if let a { out[a.id] = CGRect(x: o.x + Self.spots[i].x - w / 2, y: o.y + Self.spots[i].y - h * 0.9, width: w, height: h) }
+        }
+        return out
     }
 }
 

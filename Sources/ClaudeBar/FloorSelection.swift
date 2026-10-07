@@ -16,6 +16,13 @@ final class FloorSelection: ObservableObject {
         alwaysFollow ? state.followFloor : choice.shown(target: state.followFloor, floors: state.building.floors.map(\.id))
     }
 
+    /// Renders only (CLAUDEBAR_RENDER_FLOOR=n): that floor, picked.
+    static func forRender() -> FloorSelection {
+        let s = FloorSelection()
+        if let id = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLOOR"].flatMap(Int.init) { s.choice.pick(id) }
+        return s
+    }
+
     /// Follow comes back on each time the dropdown opens.
     func reopen() { choice.resumeFollow() }
 }
