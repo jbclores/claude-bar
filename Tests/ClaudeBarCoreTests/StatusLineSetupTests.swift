@@ -67,7 +67,8 @@ import Testing
         try s.wrap()
         #expect(s.state() == .wrapped(original: theirs))
         // Run the wrapper as Claude Code would: their output, byte for byte; ClaudeBar's data saved quietly.
-        let home = dir.deletingLastPathComponent()
+        let home = dir.appendingPathComponent("home")
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
         let wrapper = dir.appendingPathComponent(StatusLineSetup.wrapperName).path
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/bin/bash"); p.arguments = [wrapper]
         p.environment = ["HOME": home.path, "PATH": "/usr/bin:/bin", "CLAUDE_BAR_DIR": home.appendingPathComponent("cb").path,
@@ -95,5 +96,135 @@ import Testing
         let (s, _) = try setup(#"{"statusLine":{"type":"command","command":"npx ccstatusline"}}"#)
         try s.wrap(); try s.restore()
         #expect(s.state() == .own(command: "npx ccstatusline") && !s.canRestore)
+    }
+
+    func read(_ dir: URL, _ name: String) -> String? { try? String(contentsOf: dir.appendingPathComponent(name), encoding: .utf8) }
+    func write(_ dir: URL, _ name: String, _ text: String) throws { try Data(text.utf8).write(to: dir.appendingPathComponent(name)) }
+    func files(_ dir: URL) -> [String] { ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).sorted() }
+    let theirsCmd = #"{"statusLine":{"type":"command","command":"npx ccstatusline"}}"#
+
+    @Test func wrapTwiceThrowsAndChangesNothing() throws {
+        let (s, dir) = try setup(theirsCmd)
+        try s.wrap()
+        let before = files(dir), settingsBefore = read(dir, "settings.json"), wrapperBefore = read(dir, StatusLineSetup.wrapperName)
+        #expect(throws: (any Error).self) { try s.wrap() }
+        #expect(files(dir) == before && read(dir, "settings.json") == settingsBefore && read(dir, StatusLineSetup.wrapperName) == wrapperBefore)
+        try s.restore()
+        #expect(s.state() == .own(command: "npx ccstatusline"))
+    }
+
+    @Test func wrapperCommandWithoutRecordIsNotWrappedAgain() throws {
+        let (s, dir) = try setup(#"{"statusLine":{"type":"command","command":"bash ~/.claude/claude-bar-statusline.sh"}}"#)
+        #expect(s.state() == .own(command: "bash ~/.claude/claude-bar-statusline.sh"))
+        #expect(throws: (any Error).self) { try s.wrap() }
+        #expect(read(dir, StatusLineSetup.wrapperName) == nil)
+    }
+
+    @Test func claudeBarThenWrapThenRestoreBringsEverythingBack() throws {
+        let (s, dir) = try setup(#"{"statusLine":{"type":"command","command":"bash ~/.claude/statusline-command.sh"}}"#)
+        try write(dir, "statusline-command.sh", "#!/bin/bash\necho theirs\n")
+        try s.useClaudeBar()
+        try s.wrap()
+        #expect(s.state() == .wrapped(original: "bash ~/.claude/statusline-command.sh") || s.state() == .own(command: "bash ~/.claude/statusline-command.sh"))
+        try s.restore()
+        #expect(s.state() == .own(command: "bash ~/.claude/statusline-command.sh"))
+        #expect(read(dir, "statusline-command.sh") == "#!/bin/bash\necho theirs\n")
+        #expect(!s.canRestore)
+    }
+
+    @Test func wrapThenClaudeBarThenRestore() throws {
+        let (s, dir) = try setup(theirsCmd)
+        try s.wrap()
+        try s.useClaudeBar()
+        #expect(s.state() == .claudeBar)
+        try s.restore()
+        #expect(s.state() == .own(command: "npx ccstatusline"))
+        #expect(!(read(dir, "settings.json") ?? "").contains(StatusLineSetup.wrapperName))
+    }
+
+    @Test func restoreTwiceIsANoOp() throws {
+        let (s, dir) = try setup(theirsCmd)
+        try s.useClaudeBar(); try s.restore()
+        let after = read(dir, "settings.json"), names = files(dir)
+        try s.restore()
+        #expect(read(dir, "settings.json") == after && files(dir) == names)
+    }
+
+    @Test func restoreWithTheBackupMissingThrowsAndRemovesNothing() throws {
+        let (s, dir) = try setup(#"{"statusLine":{"type":"command","command":"bash ~/.claude/statusline-command.sh"}}"#)
+        try write(dir, "statusline-command.sh", "#!/bin/bash\necho theirs\n")
+        try s.useClaudeBar()
+        for f in files(dir) where f.hasPrefix("statusline-command.sh.claude-bar-backup-") { try FileManager.default.removeItem(at: dir.appendingPathComponent(f)) }
+        let settingsBefore = read(dir, "settings.json")
+        #expect(throws: (any Error).self) { try s.restore() }
+        #expect(read(dir, "statusline-command.sh") == ours && read(dir, "settings.json") == settingsBefore && s.canRestore)
+    }
+
+    @Test func theirEditAfterClaudeBarIsBackedUpNotLost() throws {
+        let (s, dir) = try setup(#"{"statusLine":{"type":"command","command":"bash ~/.claude/statusline-command.sh"}}"#)
+        try write(dir, "statusline-command.sh", "#!/bin/bash\necho theirs\n")
+        try s.useClaudeBar()
+        try write(dir, "statusline-command.sh", "#!/bin/bash\necho edited\n")
+        try s.restore()
+        #expect(read(dir, "statusline-command.sh") == "#!/bin/bash\necho theirs\n")
+        let kept = files(dir).filter { $0.hasPrefix("statusline-command.sh.claude-bar-backup-") }.compactMap { read(dir, $0) }
+        #expect(kept.contains("#!/bin/bash\necho edited\n"))
+    }
+
+    @Test func extraStatusLineKeysSurviveEverything() throws {
+        let original = #"{"statusLine":{"type":"command","command":"npx ccstatusline","padding":2}}"#
+        let (s, dir) = try setup(original)
+        try s.wrap()
+        #expect((try settings(dir)["statusLine"] as? [String: Any])?["padding"] as? Int == 2)
+        try s.useClaudeBar()
+        #expect((try settings(dir)["statusLine"] as? [String: Any])?["padding"] as? Int == 2)
+        try s.restore()
+        let line = try settings(dir)["statusLine"] as? [String: Any]
+        #expect(line?["padding"] as? Int == 2 && line?["command"] as? String == "npx ccstatusline" && line?["type"] as? String == "command")
+    }
+
+    @Test func aStatusLineWithoutACommandIsRestored() throws {
+        let (s, dir) = try setup(#"{"statusLine":{"type":"static","text":"hi"}}"#)
+        #expect(s.state() == .none)
+        try s.useClaudeBar()
+        try s.restore()
+        let line = try settings(dir)["statusLine"] as? [String: Any]
+        #expect(line?["type"] as? String == "static" && line?["text"] as? String == "hi" && line?["command"] == nil)
+    }
+
+    @Test func aScriptAtAnotherPathIsTheirOwn() throws {
+        let (s, dir) = try setup(#"{"statusLine":{"type":"command","command":"bash ~/dotfiles/statusline-command.sh"}}"#)
+        try write(dir, "statusline-command.sh", ours)
+        #expect(s.state() == .own(command: "bash ~/dotfiles/statusline-command.sh"))
+    }
+
+    @Test func homeAndAbsoluteSpellingsAreClaudeBars() throws {
+        for cmd in ["bash $HOME/.claude/statusline-command.sh", "bash  \"$HOME/.claude/statusline-command.sh\""] {
+            let (s, dir) = try setup("{}")
+            try write(dir, "statusline-command.sh", ours)
+            var d = try settings(dir); d["statusLine"] = ["type": "command", "command": cmd]
+            try JSONSerialization.data(withJSONObject: d).write(to: dir.appendingPathComponent("settings.json"))
+            #expect(s.state() == .claudeBar)
+        }
+        let (s, dir) = try setup("{}")
+        try write(dir, "statusline-command.sh", ours)
+        let abs = dir.deletingLastPathComponent().path + "/.claude/statusline-command.sh"
+        try JSONSerialization.data(withJSONObject: ["statusLine": ["type": "command", "command": "bash " + abs]]).write(to: dir.appendingPathComponent("settings.json"))
+        #expect(s.state() == .claudeBar)
+    }
+
+    @Test func aWrappedCommandWithNewlineAndBacktickRunsExactly() throws {
+        let theirs = "echo \"line1\"\necho `echo tick`"
+        let (s, dir) = try setup("{}")
+        try JSONSerialization.data(withJSONObject: ["statusLine": ["type": "command", "command": theirs]]).write(to: dir.appendingPathComponent("settings.json"))
+        try s.wrap()
+        let home = dir.appendingPathComponent("home")
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        let p = Process(); p.executableURL = URL(fileURLWithPath: "/bin/bash"); p.arguments = [dir.appendingPathComponent(StatusLineSetup.wrapperName).path]
+        p.environment = ["HOME": home.path, "PATH": "/usr/bin:/bin", "CLAUDE_BAR_DIR": home.appendingPathComponent("cb").path,
+                         "CLAUDEBAR_HOOK": dir.appendingPathComponent(StatusLineSetup.hookName).path]
+        let input = Pipe(), output = Pipe(); p.standardInput = input; p.standardOutput = output
+        try p.run(); try input.fileHandleForWriting.close(); p.waitUntilExit()
+        #expect(String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) == "line1\ntick\n")
     }
 }
