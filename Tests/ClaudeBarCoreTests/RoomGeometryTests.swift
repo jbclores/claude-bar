@@ -120,3 +120,20 @@ func near(_ a: Double, _ b: Double, _ tol: Double = 0.5) -> Bool { abs(a - b) <=
         #expect(WallItems.place(w, frame: frame, catalogue: c, wallHeight: 399) == nil)
     }
 }
+
+@Suite struct DeskPlacementTests {
+    @Test(arguments: ["user", "edge"]) func desksMatchCatOffice(_ b: String) throws {
+        let c = try RoomCatalogueTests().catalogue(b)
+        let building = try #require(Building.parse(building: fixture("rooms/\(b)/building.json"), parts: fixture("rooms/\(b)/room-parts.json")))
+        for e in try expected(b).floors {
+            let room = try #require(building.floor(id: e.id)?.room), frame = try #require(FloorFrame(corners: e.corners))
+            let desks = room.desks.compactMap { DeskPlacer.place($0, frame: frame, catalogue: c) }
+            #expect(desks.map(\.id) == e.desks.map(\.id))
+            for (d, x) in zip(desks, e.desks) {
+                #expect(d.image == x.image && d.flip == x.flip && d.rear == x.rear && d.facing == x.facing, "\(x.id)")
+                #expect(near(d.rect.minX, x.left) && near(d.rect.minY, x.top) && near(d.rect.width, x.width) && d.box.z == x.z, "\(x.id)")
+                #expect(near(d.standAt.u, x.standAt.u, 1e-3) && near(d.standAt.v, x.standAt.v, 1e-3), "\(x.id)")
+            }
+        }
+    }
+}
