@@ -24,6 +24,16 @@ import Testing
         #expect(try String(contentsOf: dir.appendingPathComponent("statusline-command.sh"), encoding: .utf8) == ours)
     }
 
+    @Test func noStatusLineBeforeStillRestoresToNone() throws {
+        let (s, dir) = try setup(#"{"model":"opus"}"#)
+        try s.useClaudeBar()
+        #expect(s.canRestore)
+        try s.restore()
+        let d = try settings(dir)
+        #expect(d["statusLine"] == nil && d["model"] as? String == "opus")
+        #expect(!FileManager.default.fileExists(atPath: dir.appendingPathComponent(StatusLineSetup.originalName).path))
+    }
+
     @Test func noSettingsFileAtAll() throws {
         let (s, _) = try setup(nil)
         #expect(s.state() == .none)

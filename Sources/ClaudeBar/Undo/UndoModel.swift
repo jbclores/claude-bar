@@ -15,6 +15,8 @@ final class UndoModel: ObservableObject {
     /// Cat Office was running from the unpatched folder: Done offers Restart.
     @Published var needsRestart = false
     @Published var somethingAnswers = false
+    /// Why Restart Cat Office did not work (shown under the button).
+    @Published var restartError: String?
 
     let state: AppState
     let env: SetupEnvironment
@@ -60,12 +62,12 @@ final class UndoModel: ObservableObject {
         defer { working = false }
         let wasRunning = runningHere || (somethingAnswers && !bridgeNamesAnotherFolder)
         results = await UndoActions.run(ticked, dir: dir, env: env)
-        if results[.remove] == nil {
+        if results[.remove]?.ok != true {
             // After "Also remove", ClaudeBar's settings are in the Trash: writing them would make a new file.
             state.setSetup(UndoPlan.setupAfter(state.settings.setup, unpatched: results[.unpatch]?.ok == true,
                                                statusLineRestored: results[.statusLine]?.ok == true))
         }
-        needsRestart = results[.unpatch]?.ok == true && wasRunning && results[.remove] == nil
+        needsRestart = results[.unpatch]?.ok == true && wasRunning && results[.remove]?.ok != true
         let leftOut = rows.contains { $0.available && $0.kind != .remove && !ticked.contains($0.kind) }
         doneLines = UndoText.doneLines(results: results.mapValues(\.ok), leftOut: leftOut)
         phase = .done
@@ -76,12 +78,14 @@ final class UndoModel: ObservableObject {
         working = true
         defer { working = false }
         if case .failed(let message) = await SetupActions.restartCatOffice(dir, env: env, settings: state.settings.catOffice) {
-            results[.unpatch] = StepResult(ok: true, text: "Cat Office is unpatched. Restarting it didn't work: \(message)")
+            restartError = "Restarting Cat Office didn't work: \(message)"
         } else {
+            restartError = nil
             needsRestart = false
         }
     }
 
+    /// Removal ran (even partly): ClaudeBar quits when the window closes.
     var removed: Bool { results[.remove] != nil }
 
     func close() { onClose?() }

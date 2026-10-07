@@ -15,8 +15,10 @@ struct SetupEnvironment: Sendable {
     var answers: @Sendable (URL) async -> Bool = { await CatOfficeLauncher.answers($0) }
 
     /// "Also remove ClaudeBar" turns Launch at Login off (injected so tests never touch the real login item).
-    var launchAtLoginOff: @Sendable () -> Void = {
+    /// Returns true when it is off afterwards.
+    var launchAtLoginOff: @Sendable () -> Bool = {
         if SMAppService.mainApp.status == .enabled { try? SMAppService.mainApp.unregister() }
+        return SMAppService.mainApp.status != .enabled
     }
     /// The Cat Office folder last seen running (injected so tests never find the real one and unpatch it).
     var rememberedDir: @Sendable () -> String? = { UserDefaults.standard.string(forKey: AppState.rememberedDirKey) }

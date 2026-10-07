@@ -34,12 +34,15 @@ final class UndoWindow {
         model.onClose = { [weak self] in self?.window?.close() }
         closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: w, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
+                // After "Also remove", closing the window by any route still quits ClaudeBar.
+                let removed = self?.model?.removed ?? false
                 self?.window = nil
                 self?.model = nil
                 self?.delegate = nil
                 self?.workingWatch = nil
                 if let token = self?.closeObserver { NotificationCenter.default.removeObserver(token) }
                 self?.closeObserver = nil
+                if removed { NSApp.terminate(nil) }
             }
         }
         window = w

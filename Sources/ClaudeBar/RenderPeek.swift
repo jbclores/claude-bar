@@ -30,7 +30,7 @@ enum RenderPeek {
                          to: URL(fileURLWithPath: args[i + 2]))
             return true
         }
-        // `--render-undo <choose|choose-running|choose-greyed|done|done-failed|done-removed> <out.png>`: the undo window
+        // `--render-undo <choose|choose-running|choose-working|choose-nothing|choose-greyed|done|done-failed|done-removed> <out.png>`: the undo window
         // over a temp environment (never the real Mac).
         if let i = CommandLine.arguments.firstIndex(of: "--render-undo"), i + 2 < CommandLine.arguments.count {
             let args = CommandLine.arguments
@@ -198,7 +198,7 @@ private func undoEnvironment() -> (SetupEnvironment, URL) {
     var env = SetupEnvironment(home: home, claudeDir: claude, resources: SetupEnvironment.real.resources,
                                bridgeFile: root.appendingPathComponent("bridge.json"))
     env.answers = { _ in false }
-    env.launchAtLoginOff = {}
+    env.launchAtLoginOff = { true }
     env.rememberedDir = { nil }
     return (env, root)
 }
@@ -216,6 +216,11 @@ private func undoModel(mode: String, state: AppState) -> UndoModel? {
     switch mode {
     case "choose": model.phase = .choose
     case "choose-running": model.phase = .choose; model.somethingAnswers = true
+    case "choose-working": model.phase = .choose; model.working = true
+    case "choose-nothing":
+        model.rows = UndoPlan.rows(catOfficeDir: dir, unpatch: .notPatched, statusLine: .none, canRestore: false, home: env.home.path)
+        model.ticked = []
+        model.phase = .choose
     case "choose-greyed":
         model.rows = UndoPlan.rows(catOfficeDir: dir, unpatch: .cannotUndo, statusLine: .claudeBar, canRestore: false, home: env.home.path)
         model.ticked = UndoPlan.startTicks(model.rows)
@@ -602,8 +607,6 @@ enum TestUndo {
         let (env, root) = undoEnvironment()
         let fm = FileManager.default
         try? Data(#"{"model":"opus"}"#.utf8).write(to: env.claudeDir.appendingPathComponent("settings.json"))
-        // A script of the user's own is already there, so installing ClaudeBar's keeps a record to restore from.
-        try? Data("#!/bin/bash\necho mine\n".utf8).write(to: env.claudeDir.appendingPathComponent("statusline-command.sh"))
         do { try SetupActions.statusLine(env: env).useClaudeBar() } catch { print("couldn't install the temp status line: \(error)"); exit(1) }
         let removal = ClaudeBarRemoval(home: env.home)
         for f in removal.folders { try? fm.createDirectory(at: f, withIntermediateDirectories: true) }
@@ -643,17 +646,28 @@ enum TestUndo {
             poll()
         }
 
+        func fail(_ reason: String) -> Never { print("FAIL: \(reason)"); exit(1) }
         when({ model.phase == .choose && SetupTargets.frames["undo-run"] != nil }) {
             print("rows:", model.rows.map { "\($0.kind.rawValue)\($0.available ? "" : "(greyed)")" }.joined(separator: ", "),
                   "· ticked:", model.ticked.map(\.rawValue).sorted().joined(separator: ", "))
-            guard click("undo-run") else { exit(1) }
+            if model.rows.contains(where: { $0.kind == .unpatch }) { fail("an unpatch row showed up (never clicked)") }
+            if model.ticked != [.statusLine] { fail("ticked before the click was \(model.ticked.map(\.rawValue).sorted()), not [statusLine]") }
+            guard click("undo-run") else { fail("couldn't click undo-run") }
             when({ model.phase == .done && !model.working }) {
                 for kind in UndoRow.Kind.allCases { if let r = model.results[kind] { print("result \(kind.rawValue): \(r.ok ? "✓" : "✗") \(r.text)") } }
                 print("done lines:", model.doneLines.joined(separator: " | "))
                 let settings = (try? Data(contentsOf: env.claudeDir.appendingPathComponent("settings.json")))
                     .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
                 print("temp settings.json statusLine:", settings?["statusLine"].map { "\($0)" } ?? "none")
-                print("temp folders left:", removal.folders.filter { fm.fileExists(atPath: $0.path) }.count, "of 4")
+                let left = removal.folders.filter { fm.fileExists(atPath: $0.path) }.count
+                print("temp folders left:", left, "of 4")
+                if Set(model.results.keys) != [.statusLine] { fail("results were for \(model.results.keys.map(\.rawValue).sorted())") }
+                if model.results[.statusLine]?.ok != true { fail("status line restore didn't succeed") }
+                guard let settings else { fail("temp settings.json is unreadable") }
+                if settings["statusLine"] != nil { fail("temp settings.json still has a statusLine") }
+                if settings["model"] as? String != "opus" { fail("temp settings.json lost model") }
+                if left != 4 { fail("only \(left) of 4 temp folders are left") }
+                print("PASS")
                 exit(0)
             }
         }

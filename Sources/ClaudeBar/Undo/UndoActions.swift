@@ -51,15 +51,25 @@ enum UndoActions {
                 results[.statusLine] = StepResult(ok: true, text: "Your old status line is back.")
             } catch {
                 let message = (error as? StatusLineError)?.message ?? error.localizedDescription
-                results[.statusLine] = StepResult(ok: false, text: UndoText.failedSafe + " " + message)
+                results[.statusLine] = StepResult(ok: false, text: UndoText.failedSafe + " " + message
+                    + " See What ClaudeBar changes for how to do it by hand.")
             }
         }
         if ticked.contains(.remove) {
-            env.launchAtLoginOff()
+            let loginOff = env.launchAtLoginOff()
             let removal = ClaudeBarRemoval(home: env.home).remove()
-            results[.remove] = removal.failures.isEmpty
-                ? StepResult(ok: true, text: "Launch at Login is off, and ClaudeBar's files are in the Trash.")
-                : StepResult(ok: false, text: "Some of ClaudeBar's files couldn't go to the Trash: " + removal.failures.joined(separator: "; "))
+            let loginHelp = "turn it off in System Settings → General → Login Items."
+            switch (removal.failures.isEmpty, loginOff) {
+            case (true, true):
+                results[.remove] = StepResult(ok: true, text: "Launch at Login is off, and ClaudeBar's files are in the Trash.")
+            case (true, false):
+                results[.remove] = StepResult(ok: false, text: "ClaudeBar's files are in the Trash, but Launch at Login is still on: " + loginHelp)
+            case (false, true):
+                results[.remove] = StepResult(ok: false, text: "Some of ClaudeBar's files couldn't go to the Trash: " + removal.failures.joined(separator: "; "))
+            case (false, false):
+                results[.remove] = StepResult(ok: false, text: "Some of ClaudeBar's files couldn't go to the Trash: "
+                    + removal.failures.joined(separator: "; ") + ". Launch at Login is still on: " + loginHelp)
+            }
         }
         return results
     }

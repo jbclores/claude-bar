@@ -94,6 +94,9 @@ struct UndoView: View {
                 }
                 .disabled(model.working)
                 .setupTarget("undo-restart")
+                if let error = model.restartError {
+                    Text(error).font(.caption).foregroundStyle(Theme.waiting).fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer()
             HStack {

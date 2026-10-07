@@ -189,7 +189,7 @@ public struct StatusLineSetup: Sendable {
         if let existing = try? Data(contentsOf: scriptFile), existing != Data(script.utf8) {
             backup = try backUp(scriptFile, as: Self.scriptName)
         }
-        if readOriginal() == nil, previous != nil || backup != nil {
+        if readOriginal() == nil {   // also when they had none: restore then removes ours
             try recordOriginal(Original(statusLine: try json(previous), scriptBackup: backup))
         }
         try FileManager.default.createDirectory(at: claudeDir, withIntermediateDirectories: true)
