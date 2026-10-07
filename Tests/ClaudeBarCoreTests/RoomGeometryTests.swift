@@ -238,3 +238,63 @@ func near(_ a: Double, _ b: Double, _ tol: Double = 0.5) -> Bool { abs(a - b) <=
         #expect(PropPlacer.rugSpots(room: room, frame: frame, catalogue: c, gridSize: grid).isEmpty)
     }
 }
+
+@Suite struct BuiltRoomTests {
+    func built(_ id: Int) throws -> BuiltRoom {
+        let c = try RoomCatalogueTests().catalogue()
+        let b = try #require(Building.parse(building: fixture("rooms/user/building.json"), parts: fixture("rooms/user/room-parts.json")))
+        let f = try #require(b.floor(id: id))
+        return try #require(RoomGeometry.build(floor: f, catalogue: c))
+    }
+
+    @Test func loungeSeatsComeFromItsFurniture() throws {
+        let l = try built(1)
+        #expect(l.seats.first?.pose == "sleep", "cat beds first")
+        #expect(Set(l.seats.map(\.kind)).isSubset(of: ["cat-bed", "sofa", "beanbag", "rug", "window-seat"]))
+        #expect(l.seats.count >= 8)
+        #expect(l.elevator != nil && l.wallItems.contains { $0.isElevator })
+    }
+
+    @Test func catBehindDeskIsOccluded() throws {
+        let r = try built(2)
+        let desk = try #require(r.desks.first)
+        // Feet just behind the desk's back corner, on screen inside its box.
+        let feet = FloorPoint(u: desk.footprint.u0 - 0.002, v: desk.footprint.v0 + (desk.footprint.v1 - desk.footprint.v0) / 2)
+        let px = r.frame.px(feet)
+        let z = RoomGeometry.catZ(feet: feet, figure: RoomGeometry.figure(feet: px, catHeight: 160, lift: 0), boxes: r.boxes, perch: nil)
+        #expect(z < desk.box.z)
+    }
+
+    @Test func degenerateFloorFallsBack() throws {
+        let c = try RoomCatalogueTests().catalogue()
+        let b = try #require(Building.parse(building: fixture("rooms/user/building.json"), parts: fixture("rooms/user/room-parts.json")))
+        var f = try #require(b.floor(id: 2))
+        let z = WorldPoint(x: 1, y: 1)
+        f.corners = FloorCorners(top: z, left: z, bottom: z, right: z)
+        #expect(RoomGeometry.build(floor: f, catalogue: c) == nil)
+        f = try #require(b.floor(id: 2)); f.room = nil
+        #expect(RoomGeometry.build(floor: f, catalogue: c) == nil)
+        f = try #require(b.floor(id: 2)); f.gridSize = nil
+        #expect(RoomGeometry.build(floor: f, catalogue: c) == nil)
+        f = try #require(b.floor(id: 2)); f.gridSize = .nan
+        #expect(RoomGeometry.build(floor: f, catalogue: c) == nil)
+        f = try #require(b.floor(id: 2)); f.corners?.top = WorldPoint(x: .infinity, y: 0)
+        #expect(RoomGeometry.build(floor: f, catalogue: c) == nil)
+    }
+
+    @Test func boundsHoldTheWholeRoom() throws {
+        let r = try built(2)
+        #expect(r.bounds.minX <= r.frame.corners.left.x && r.bounds.maxX >= r.frame.corners.right.x)
+        #expect(r.bounds.minY <= r.frame.corners.top.y - r.wallHeight && r.bounds.maxY >= r.frame.corners.bottom.y)
+    }
+
+    @Test func perchedCatIsOverItsProp() throws {
+        let r = try built(1)
+        let p = try #require(r.props.first { $0.spots.contains { $0.pose == "sleep" || $0.pose == "sit" } })
+        let s = try #require(p.spots.first { $0.pose == "sleep" || $0.pose == "sit" })
+        let px = r.frame.px(s.standAt)
+        let fig = RoomGeometry.figure(feet: px, catHeight: 160, lift: s.lift)
+        let z = RoomGeometry.catZ(feet: s.standAt, figure: fig, boxes: r.boxes, perch: p.id)
+        #expect(z > p.box.z)
+    }
+}
