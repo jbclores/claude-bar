@@ -6,6 +6,7 @@ import SwiftUI
 /// dropdown's tabs) never fire.
 final class ClickThroughHostingView<Content: View>: NSHostingView<Content> {
     var onSizeChange: ((NSSize) -> Void)?
+    private var reported: NSSize?
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
@@ -20,10 +21,15 @@ final class ClickThroughHostingView<Content: View>: NSHostingView<Content> {
         reportSize()
     }
 
+    /// Reports only a size that changed: measuring lays the content out again (layout() above), so reporting every
+    /// pass fed itself — layout, report, resize, measure, layout — and kept the main thread at 100%.
     private func reportSize() {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.onSizeChange?(self.intrinsicContentSize.height > 0 ? self.intrinsicContentSize : self.fittingSize)
+            let size = self.intrinsicContentSize.height > 0 ? self.intrinsicContentSize : self.fittingSize
+            guard size != self.reported else { return }
+            self.reported = size
+            self.onSizeChange?(size)
         }
     }
 }
