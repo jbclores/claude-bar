@@ -105,3 +105,42 @@ extension FloorPlan {
         return s
     }
 }
+
+public enum FloorActivity: Equatable, Sendable { case empty, idle, working, needsYou }
+
+extension FloorPlan {
+    /// A start or finish this recent makes Follow go to its floor.
+    static let recentChange: TimeInterval = 60
+
+    public static func cats(on floorId: Int, agents: [OfficeAgent], in building: Building) -> [OfficeAgent] {
+        agents.filter { floorId == self.floorId(for: $0, among: agents, in: building) }
+    }
+
+    public static func activity(of building: Building, agents: [OfficeAgent], attention: Set<String>) -> [Int: FloorActivity] {
+        var out: [Int: FloorActivity] = [:]
+        for f in building.floors {
+            let here = cats(on: f.id, agents: agents, in: building)
+            if here.contains(where: { $0.status == .waiting || attention.contains($0.key) }) { out[f.id] = .needsYou }
+            else if here.contains(where: { $0.status == .working }) { out[f.id] = .working }
+            else { out[f.id] = here.isEmpty ? .empty : .idle }
+        }
+        return out
+    }
+
+    /// Follow: a cat that needs you (newest first), else the most recent start or finish (within a minute), else
+    /// the busiest floor, else the Lounge.
+    public static func followTarget(building: Building, agents: [OfficeAgent], attention: Set<String>, since: [String: Date], now: Date) -> Int {
+        let alive = agents.filter { $0.status != .ended }
+        let floorOf = { (a: OfficeAgent) in floorId(for: a, among: agents, in: building) }
+        let needy = alive.filter { $0.status == .waiting || attention.contains($0.key) }
+            .max { ($0.waitingSince ?? since[$0.key] ?? .distantPast) < ($1.waitingSince ?? since[$1.key] ?? .distantPast) }
+        if let needy, let f = floorOf(needy) { return f }
+        let recent = alive.compactMap { a in since[a.key].map { (a, $0) } }
+            .filter { now.timeIntervalSince($0.1) <= recentChange }
+            .max { $0.1 < $1.1 }
+        if let (a, _) = recent, let f = floorOf(a) { return f }
+        let busy = Dictionary(grouping: alive.filter { $0.status == .working }.compactMap(floorOf), by: { $0 })
+            .max { $0.value.count < $1.value.count || ($0.value.count == $1.value.count && $0.key > $1.key) }
+        return busy?.key ?? building.lounge?.id ?? building.floors.first?.id ?? 1
+    }
+}

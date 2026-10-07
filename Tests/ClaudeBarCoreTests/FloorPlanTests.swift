@@ -116,3 +116,46 @@ import Testing
         #expect(FloorPlan.deskPosition(0) == (0, 0) && FloorPlan.deskPosition(5) == (0, 5) && FloorPlan.deskPosition(6) == (1, 0))
     }
 }
+
+@Suite struct FollowTests {
+    let building = Building(floors: [
+        Floor(id: 1, name: "Lounge", repoRoot: nil, floorTexture: nil, wallTexture: nil, desks: [], elevator: nil, hasLoungeSign: true),
+        Floor(id: 6, name: "Desk pool", repoRoot: nil, floorTexture: nil, wallTexture: nil, desks: [], elevator: nil, hasLoungeSign: false),
+        Floor(id: 10, name: "pnp", repoRoot: "/w/pnp", floorTexture: nil, wallTexture: nil, desks: [], elevator: nil, hasLoungeSign: false),
+        Floor(id: 12, name: "claude-bar", repoRoot: "/w/claude-bar", floorTexture: nil, wallTexture: nil, desks: [], elevator: nil, hasLoungeSign: false),
+    ])
+    let now = Date(timeIntervalSince1970: 1_791_300_000)
+
+    func a(_ id: String, _ status: AgentStatus, _ root: String, waitingSince: Date? = nil) -> OfficeAgent {
+        OfficeAgent(id: id, name: id, owner: "office", status: status, cwd: root, repoRoot: root, waitingSince: waitingSince)
+    }
+
+    @Test func needsYouWinsNewestFirst() {
+        let agents = [a("x", .working, "/w/claude-bar"), a("y", .waiting, "/w/pnp", waitingSince: now - 30), a("z", .waiting, "/w/claude-bar", waitingSince: now - 300)]
+        #expect(FloorPlan.followTarget(building: building, agents: agents, attention: [], since: [:], now: now) == 10)
+    }
+
+    @Test func thenTheMostRecentStartOrFinishWithinAMinute() {
+        let agents = [a("x", .working, "/w/claude-bar"), a("y", .working, "/w/claude-bar"), a("p", .working, "/w/pnp")]
+        #expect(FloorPlan.followTarget(building: building, agents: agents, attention: [], since: ["p": now - 5, "x": now - 600], now: now) == 10)
+    }
+
+    @Test func thenTheBusiestFloorThenTheLounge() {
+        let agents = [a("x", .working, "/w/claude-bar"), a("y", .working, "/w/claude-bar"), a("p", .working, "/w/pnp")]
+        #expect(FloorPlan.followTarget(building: building, agents: agents, attention: [], since: [:], now: now) == 12)
+        #expect(FloorPlan.followTarget(building: building, agents: [a("i", .idle, "/w/pnp")], attention: [], since: [:], now: now) == 1)
+    }
+
+    @Test func attentionCountsAsNeedsYou() {
+        let agents = [a("x", .working, "/w/claude-bar"), a("done", .idle, "/w/pnp")]
+        #expect(FloorPlan.followTarget(building: building, agents: agents, attention: ["done"], since: ["done": now - 2], now: now) == 1,
+                "finished: it went idle, so it's in the Lounge")
+    }
+
+    @Test func stripShowsEachFloorsState() {
+        let agents = [a("x", .working, "/w/claude-bar"), a("y", .waiting, "/w/pnp"), a("i", .idle, "/w/pnp")]
+        let activity = FloorPlan.activity(of: building, agents: agents, attention: [])
+        #expect(activity == [1: .idle, 6: .empty, 10: .needsYou, 12: .working])
+        #expect(FloorPlan.cats(on: 10, agents: agents, in: building).map(\.id) == ["y"])
+    }
+}
