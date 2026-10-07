@@ -461,7 +461,8 @@ enum TestSetup {
             // SwiftUI's .global here is the whole window (title bar included), from its top-left.
             let target = NSRect(x: frame.minX, y: window.frame.height - frame.maxY, width: frame.width, height: frame.height)
             let point = NSPoint(x: target.midX, y: target.midY)
-            guard let hit = content.hitTest(content.superview!.convert(point, from: nil)) else { print("nothing under \(id)"); return false }
+            guard let frameView = content.superview else { print("setup window has no frame view"); exit(1) }
+            guard let hit = content.hitTest(frameView.convert(point, from: nil)) else { print("nothing under \(id)"); return false }
             let hitFrame = hit.convert(hit.bounds, to: nil)
             // Never click something else: the control under the point must be the recorded one.
             guard abs(hitFrame.midX - target.midX) < 4, abs(hitFrame.midY - target.midY) < 4 else {

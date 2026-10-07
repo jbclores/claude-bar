@@ -47,14 +47,16 @@ public struct SetupSettings: Equatable, Sendable {
     }
 
     /// Settings' setup line: "Full · Cat Office at ~/…", "Some extras are off · Cat Office at ~/…", or
-    /// "Cat Office isn't set up".
-    public func line(catOfficeDir: String?, home: String) -> String {
-        guard state != .noCatOffice, let dir = catOfficeDir else { return "Cat Office isn't set up" }
-        let shown = dir.hasPrefix(home + "/") ? "~" + dir.dropFirst(home.count) : dir
+    /// "Cat Office isn't set up". The folder is the configured one, else the running (or remembered) one; a full or
+    /// reduced setup without either still reads "Full" / "Some extras are off", never "isn't set up".
+    public func line(catOfficeDir: String?, runningDir: String? = nil, home: String) -> String {
+        let shown = (catOfficeDir ?? runningDir).map { dir in dir.hasPrefix(home + "/") ? "~" + dir.dropFirst(home.count) : dir }
+        let at = shown.map { " · Cat Office at \($0)" } ?? ""
         switch state {
-        case .full: return "Full · Cat Office at \(shown)"
-        case .reduced: return "Some extras are off · Cat Office at \(shown)"
-        default: return "Cat Office at \(shown)"
+        case .full: return "Full" + at
+        case .reduced: return "Some extras are off" + at
+        case .noCatOffice: return "Cat Office isn't set up"
+        case nil: return shown.map { "Cat Office at \($0)" } ?? "Cat Office isn't set up"
         }
     }
 }

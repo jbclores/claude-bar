@@ -289,7 +289,9 @@ struct SettingsTabView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Setup").font(.callout)
-                    Text(state.settings.setup.line(catOfficeDir: state.settings.catOffice.dir, home: NSHomeDirectory()))
+                    Text(state.settings.setup.line(catOfficeDir: state.settings.catOffice.dir,
+                                                   runningDir: UserDefaults.standard.string(forKey: AppState.rememberedDirKey),
+                                                   home: NSHomeDirectory()))
                         .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 }
                 Spacer()

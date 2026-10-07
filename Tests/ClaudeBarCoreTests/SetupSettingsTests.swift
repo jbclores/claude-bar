@@ -82,6 +82,14 @@ import Testing
         #expect(SetupSettings().line(catOfficeDir: nil, home: home) == "Cat Office isn't set up")
         // A known folder without a recorded state (inferred, patch unknown): just where it is.
         #expect(SetupSettings(seen: true, state: nil).line(catOfficeDir: "/Users/x/co", home: home) == "Cat Office at ~/co")
+        // Found through the running Cat Office (no configured folder): never "isn't set up" for full / reduced.
+        #expect(SetupSettings(seen: true, state: .full).line(catOfficeDir: nil, home: home) == "Full")
+        #expect(SetupSettings(seen: true, state: .reduced).line(catOfficeDir: nil, home: home) == "Some extras are off")
+        #expect(SetupSettings(seen: true, state: .full).line(catOfficeDir: nil, runningDir: "/Users/x/co", home: home)
+                == "Full · Cat Office at ~/co")
+        // The configured folder wins over the running one.
+        #expect(SetupSettings(seen: true, state: .full).line(catOfficeDir: "/Users/x/a", runningDir: "/Users/x/b", home: home)
+                == "Full · Cat Office at ~/a")
         // "/Users/xy" is not inside "/Users/x".
         #expect(SetupSettings(seen: true, state: .full).line(catOfficeDir: "/Users/xy/co", home: home)
                 == "Full · Cat Office at /Users/xy/co")

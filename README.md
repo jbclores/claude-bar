@@ -29,7 +29,8 @@ quietly), and start Cat Office. Nothing on your Mac changes until you click Cont
   set up (Cat Office known and the status line in place) never sees the window.
 - **Reopening:** Settings → **Set up ClaudeBar…**, or the card in the Office tab ("Cat Office isn't set up yet · Set
   up…", or "Some extras are off · Fix…" when the patch or usage is off).
-- **Undo the status line:** Settings → **Restore my old status line** (shown while ClaudeBar's status line is on).
+- **Undo the status line:** Settings → **Restore my old status line** (shown only after setup replaced or wrapped a
+  status line you already had, while that change is still in place).
 - **Click test** (temp folders only, offscreen): `build/ClaudeBar.app/Contents/MacOS/ClaudeBar --test-setup`.
 
 The scripts below still work for doing it by hand.
