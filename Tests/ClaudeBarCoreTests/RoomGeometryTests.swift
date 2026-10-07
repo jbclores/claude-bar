@@ -62,3 +62,46 @@ func near(_ a: Double, _ b: Double, _ tol: Double = 0.5) -> Bool { abs(a - b) <=
         #expect(FloorFrame.depthZ(1.2345) == 12355)
     }
 }
+
+@Suite struct WallItemTests {
+    @Test(arguments: ["user", "edge"]) func wallItemsMatchCatOffice(_ b: String) throws {
+        let c = try RoomCatalogueTests().catalogue(b)
+        let building = try #require(Building.parse(building: fixture("rooms/\(b)/building.json"), parts: fixture("rooms/\(b)/room-parts.json")))
+        for e in try expected(b).floors {
+            let floor = try #require(building.floor(id: e.id)), room = try #require(floor.room)
+            let frame = try #require(FloorFrame(corners: e.corners))
+            let placed = room.wallItems.compactMap { WallItems.place($0, frame: frame, catalogue: c, wallHeight: e.wallHeight) }
+            #expect(placed.map(\.id) == e.wallItems.map(\.id))
+            for (p, x) in zip(placed, e.wallItems) {
+                #expect(p.image == x.image && p.mirrored == x.mirrored, "\(x.id)")
+                #expect(near(p.box.minX, x.left) && near(p.box.minY, x.top) && near(p.box.width, x.width) && near(p.box.height, x.height), "\(x.id)")
+                #expect((p.plate == nil) == (x.plate == nil))
+                if let pp = p.plate, let xp = x.plate { #expect(near(pp.minX, xp.left) && near(pp.minY, xp.top)) }
+            }
+            let spots = room.wallItems.compactMap { WallItems.elevatorSpot($0, frame: frame, catalogue: c) }
+            #expect(spots.map(\.id) == e.elevators.map(\.id))
+            for (s, x) in zip(spots, e.elevators) {
+                #expect(near(s.standAt.u, x.standAt.u, 1e-3) && near(s.standAt.v, x.standAt.v, 1e-3) && s.facing == x.facing)
+            }
+            let fixtures = room.wallItems.compactMap { WallItems.fixture($0, frame: frame, catalogue: c, wallHeight: e.wallHeight) }
+            #expect(fixtures.count == e.fixtures.count)
+            for (f, x) in zip(fixtures, e.fixtures) { #expect(near(f.rect.minX, x.left) && near(f.rect.minY, x.top) && f.box.z == x.z) }
+        }
+    }
+
+    @Test func fullWindowHasSkyMullionsTransomAndFrame() throws {
+        let c = try RoomCatalogueTests().catalogue()
+        let frame = try #require(FloorFrame(corners: try expected("user").floors[1].corners))
+        let w = WallItemPlacement(id: "w", item: "window-lounge-full", wall: .right, at: 0.21, width: 560, height: 127, bottom: 189, up: nil, transom: nil)
+        let p = try #require(WallItems.place(w, frame: frame, catalogue: c, wallHeight: 399))
+        guard case .stretch = p.pieces.first, case .nineSlice = p.pieces.last else { Issue.record("sky first, frame last: \(p.pieces)"); return }
+        #expect(p.pieces.count >= 4)
+    }
+
+    @Test func unknownWallItemIsSkipped() throws {
+        let c = try RoomCatalogueTests().catalogue()
+        let frame = try #require(FloorFrame(corners: try expected("user").floors[1].corners))
+        let w = WallItemPlacement(id: "x", item: "portal", wall: .left, at: 0.5, width: nil, height: nil, bottom: nil, up: nil, transom: nil)
+        #expect(WallItems.place(w, frame: frame, catalogue: c, wallHeight: 399) == nil)
+    }
+}

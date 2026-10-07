@@ -98,9 +98,11 @@ public struct OccluderBox: Equatable, Sendable {
     public var rect: CGRect
     public var back: Double?
     public var z: Int
+    /// What the box belongs to (a wall item's or prop's placement id), for cats perching on it. Not in Cat Office's box.
+    public var id: String? = nil
 
     /// occlusion.ts occluderBox: z from the front ground corner's depth (u + v).
-    public static func make(front: FloorPoint, rect: CGRect, back: Double?) -> OccluderBox {
-        OccluderBox(front: front, rect: rect, back: back, z: FloorFrame.depthZ(front.u + front.v))
+    public static func make(front: FloorPoint, rect: CGRect, back: Double?, id: String? = nil) -> OccluderBox {
+        OccluderBox(front: front, rect: rect, back: back, z: FloorFrame.depthZ(front.u + front.v), id: id)
     }
 }
