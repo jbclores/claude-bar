@@ -50,9 +50,35 @@ final class StatusItemController: NSResponder {
         state.$output.combineLatest(state.$needsAttention)
             .sink { [weak self] output, attention in self?.updateTitle(output, attention: attention) }
             .store(in: &subscriptions)
+        // The theme (☀️/🌙): popovers follow the menu bar's look unless told; nil follows the Mac.
+        state.$appearance
+            .sink { [weak self] appearance in self?.applyTheme(appearance) }
+            .store(in: &subscriptions)
+        // Following the Mac: re-apply when its theme changes.
+        DistributedNotificationCenter.default()
+            .publisher(for: Notification.Name("AppleInterfaceThemeChangedNotification"))
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.applyTheme(self.state.appearance)
+            }
+            .store(in: &subscriptions)
         state.$menuCat.removeDuplicates()
             .sink { [weak self] cat in self?.updateIcon(cat) }
             .store(in: &subscriptions)
+    }
+
+    private func applyTheme(_ appearance: NSAppearance?) {
+        let target = appearance ?? Self.macAppearance
+        for popover in [dropdown, peek] {
+            popover.appearance = target
+            popover.contentViewController?.view.window?.appearance = target
+        }
+    }
+
+    /// The Mac's own light or dark theme (the menu bar's look can differ, e.g. over a dark wallpaper).
+    private static var macAppearance: NSAppearance? {
+        NSAppearance(named: UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark" ? .darkAqua : .aqua)
     }
 
     /// The menu bar cat: from the icon cache, else trimmed from the art cache; the plain cat symbol meanwhile.

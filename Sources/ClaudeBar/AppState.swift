@@ -217,11 +217,15 @@ final class AppState: ObservableObject {
         setOfficeLighting(settings.officeLighting.toggled(systemDark: Self.systemDark))
     }
 
-    /// Day or night for all of ClaudeBar (dropdown, peek, office); Auto follows the Mac.
+    /// Day or night for all of ClaudeBar; Auto follows the Mac. Popovers take their look from the menu bar, not
+    /// the app, so StatusItemController applies `appearance` to the dropdown and the peek as well.
+    @Published private(set) var appearance: NSAppearance?
+
     func applyLighting() {
         let lighting = settings.officeLighting
         let target: NSAppearance? = lighting == .auto ? nil : NSAppearance(named: lighting == .night ? .darkAqua : .aqua)
         if NSApp.appearance?.name != target?.name { NSApp.appearance = target }
+        if appearance?.name != target?.name { appearance = target }
     }
 
     /// The Mac's own appearance (ignoring ClaudeBar's override).
