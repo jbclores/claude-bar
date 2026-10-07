@@ -29,12 +29,17 @@ extension EnvironmentValues {
     }
 }
 
-/// Each cat's hover frame (agent id → rect in "roomContent").
+/// Each cat's hover frame, depth and feet (agent id → in "roomContent").
 struct CatFramesKey: PreferenceKey {
-    static let defaultValue: [String: CGRect] = [:]
-    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+    static let defaultValue: [String: CatHit] = [:]
+    static func reduce(value: inout [String: CatHit], nextValue: () -> [String: CatHit]) {
         value.merge(nextValue()) { $1 }
     }
+}
+
+extension CatHit {
+    /// A cat drawn without depth (the simple room): its feet at the bottom middle of its frame.
+    init(frame: CGRect) { self.init(frame: frame, z: 0, feet: CGPoint(x: frame.midX, y: frame.maxY)) }
 }
 
 /// "5 cats · Claude OK" (or hindered), for the peek and the Office tab.
@@ -59,7 +64,7 @@ struct OfficeRoomView: View {
     @EnvironmentObject var pointer: PeekPointer
     @EnvironmentObject var zoom: RoomZoom
     @Environment(\.colorScheme) private var colorScheme
-    @State private var catFrames: [String: CGRect] = [:]
+    @State private var catFrames: [String: CatHit] = [:]
     @State private var lastFeet: [String: CGPoint] = [:]
     @EnvironmentObject var floors: FloorSelection
     /// Who sits where, per floor, kept between updates so cats keep their desks and seats.
@@ -125,7 +130,8 @@ struct OfficeRoomView: View {
         guard let point = pointer.location, let office = state.office, zoom.contains(point) else { return nil }
         // The pointer is over the zoomed drawing: find the room point under it.
         let room = zoom.view.unzoom(CGPoint(x: point.x - zoom.roomRect.minX, y: point.y - zoom.roomRect.minY))
-        guard let id = catFrames.first(where: { $0.value.contains(room) })?.key else { return nil }
+        // The frontmost cat under the pointer (CatHit.frontmost), not whichever the dictionary lists first.
+        guard let id = CatHit.frontmost(catFrames, at: room) else { return nil }
         return office.agents.first { $0.id == id }
     }
 
@@ -539,13 +545,13 @@ struct LoungeFloor: View {
         return out
     }
 
-    private func frames(_ o: CGPoint) -> [String: CGRect] {
-        var out: [String: CGRect] = [:]
+    private func frames(_ o: CGPoint) -> [String: CatHit] {
+        var out: [String: CatHit] = [:]
         let w = Self.catWidth, h = w * 0.95
         for (i, a) in slots.prefix(Self.spots.count).enumerated() {
-            if let a { out[a.id] = CGRect(x: o.x + Self.spots[i].x - w / 2, y: o.y + Self.spots[i].y - h * 0.9, width: w, height: h) }
+            if let a { out[a.id] = CatHit(frame: CGRect(x: o.x + Self.spots[i].x - w / 2, y: o.y + Self.spots[i].y - h * 0.9, width: w, height: h)) }
             for (k, helper) in (a.flatMap { nearby[$0.id] } ?? []).enumerated() {
-                out[helper.id] = Self.helperRect(spot: i, index: k).offsetBy(dx: o.x, dy: o.y)
+                out[helper.id] = CatHit(frame: Self.helperRect(spot: i, index: k).offsetBy(dx: o.x, dy: o.y))
             }
         }
         return out
@@ -756,7 +762,7 @@ extension View {
 private extension View {
     func catFrame(_ id: String) -> some View {
         background(GeometryReader { proxy in
-            Color.clear.preference(key: CatFramesKey.self, value: [id: proxy.frame(in: .named("roomContent"))])
+            Color.clear.preference(key: CatFramesKey.self, value: [id: CatHit(frame: proxy.frame(in: .named("roomContent")))])
         })
     }
 }

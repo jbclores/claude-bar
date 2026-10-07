@@ -20,6 +20,8 @@ struct FloorScene: View {
 
     /// Pixels per point of the room's picture (Retina).
     static let pixelsPerPoint: CGFloat = 2
+    /// Seconds before a picture missing some art is tried again.
+    static let retryAfter: Double = 15
 
     private struct LoadKey: Equatable {
         let room: BuiltRoom
@@ -51,8 +53,13 @@ struct FloorScene: View {
             .preference(key: SceneFitKey.self,
                         value: [room.floorId: SceneFit(scale: fit.scale, origin: CGPoint(x: origin.x + fit.origin.x, y: origin.y + fit.origin.y))])
             .task(id: LoadKey(room: room, night: night, scale: scale)) {
-                if let image = await RoomImageCache.shared.image(for: room, night: night, scale: scale, art: state.art) {
-                    loaded = (room.floorId, image)
+                // A picture drawn without some of its art (a timeout, a missing file) is shown, and drawn again a
+                // little later while the floor is shown (and on its next appearance) until it's whole.
+                while !Task.isCancelled {
+                    let result = await RoomImageCache.shared.image(for: room, night: night, scale: scale, art: state.art)
+                    if let result { loaded = (room.floorId, result.image) }
+                    if result?.complete == true { break }
+                    do { try await Task.sleep(for: .seconds(Self.retryAfter)) } catch { break }
                 }
             }
         }
@@ -212,6 +219,10 @@ struct SceneCats: View {
         let rect: CGRect
         let mirrored: Bool
         let box: OccluderBox
+        /// Its lit copy (drawn over it at night).
+        let glow: RoomGlow?
+        /// Its place in the room's drawing order.
+        let order: Int
     }
 
     private enum Item {
@@ -229,13 +240,12 @@ struct SceneCats: View {
     var body: some View {
         let (cats, notes) = cast.layout(in: room)
         let drawn = cats.compactMap(draw)
-        let covers = room.desks.map { Cover(key: "desk:\($0.id)", image: $0.image, rect: $0.rect, mirrored: $0.flip, box: $0.box) }
-            + room.props.compactMap { p in p.image.map { Cover(key: "prop:\(p.id)", image: $0, rect: p.rect, mirrored: p.mirrored, box: p.box) } }
-            + room.fixtures.compactMap { f in f.image.map { Cover(key: "fixture:\(f.id)", image: $0, rect: f.rect, mirrored: f.mirrored, box: f.box) } }
-        // Furniture over a cat it overlaps, by depth.
-        let shownCovers = covers.filter { c in drawn.contains { d in c.box.z > d.z && Self.overlaps(d.figure, c.box.rect) } }
+        // Furniture in front of a cat it overlaps, and whatever the room's picture painted over that furniture
+        // (RoomGeometry.overCats), in the picture's own order.
+        let shownCovers = RoomGeometry.overCats(drawn.map { ($0.z, $0.figure) }, standing: room.standing)
+            .enumerated().compactMap { cover($0.element, order: $0.offset) }
         let items = drawn.map { Entry(z: $0.z, order: 0, id: $0.cat.agent.id, item: .cat($0)) }
-            + shownCovers.map { Entry(z: $0.box.z, order: 1, id: $0.key, item: .cover($0)) }
+            + shownCovers.map { Entry(z: $0.box.z, order: 1 + $0.order, id: $0.key, item: .cover($0)) }
         let sorted = items.sorted { ($0.z, $0.order, $0.id) < ($1.z, $1.order, $1.id) }
         let scale = zoom.view.scale
         let pills = Dictionary(drawn.map { ($0.cat.agent.id, pillRect($0, scale: scale)) }, uniquingKeysWith: { a, _ in a })
@@ -275,15 +285,26 @@ struct SceneCats: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .preference(key: CatFeetKey.self, value: Dictionary(drawn.map { ($0.cat.agent.id, shift($0.feet)) }, uniquingKeysWith: { a, _ in a }))
-        .preference(key: CatFramesKey.self, value: Dictionary(drawn.map { ($0.cat.agent.id, fit.rect($0.figure).offsetBy(dx: origin.x, dy: origin.y)) },
-                                                              uniquingKeysWith: { a, _ in a }))
+        .preference(key: CatFramesKey.self, value: Dictionary(drawn.map {
+            ($0.cat.agent.id, CatHit(frame: fit.rect($0.figure).offsetBy(dx: origin.x, dy: origin.y), z: $0.z, feet: shift($0.feet)))
+        }, uniquingKeysWith: { a, _ in a }))
     }
 
     private func shift(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x + origin.x, y: p.y + origin.y) }
 
-    /// occlusion.ts's strict overlap.
-    private static func overlaps(_ a: CGRect, _ b: CGRect) -> Bool {
-        a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY
+    /// A piece of the room drawn again over cats; nil for a placeholder box (no art).
+    private func cover(_ piece: StandingPiece, order: Int) -> Cover? {
+        switch piece.kind {
+        case .desk:
+            let d = room.desks[piece.index]
+            return Cover(key: piece.id, image: d.image, rect: d.rect, mirrored: d.flip, box: d.box, glow: nil, order: order)
+        case .prop:
+            let p = room.props[piece.index]
+            return p.image.map { Cover(key: piece.id, image: $0, rect: p.rect, mirrored: p.mirrored, box: p.box, glow: p.glow, order: order) }
+        case .fixture:
+            let f = room.fixtures[piece.index]
+            return f.image.map { Cover(key: piece.id, image: $0, rect: f.rect, mirrored: f.mirrored, box: f.box, glow: f.glow, order: order) }
+        }
     }
 
     private func needsYou(_ a: OfficeAgent) -> Bool { a.status == .waiting || state.attention.contains(a.key) }
@@ -374,12 +395,22 @@ struct SceneCats: View {
 
     private func coverView(_ c: Cover) -> some View {
         let r = fit.rect(c.rect)
-        return SpriteImage(key: c.image, fallback: nil, mode: .stretch) { await state.art.image(path: c.image, maxPixelSize: 1024) }
-            .frame(width: r.width, height: r.height)
-            .scaleEffect(x: c.mirrored ? -1 : 1, y: 1)
-            .colorMultiply(night ? Night.furniture : .white)
-            .offset(x: r.minX, y: r.minY)
-            .allowsHitTesting(false)
+        // At night a lamp's lit copy goes over it again, as in the room's picture (RoomPainter.drawGlow).
+        let lit = c.glow.flatMap { g in g.lit(night: night) ? RoomImageCache.shared.glowImage(g) : nil }
+        return ZStack(alignment: .topLeading) {
+            SpriteImage(key: c.image, fallback: nil, mode: .stretch) { await state.art.image(path: c.image, maxPixelSize: 1024) }
+                .frame(width: r.width, height: r.height)
+                .colorMultiply(night ? Night.furniture : .white)
+            if let lit {
+                let glow = Image(decorative: lit, scale: 1).resizable().interpolation(.high).frame(width: r.width, height: r.height)
+                glow.shadow(color: RoomPainter.glowHalo, radius: RoomPainter.glowBlur * fit.scale / 2).blendMode(.screen)
+                glow
+            }
+        }
+        .frame(width: r.width, height: r.height)
+        .scaleEffect(x: c.mirrored ? -1 : 1, y: 1)
+        .offset(x: r.minX, y: r.minY)
+        .allowsHitTesting(false)
     }
 }
 
@@ -398,8 +429,12 @@ final class RoomImageCache {
     private var entries: [Key: (room: BuiltRoom, image: NSImage)] = [:]
     /// Art by path, as loaded.
     private var art: [String: CGImage] = [:]
-    /// Art multiplied by a night colour, by "tint|path".
+    /// Art painted (a room's tint) and/or multiplied by a night colour, by "paint|tint|path".
     private var tinted: [String: CGImage] = [:]
+    /// Lit copies (RoomGlow), by "image|mask".
+    private var glows: [String: CGImage] = [:]
+
+    private static let dropArt = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_DROP_ART"].flatMap { $0.isEmpty ? nil : $0 }
 
     /// Scales compared to a thousandth, so layout jitter doesn't redraw.
     nonisolated static func quantized(_ scale: CGFloat) -> CGFloat { (scale * 1000).rounded() / 1000 }
@@ -420,12 +455,17 @@ final class RoomImageCache {
         return e.image
     }
 
-    func image(for room: BuiltRoom, night: Bool, scale: CGFloat, art cache: ArtCache) async -> NSImage? {
-        if let hit = cached(room, night: night, scale: scale) { return hit }
-        let needs = RoomPainter.art(room).filter { art[$0.key] == nil }
+    /// The room's picture, and whether it has all its art. Only a whole picture is kept: one missing some art is
+    /// drawn again on the next call (its art loaded again), so a timeout doesn't leave a desk missing all session.
+    func image(for room: BuiltRoom, night: Bool, scale: CGFloat, art cache: ArtCache) async -> (image: NSImage, complete: Bool)? {
+        if let hit = cached(room, night: night, scale: scale) { return (hit, true) }
+        let needed = RoomArt.paths(room, night: night)
+        let needs = needed.filter { art[$0.path] == nil }
         let loaded = await withTaskGroup(of: (String, Data?).self) { group in
             for (path, natural) in needs {
                 // Sliced and repeated art is measured in its own pixels: loaded whole. Sprites only need to be sharp.
+                // Renders only (CLAUDEBAR_RENDER_DROP_ART=text): art whose path holds `text` fails to load.
+                if let drop = Self.dropArt, path.contains(drop) { group.addTask { (path, nil) }; continue }
                 group.addTask { (path, await cache.image(path: path, maxPixelSize: natural ? 4096 : 1024)) }
             }
             var out: [(String, Data?)] = []
@@ -437,21 +477,37 @@ final class RoomImageCache {
                   let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { continue }
             art[path] = image
         }
-        let painter = RoomPainter(room: room, scale: scale, night: night) { [self] path, tint in picture(path, tint: tint) }
+        let painter = RoomPainter(room: room, scale: scale, night: night,
+                                  picture: { [self] path, tint, paint in picture(path, tint: tint, paint: paint) },
+                                  glow: { [self] g in glowImage(g) })
         guard let cg = painter.draw() else { return nil }
         let image = NSImage(cgImage: cg, size: NSSize(width: CGFloat(cg.width) / FloorScene.pixelsPerPoint,
                                                       height: CGFloat(cg.height) / FloorScene.pixelsPerPoint))
-        entries[key(room, night, scale)] = (room, image)
-        return image
+        let complete = RoomArt.complete(needed.map(\.path), loaded: Set(art.keys))
+        if complete { entries[key(room, night, scale)] = (room, image) }
+        return (image, complete)
     }
 
-    private func picture(_ path: String, tint: RoomPainter.Tint?) -> CGImage? {
+    /// Art as loaded, painted `paint` (RoomTint: walls and floor), then multiplied by the night's `tint`.
+    private func picture(_ path: String, tint: RoomPainter.Tint?, paint: RoomPainter.Paint?) -> CGImage? {
         guard let image = art[path] else { return nil }
-        guard let tint else { return image }
-        let k = "\(tint)|\(path)"
+        guard tint != nil || paint != nil else { return image }
+        let k = "\(paint.map { "\($0.tint)/\($0.fallback)" } ?? "")|\(tint.map(String.init(describing:)) ?? "")|\(path)"
         if let done = tinted[k] { return done }
-        let out = RoomPainter.multiply(image, tint.rgb)
+        var out: CGImage? = image
+        if let paint { out = out.flatMap { RoomPainter.painted($0, paint) } }
+        if let tint { out = out.flatMap { RoomPainter.multiply($0, tint.rgb) } }
         tinted[k] = out
+        return out
+    }
+
+    /// A lit copy: its art inside its mask, a little brightened (lighting.css .emissive--lamp brightness(1.12)).
+    /// nil until both are loaded.
+    func glowImage(_ g: RoomGlow) -> CGImage? {
+        let k = "\(g.image)|\(g.mask)"
+        if let done = glows[k] { return done }
+        guard let image = art[g.image], let mask = art[g.mask], let out = RoomPainter.masked(image, mask) else { return nil }
+        glows[k] = out
         return out
     }
 }
@@ -473,11 +529,21 @@ struct RoomPainter {
         }
     }
 
+    /// A room's paint for its walls or floor (RoomTint): its colour, and the lightness to measure the texture
+    /// against when the texture has none of its own (the material's colour's luma, as useTextureLuma).
+    struct Paint: Equatable {
+        let tint: String
+        let fallback: Double
+    }
+
     let room: BuiltRoom
     /// Pixels per world px.
     let scale: CGFloat
     let night: Bool
-    let picture: (String, Tint?) -> CGImage?
+    /// Art by path, painted and/or night-tinted.
+    let picture: (String, Tint?, Paint?) -> CGImage?
+    /// A lit copy's picture (RoomImageCache.glowImage).
+    let glow: (RoomGlow) -> CGImage?
 
     /// RoomShell.tsx: the floor's colour without a material.
     static let floorColor = "#e3a56c"
@@ -485,36 +551,20 @@ struct RoomPainter {
     static let placeholderColor = "#c9a27a"
     /// desks.ts / RoomProps.tsx SHADOW_SPREAD (floor units).
     static let shadowSpread = 0.004
+    /// lighting.css .emissive--lamp: the warm glow hugging a lit copy, drop-shadow(0 0 6px rgba(255, 196, 120, 0.7)).
+    static let glowHalo = Color(red: 1, green: 196 / 255, blue: 120 / 255, opacity: 0.7)
+    static let glowBlur: CGFloat = 6
+    /// ... and its brightness(1.12).
+    static let glowBrightness = 1.12
 
-    /// Every picture the room draws: path, and whether it's needed at its own pixel size (slices, repeats).
-    static func art(_ room: BuiltRoom) -> [(key: String, natural: Bool)] {
-        var out: [String: Bool] = [:]
-        func add(_ p: String?, _ natural: Bool = false) {
-            guard let p, !p.isEmpty else { return }
-            out[p] = (out[p] ?? false) || natural
-        }
-        add(room.floorTexture?.image)
-        add(room.wallTexture?.image, true)
-        room.rugs.forEach { add($0.image) }
-        for item in room.wallItems {
-            add(item.image)
-            for piece in item.pieces {
-                switch piece {
-                case .nineSlice(let image, _, _), .repeatX(let image, _): add(image, true)
-                case .stretch(let image, _), .decor(let image, _): add(image)
-                case .fill: break
-                }
-            }
-        }
-        room.desks.forEach { add($0.image) }
-        room.props.forEach { add($0.image) }
-        room.fixtures.forEach { add($0.image) }
-        return out.map { (key: $0.key, natural: $0.value) }
+    private func image(_ path: String?, _ tint: Tint, paint: Paint? = nil) -> CGImage? {
+        guard let path, !path.isEmpty else { return nil }
+        return picture(path, night ? tint : nil, paint)
     }
 
-    private func image(_ path: String?, _ tint: Tint) -> CGImage? {
-        guard let path, !path.isEmpty else { return nil }
-        return picture(path, night ? tint : nil)
+    /// The paint for the walls or floor (room-tint.ts roomTint), measured against `material`'s texture.
+    private func paint(_ tint: String?, material color: String?) -> Paint? {
+        tint.map { Paint(tint: $0, fallback: RoomTint.luma(color ?? "#ffffff")) }
     }
 
     func draw() -> CGImage? {
@@ -547,8 +597,9 @@ struct RoomPainter {
         ctx.saveGState()
         ctx.concatenate(plane.transform)
         ctx.clip(to: CGRect(x: 0, y: 0, width: size, height: size))
-        fill(ctx, CGRect(x: 0, y: 0, width: size, height: size), room.floorTexture?.color ?? Self.floorColor, .room)
-        if let m = room.floorTexture, let img = image(m.image, .room) {
+        // RoomShell.tsx 561-570: a stained floor is its stain's colour, its texture painted (the rugs left alone).
+        fill(ctx, CGRect(x: 0, y: 0, width: size, height: size), room.floorTint ?? room.floorTexture?.color ?? Self.floorColor, .room)
+        if let m = room.floorTexture, let img = image(m.image, .room, paint: paint(room.floorTint, material: m.color)) {
             let tile = m.tile ?? [512, 512]
             let tw = CGFloat(tile.first ?? 512), th = CGFloat(tile.count > 1 ? tile[1] : 512)
             tiled(ctx, img, origin: .zero, tile: CGSize(width: tw, height: th))
@@ -589,8 +640,11 @@ struct RoomPainter {
         // Wall items stay on their wall (room.css .room-wall: overflow hidden).
         ctx.clip(to: CGRect(x: 0, y: 0, width: length, height: height))
         let material = room.wallTexture
-        fill(ctx, CGRect(x: 0, y: 0, width: length, height: height), material?.color ?? "#fdeee0", .room)
-        if let m = material, let img = image(m.image, .room) { plaster(ctx, img, m, length: length, height: height) }
+        // RoomShell.tsx 371-372: a painted wall is its paint's colour, its plaster painted (its items left alone).
+        fill(ctx, CGRect(x: 0, y: 0, width: length, height: height), room.wallTint ?? material?.color ?? "#fdeee0", .room)
+        if let m = material, let img = image(m.image, .room, paint: paint(room.wallTint, material: m.color)) {
+            plaster(ctx, img, m, length: length, height: height)
+        }
         for item in room.wallItems where item.wall == side { drawWallItem(ctx, item) }
         ctx.restoreGState()
     }
@@ -637,12 +691,18 @@ struct RoomPainter {
         ctx.saveGState()
         if item.mirrored { mirror(ctx, about: box.midX) }
         if !item.pieces.isEmpty {
+            ctx.saveGState()
             ctx.translateBy(x: box.minX, y: box.minY)
             for piece in item.pieces { drawPiece(ctx, piece) }
+            ctx.restoreGState()
         } else if let img = image(item.image, .furniture) {
+            ctx.saveGState()
             if let keep = item.clipHeight { ctx.clip(to: CGRect(x: box.minX, y: box.minY, width: box.width, height: CGFloat(keep))) }
             put(ctx, img, in: box)
+            ctx.restoreGState()
         }
+        // A wall light's or window decoration's lit copy beside it, mirrored with it (RoomShell.tsx 304-313).
+        for g in item.glows { drawGlow(ctx, g.glow, g.rect.offsetBy(dx: box.minX, dy: box.minY)) }
         ctx.restoreGState()
         if let plate = item.plate { drawPlate(plate) }
     }
@@ -730,18 +790,21 @@ struct RoomPainter {
     // MARK: Desks, props and fixtures in depth order (Office.tsx's cats' layer)
 
     private func drawStanding(_ ctx: CGContext) {
-        enum Thing { case desk(PlacedDesk), prop(PlacedProp), fixture(PlacedFixture) }
-        var things: [(z: Int, kind: Int, index: Int, thing: Thing)] = []
-        for (i, d) in room.desks.enumerated() { things.append((d.box.z, 0, i, .desk(d))) }
-        for (i, p) in room.props.enumerated() { things.append((p.box.z, 1, i, .prop(p))) }
-        for (i, f) in room.fixtures.enumerated() { things.append((f.box.z, 2, i, .fixture(f))) }
-        things.sort { ($0.z, $0.kind, $0.index) < ($1.z, $1.kind, $1.index) }
-        for t in things {
-            switch t.thing {
-            case .desk(let d): sprite(ctx, image(d.image, .furniture), d.rect, mirrored: d.flip)
-            case .prop(let p):
-                if p.image != nil { sprite(ctx, image(p.image, .furniture), p.rect, mirrored: p.mirrored) } else { placeholder(ctx, p) }
-            case .fixture(let f): sprite(ctx, image(f.image, .furniture), f.rect, mirrored: f.mirrored)
+        for piece in room.standing {
+            switch piece.kind {
+            case .desk:
+                // A desk whose art didn't load: a box in its place (spec §4), so a cat never sits at nothing.
+                let d = room.desks[piece.index]
+                if let img = image(d.image, .furniture) { sprite(ctx, img, d.rect, mirrored: d.flip) } else { placeholder(ctx, d.footprint, d.rect) }
+            case .prop:
+                let p = room.props[piece.index]
+                if let img = image(p.image, .furniture) { sprite(ctx, img, p.rect, mirrored: p.mirrored) } else { placeholder(ctx, p.footprint, p.rect) }
+                if let g = p.glow { glowSprite(ctx, g, p.rect, mirrored: p.mirrored) }
+            case .fixture:
+                // A small decoration: left out when its art didn't load.
+                let f = room.fixtures[piece.index]
+                sprite(ctx, image(f.image, .furniture), f.rect, mirrored: f.mirrored)
+                if let g = f.glow { glowSprite(ctx, g, f.rect, mirrored: f.mirrored) }
             }
         }
     }
@@ -754,12 +817,31 @@ struct RoomPainter {
         ctx.restoreGState()
     }
 
-    /// RoomProps.tsx PlaceholderBox: an isometric box of the footprint up to the top of its screen box.
-    private func placeholder(_ ctx: CGContext, _ p: PlacedProp) {
-        let f = p.footprint
+    private func glowSprite(_ ctx: CGContext, _ g: RoomGlow, _ rect: CGRect, mirrored: Bool) {
+        ctx.saveGState()
+        if mirrored { mirror(ctx, about: rect.midX) }
+        drawGlow(ctx, g, rect)
+        ctx.restoreGState()
+    }
+
+    /// RoomProps.tsx glow at night: the lit copy, unshaded by the night, over `rect`; its warm halo
+    /// (lighting.css .emissive--lamp drop-shadow) laid on with a screen blend so it only lightens.
+    private func drawGlow(_ ctx: CGContext, _ g: RoomGlow, _ rect: CGRect) {
+        guard g.lit(night: night), let img = glow(g) else { return }
+        ctx.saveGState()
+        ctx.setBlendMode(.screen)
+        ctx.setShadow(offset: .zero, blur: Self.glowBlur * scale, color: NSColor(Self.glowHalo).cgColor)
+        put(ctx, img, in: rect)
+        ctx.restoreGState()
+        put(ctx, img, in: rect)
+    }
+
+    /// RoomProps.tsx PlaceholderBox: an isometric box of the footprint up to the top of its screen box, in
+    /// RoomProps.tsx PLACEHOLDER_COLOR.
+    private func placeholder(_ ctx: CGContext, _ f: Footprint, _ rect: CGRect) {
         let c = [FloorPoint(u: f.u0, v: f.v0), FloorPoint(u: f.u1, v: f.v0), FloorPoint(u: f.u1, v: f.v1), FloorPoint(u: f.u0, v: f.v1)]
             .map { let q = room.frame.px($0); return CGPoint(x: q.x, y: q.y) }
-        let tall = (c.map(\.y).min() ?? p.rect.minY) - p.rect.minY
+        let tall = (c.map(\.y).min() ?? rect.minY) - rect.minY
         let up = { (q: CGPoint) in CGPoint(x: q.x, y: q.y - tall) }
         let (back, left, front, right) = (c[0], c[1], c[2], c[3])
         func poly(_ ps: [CGPoint], _ k: Double) {
@@ -830,6 +912,75 @@ struct RoomPainter {
             r *= m.0; g *= m.1; b *= m.2
         }
         return CGColor(srgbRed: r, green: g, blue: b, alpha: 1)
+    }
+
+    /// RGBA bytes (premultiplied) of `image` at its own size, to work on, and the context holding them.
+    private static func bitmap(_ w: Int, _ h: Int) -> CGContext? {
+        guard w > 0, h > 0, let space = CGColorSpace(name: CGColorSpace.sRGB) else { return nil }
+        return CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0, space: space,
+                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+    }
+
+    /// RoomShell.tsx TintFilter: the texture painted (RoomTint.paint), measured against its own lightness
+    /// (RoomTint.textureLuma; `paint.fallback` when it has none).
+    static func painted(_ image: CGImage, _ paint: Paint) -> CGImage? {
+        let w = image.width, h = image.height
+        guard let ctx = bitmap(w, h), let data = ctx.data else { return nil }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        let row = ctx.bytesPerRow
+        let px = data.bindMemory(to: UInt8.self, capacity: row * h)
+        // Straight (not premultiplied) bytes, for measuring and painting.
+        var straight = [UInt8](repeating: 0, count: w * h * 4)
+        for y in 0..<h {
+            for x in 0..<w {
+                let i = y * row + x * 4, o = (y * w + x) * 4
+                let a = px[i + 3]
+                straight[o + 3] = a
+                guard a > 0 else { continue }
+                for c in 0..<3 { straight[o + c] = UInt8(min(255, (Int(px[i + c]) * 255 + Int(a) / 2) / Int(a))) }
+            }
+        }
+        let base = RoomTint.textureLuma(straight) ?? paint.fallback
+        let matrix = RoomTint.tintMatrix(paint.tint, base: base)
+        // Pixels repeat a lot in a texture: each colour painted once.
+        var done: [UInt32: (UInt8, UInt8, UInt8, UInt8)] = [:]
+        for y in 0..<h {
+            for x in 0..<w {
+                let i = y * row + x * 4, o = (y * w + x) * 4
+                let key = UInt32(straight[o]) << 24 | UInt32(straight[o + 1]) << 16 | UInt32(straight[o + 2]) << 8 | UInt32(straight[o + 3])
+                let out: (UInt8, UInt8, UInt8, UInt8)
+                if let hit = done[key] { out = hit } else {
+                    let p = RoomTint.paint((Double(straight[o]) / 255, Double(straight[o + 1]) / 255, Double(straight[o + 2]) / 255,
+                                            Double(straight[o + 3]) / 255), matrix: matrix)
+                    // Back to premultiplied bytes.
+                    func byte(_ v: Double) -> UInt8 { UInt8(max(0, min(255, (v * 255).rounded()))) }
+                    out = (byte(p.0 * p.3), byte(p.1 * p.3), byte(p.2 * p.3), byte(p.3))
+                    done[key] = out
+                }
+                px[i] = out.0; px[i + 1] = out.1; px[i + 2] = out.2; px[i + 3] = out.3
+            }
+        }
+        return ctx.makeImage()
+    }
+
+    /// A lit copy: `image` kept only where `mask` is (its alpha, stretched over it), brightened by glowBrightness.
+    static func masked(_ image: CGImage, _ mask: CGImage) -> CGImage? {
+        let w = image.width, h = image.height
+        guard let ctx = bitmap(w, h), let data = ctx.data else { return nil }
+        let r = CGRect(x: 0, y: 0, width: w, height: h)
+        ctx.draw(image, in: r)
+        ctx.setBlendMode(.destinationIn)
+        ctx.draw(mask, in: r)
+        let row = ctx.bytesPerRow
+        let px = data.bindMemory(to: UInt8.self, capacity: row * h)
+        for y in 0..<h {
+            for x in 0..<w {
+                let i = y * row + x * 4
+                let a = Double(px[i + 3])
+                for c in 0..<3 { px[i + c] = UInt8(min(a, (Double(px[i + c]) * glowBrightness).rounded())) }
+            }
+        }
+        return ctx.makeImage()
     }
 
     /// The image with each pixel multiplied by `rgb` (CSS/SwiftUI colorMultiply), alpha kept.
