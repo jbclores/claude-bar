@@ -135,9 +135,12 @@ extension FloorPlan {
         let needy = alive.filter { $0.status == .waiting || attention.contains($0.key) }
             .max { ($0.waitingSince ?? since[$0.key] ?? .distantPast) < ($1.waitingSince ?? since[$1.key] ?? .distantPast) }
         if let needy, let f = floorOf(needy) { return f }
-        let recent = alive.compactMap { a in since[a.key].map { (a, $0) } }
+        let changed: [(OfficeAgent, Date)] = alive.compactMap { a in since[a.key].map { (a, $0) } }
             .filter { now.timeIntervalSince($0.1) <= recentChange }
-            .max { $0.1 < $1.1 }
+        // Same instant (every cat first seen at launch): a working cat wins.
+        let recent = changed.max { (x: (OfficeAgent, Date), y: (OfficeAgent, Date)) -> Bool in
+            x.1 != y.1 ? x.1 < y.1 : (x.0.status != .working && y.0.status == .working)
+        }
         if let (a, _) = recent, let f = floorOf(a) { return f }
         let busy = Dictionary(grouping: alive.filter { $0.status == .working }.compactMap(floorOf), by: { $0 })
             .max { $0.value.count < $1.value.count || ($0.value.count == $1.value.count && $0.key > $1.key) }

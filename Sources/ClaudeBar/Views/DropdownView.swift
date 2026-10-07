@@ -105,6 +105,7 @@ struct DropdownView: View {
         .padding(DropdownLayout.padding)
         .frame(width: DropdownLayout.width)
         .environmentObject(RoomZoom())
+        .environmentObject(FloorSelection())
     }
 }
 
@@ -114,9 +115,10 @@ final class DropdownController: NSViewController {
     private let state: AppState
     private let selection = TabSelection()
     let roomZoom = RoomZoom()
+    let floorSelection = FloorSelection()
     private var header: ClickThroughHostingView<AnyView>!
     private var tabs: FirstClickSegmentedControl!
-    private var content: ClickThroughHostingView<AnyView>!
+    private(set) var content: ClickThroughHostingView<AnyView>!
 
     init(state: AppState) {
         self.state = state
@@ -127,7 +129,7 @@ final class DropdownController: NSViewController {
 
     override func loadView() {
         header = ClickThroughHostingView(rootView: AnyView(DropdownHeader().environmentObject(state)))
-        content = ClickThroughHostingView(rootView: AnyView(DropdownBody(selection: selection).environmentObject(state).environmentObject(roomZoom)))
+        content = ClickThroughHostingView(rootView: AnyView(DropdownBody(selection: selection).environmentObject(state).environmentObject(roomZoom).environmentObject(floorSelection)))
         tabs = FirstClickSegmentedControl(labels: DropdownTab.allCases.map(\.title), trackingMode: .selectOne,
                                           target: self, action: #selector(tabChanged(_:)))
         for (i, tab) in DropdownTab.allCases.enumerated() {
@@ -161,7 +163,10 @@ final class DropdownController: NSViewController {
     }
 
     /// The office shows the whole room each time the dropdown opens.
-    func resetZoom() { roomZoom.reset() }
+    func resetZoom() {
+        roomZoom.reset()
+        floorSelection.reopen()
+    }
 
     /// "Office •" on the Office tab when something needs the user.
     func updateAttention(_ attention: Bool) {
@@ -198,7 +203,7 @@ struct OfficeTabView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let office = state.office { OfficeSummary(office: office).font(.caption) }
+            FloorPicker()
             OfficeRoomView()
             if let rows = state.output.office {
                 OfficeCatList(rows: rows, openOffice: { state.openCatOffice() })

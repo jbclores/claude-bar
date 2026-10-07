@@ -60,9 +60,9 @@ struct OfficeRoomView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var catFrames: [String: CGRect] = [:]
     @State private var lastFeet: [String: CGPoint] = [:]
-    /// Spots that stay put (StableSlots): a cat keeps its desk / lounge spot while it's there.
-    @State private var deskSlots: [String?] = []
-    @State private var loungeSlots: [String?] = []
+    @EnvironmentObject var floors: FloorSelection
+    /// Who sits where, per floor, kept between updates so cats keep their desks and seats.
+    @State private var seatings: [Int: FloorSeating] = [:]
     @State private var walks: [String: CatWalk] = [:]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -84,7 +84,7 @@ struct OfficeRoomView: View {
             ZStack(alignment: .topLeading) {
                 RoomBackdrop()
                 if let office = state.office {
-                    room(PeekLayout.make(office.agents))
+                    room()
                 } else {
                     offline
                 }
@@ -116,7 +116,13 @@ struct OfficeRoomView: View {
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
         .onPreferenceChange(CatFeetKey.self) { feet in startWalks(to: feet) }
-        .onChange(of: slotKey, initial: true) { _, _ in updateSlots() }
+        .onChange(of: seatKey, initial: true) { _, _ in updateSeating() }
+        .onChange(of: floorId) { _, _ in
+            // A different floor: show the whole room and don't walk anyone across from the last floor.
+            zoom.reset()
+            walks = [:]
+            lastFeet = [:]
+        }
         .task(id: catKey) { await WalkersLayer.preload(agents: state.office?.agents ?? [], catIds: state.catIds, art: state.art) }
 
     }
@@ -137,69 +143,85 @@ struct OfficeRoomView: View {
         // Remember where each cat last stood, also through a layout pass where it has no spot (it left the lounge
         // before its desk appeared) or Cat Office blips offline; forget cats that left the office.
         lastFeet.merge(feet) { $1 }
-        if let agents = state.office?.agents {
-            let here = Set(agents.filter { $0.status != .ended }.map(\.id))
-            lastFeet = lastFeet.filter { here.contains($0.key) }
-        }
+        let here = Set(floorCats.map(\.id))
+        lastFeet = lastFeet.filter { here.contains($0.key) }
     }
 
-    private var layout: PeekLayout { PeekLayout.make(state.office?.agents ?? []) }
-    /// Changes when who sits at a desk or in the lounge changes.
-    private var slotKey: String { layout.desks.map(\.id).joined(separator: ",") + "|" + layout.lounge.map(\.id).joined(separator: ",") }
     /// Changes when the cats in the office change (to preload their walks).
     private var catKey: String {
         (state.office?.agents ?? []).filter { $0.status != .ended }.map { CatPicker.cat(for: $0, catIds: state.catIds) }.sorted().joined(separator: ",")
     }
 
-    private func updateSlots() {
-        let l = layout
-        deskSlots = StableSlots.assign(l.desks.map(\.id), previous: deskSlots, count: 3)
-        loungeSlots = StableSlots.assign(l.lounge.map(\.id), previous: loungeSlots, count: Lounge.spots.count)
+    private var floorId: Int { floors.shown(state) }
+    private var floor: Floor { state.building.floor(id: floorId) ?? Building.fallback.floors[0] }
+    private var floorCats: [OfficeAgent] { FloorPlan.cats(on: floorId, agents: state.office?.agents ?? [], in: state.building) }
+    /// Changes when who's on the shown floor, or their status or desk, changes.
+    private var seatKey: String {
+        "\(floorId)|" + floorCats.map { "\($0.id):\($0.status.rawValue):\($0.desk?.id ?? "")" }.sorted().joined(separator: ",")
     }
 
-    private enum DeskSlot: Identifiable {
-        case cat(OfficeAgent), free(Int), empty(Int)
-        var id: String {
-            switch self {
-            case .cat(let a): a.id
-            case .free(let i): "free-\(i)"
-            case .empty(let i): "empty-\(i)"
+    private func updateSeating() {
+        seatings[floorId] = FloorPlan.seating(on: floor, agents: floorCats, previous: seatings[floorId])
+    }
+
+    private func room() -> some View {
+        let seating = seatings[floorId] ?? FloorPlan.seating(on: floor, agents: floorCats, previous: nil)
+        let byId = Dictionary(floorCats.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        return Group {
+            if floor.isLounge {
+                Lounge(slots: Array(seating.lounge.prefix(Lounge.spots.count)).map { $0.flatMap { byId[$0] } },
+                       overflow: seating.loungeOverflow + seating.lounge.dropFirst(Lounge.spots.count).compactMap { $0 }.count)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            } else {
+                deskGrid(seating, byId)
             }
-        }
-    }
-
-    /// The desk row in stable slots: cats at their desks, then free desks for cats out in the lounge.
-    private func deskRow(_ layout: PeekLayout) -> [DeskSlot] {
-        let byId = Dictionary(layout.desks.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        var freeLeft = layout.freeDesks
-        return (deskSlots.isEmpty ? [String?](repeating: nil, count: 3) : deskSlots).enumerated().compactMap { i, id in
-            if let id, let agent = byId[id] { return .cat(agent) }
-            if freeLeft > 0 { freeLeft -= 1; return .free(i) }
-            return nil
-        }
-    }
-
-    private func room(_ layout: PeekLayout) -> some View {
-        let byId = Dictionary(layout.lounge.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        return HStack(alignment: .bottom, spacing: 0) {
-            HStack(alignment: .bottom, spacing: 4) {
-                ForEach(deskRow(layout)) { slot in
-                    switch slot {
-                    case .cat(let agent): CatView(agent: agent, atDesk: true).catFrame(agent.id)
-                    case .free: FreeDesk()
-                    case .empty: EmptyView()
-                    }
-                }
-                if layout.deskOverflow > 0 {
-                    RoomPill(text: "+\(layout.deskOverflow) more")
-                }
-            }
-            .padding(.leading, 36)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Lounge(slots: loungeSlots.map { $0.flatMap { byId[$0] } }, overflow: layout.loungeOverflow)
         }
         .padding(.bottom, 8)
         .frame(maxHeight: .infinity, alignment: .bottom)
+    }
+
+    /// The floor's own desks in rows of 6 (shrunk to fit two rows), helpers beside their parents, a queue at the right.
+    private func deskGrid(_ seating: FloorSeating, _ byId: [String: OfficeAgent]) -> some View {
+        let rows = stride(from: 0, to: floor.desks.count, by: 6).map { Array($0..<min($0 + 6, floor.desks.count)) }
+        return HStack(alignment: .bottom, spacing: 6) {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(rows, id: \.self) { row in
+                    HStack(alignment: .bottom, spacing: 4) {
+                        ForEach(row, id: \.self) { i in
+                            let seat = floor.desks[i]
+                            if let id = seating.desks.indices.contains(i) ? seating.desks[i] : nil, let agent = byId[id] {
+                                CatView(agent: agent, atDesk: true, seat: seat).catFrame(agent.id)
+                                    .overlay(alignment: .bottomTrailing) {
+                                        HStack(spacing: -6) {
+                                            ForEach(seating.nearby[id] ?? [], id: \.self) { hid in
+                                                if let helper = byId[hid] { NearbyHelper(agent: helper).catFrame(helper.id) }
+                                            }
+                                            if let more = seating.nearbyOverflow[id] { RoomPill(text: "+\(more)").fixedSize() }
+                                        }
+                                        // Beside the desk, clear of the parent's name pill.
+                                        .offset(x: 22, y: -26)
+                                    }
+                            } else {
+                                FreeDesk(seat: seat)
+                            }
+                        }
+                    }
+                }
+                if floor.desks.isEmpty { RoomPill(text: "No desks on this floor") }
+            }
+            .scaleEffect(rows.count > 1 ? 0.72 : 1, anchor: .bottomLeading)
+            .padding(.leading, 36)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if !seating.queue.isEmpty {
+                VStack(spacing: 2) {
+                    ForEach(seating.queue, id: \.self) { id in
+                        if let agent = byId[id] { NearbyHelper(agent: agent).catFrame(agent.id) }
+                    }
+                    if seating.queueOverflow > 0 { RoomPill(text: "+\(seating.queueOverflow)") }
+                }
+                .padding(.trailing, 10)
+            }
+        }
     }
 
     private var offline: some View {
@@ -376,21 +398,42 @@ struct Lounge: View {
     }
 }
 
-/// A desk whose cat is out in the lounge.
+/// A desk nobody is at: the floor's own desk design, dimmed.
 struct FreeDesk: View {
+    var seat: FloorDesk?
     @EnvironmentObject var state: AppState
     @Environment(\.officeNight) private var officeNight
 
     var body: some View {
         VStack(spacing: 1) {
-            SpriteImage(key: "desk", fallback: nil) { await state.art.deskImage() }
-                .frame(width: 60, height: 53)
-                .colorMultiply(officeNight ? Night.furniture : .white)
-                .opacity(0.75)
-                .frame(width: 64, height: 64 * 1.34, alignment: .bottom)
-                .padding(.bottom, 14)
+            SpriteImage(key: "desk-\(seat?.design ?? "default")-\(seat?.rear ?? false)", fallback: nil) {
+                await state.art.deskImage(id: seat?.design, rear: seat?.rear ?? false)
+            }
+            .frame(width: 60, height: 53)
+            .scaleEffect(x: seat?.flip == true ? -1 : 1, y: 1)
+            .colorMultiply(officeNight ? Night.furniture : .white)
+            .opacity(0.75)
+            .frame(width: 64, height: 64 * 1.34, alignment: .bottom)
+            .padding(.bottom, 14)
             RoomPill(text: "free desk").opacity(0.6)
         }
+    }
+}
+
+/// A helper with no free desk: standing beside its parent's desk, a little smaller ("working nearby").
+struct NearbyHelper: View {
+    let agent: OfficeAgent
+    @EnvironmentObject var state: AppState
+    @Environment(\.officeNight) private var officeNight
+
+    var body: some View {
+        let cat = CatPicker.cat(for: agent, catIds: state.catIds)
+        SpriteImage(key: "\(cat)-standing-front-left", fallback: Theme.color(agent.status)) {
+            await state.art.catImage(cat: cat, pose: .standing, direction: "front-left")
+        }
+        .frame(width: 40, height: 42)
+        .colorMultiply(officeNight ? Night.furniture : .white)
+        .help("\(agent.label) · working nearby")
     }
 }
 
@@ -421,6 +464,8 @@ struct OfficePeekView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Text("Cat Office").font(.headline)
+                let f = state.building.floor(id: state.followFloor)
+                Text("· \(f?.id ?? 1) \(f?.name ?? "Lounge")").font(.callout.weight(.semibold))
                 if let office = state.office { OfficeSummary(office: office).font(.callout) }
             }
             OfficeRoomView()
@@ -462,6 +507,8 @@ struct CatView: View {
     var width: CGFloat = 64
     /// Just the cat (lounge): no status ring, no name.
     var plain = false
+    /// The floor's desk this cat sits at (its design, mirrored, turned).
+    var seat: FloorDesk? = nil
     @EnvironmentObject var state: AppState
     @Environment(\.officeNight) private var officeNight
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -469,7 +516,7 @@ struct CatView: View {
 
     var body: some View {
         let cat = CatPicker.cat(for: agent, catIds: state.catIds)
-        let scene = DeskScene(agent)
+        let scene = DeskScene(seated(agent))
         VStack(spacing: 1) {
             ZStack(alignment: .bottom) {
                 if agent.status == .waiting && !plain && !atDesk {
@@ -502,6 +549,14 @@ struct CatView: View {
                     .frame(maxWidth: 84)
             }
         }
+    }
+
+    /// The agent as seated at this floor's desk (design, mirrored, turned), so DeskStation draws that desk.
+    private func seated(_ agent: OfficeAgent) -> OfficeAgent {
+        guard let seat else { return agent }
+        var a = agent
+        a.desk = AgentDesk(id: seat.design, flip: seat.flip, rear: seat.rear)
+        return a
     }
 
     /// The cat's own desk in Cat Office (design, rear view, mirrored), else the default one.

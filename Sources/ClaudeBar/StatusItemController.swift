@@ -13,6 +13,7 @@ final class StatusItemController: NSResponder {
     private let peek = NSPopover()
     private let pointer = PeekPointer()
     private let peekZoom = RoomZoom()
+    private let peekFloors = FloorSelection(alwaysFollow: true)
     private var subscriptions = Set<AnyCancellable>()
     private var showTimer: Timer?
     private var hideTimer: Timer?
@@ -31,7 +32,7 @@ final class StatusItemController: NSResponder {
         peek.behavior = .applicationDefined
         peek.animates = false
         let peekView = PeekContainerView(
-            content: OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(peekZoom),
+            content: OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(peekZoom).environmentObject(peekFloors),
             size: OfficePeekView.size, zoom: peekZoom)
         peekView.onPointer = { [weak self] point in self?.peekPointer(point) }
         let peekController = NSViewController()

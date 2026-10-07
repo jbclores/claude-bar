@@ -140,6 +140,14 @@ import Testing
         #expect(FloorPlan.followTarget(building: building, agents: agents, attention: [], since: ["p": now - 5, "x": now - 600], now: now) == 10)
     }
 
+    @Test func sameMomentPrefersAWorkingCat() {
+        // At launch every cat is first seen at the same instant: that's no change, so go where the work is.
+        let agents = [a("i", .idle, "/w/pnp"), a("x", .working, "/w/claude-bar"), a("j", .idle, "/w/pnp")]
+        let since = ["i": now - 3, "x": now - 3, "j": now - 3]
+        #expect(FloorPlan.followTarget(building: building, agents: agents, attention: [], since: since, now: now) == 12)
+        #expect(FloorPlan.followTarget(building: building, agents: agents.reversed(), attention: [], since: since, now: now) == 12)
+    }
+
     @Test func thenTheBusiestFloorThenTheLounge() {
         let agents = [a("x", .working, "/w/claude-bar"), a("y", .working, "/w/claude-bar"), a("p", .working, "/w/pnp")]
         #expect(FloorPlan.followTarget(building: building, agents: agents, attention: [], since: [:], now: now) == 12)

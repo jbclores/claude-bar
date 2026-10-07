@@ -23,7 +23,7 @@ enum RenderPeek {
             if xy.count == 2 { pointer.location = CGPoint(x: xy[0], y: xy[1]) }
         }
         let size = OfficePeekView.size
-        let host = NSHostingView(rootView: OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(RoomZoom())
+        let host = NSHostingView(rootView: OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(RoomZoom()).environmentObject(FloorSelection(alwaysFollow: true))
             .background(renderLight ? Color(white: 0.93) : Color(white: 0.16))
             .environment(\.colorScheme, renderLight ? .light : .dark))
         host.frame = NSRect(origin: .zero, size: size)
@@ -53,7 +53,7 @@ enum RenderPeek {
                 let at = (ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_ZOOM_AT"] ?? "120,110").split(separator: ",").compactMap { Double($0) }
                 zoom.renderZoom(CGFloat(factor), at: CGPoint(x: at.first ?? 120, y: at.last ?? 110))
             }
-            let content = OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(zoom)
+            let content = OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(zoom).environmentObject(FloorSelection(alwaysFollow: true))
                 .background(renderLight ? Color(white: 0.93) : Color(white: 0.16))
                 .environment(\.colorScheme, renderLight ? .light : .dark)
             let renderer = ImageRenderer(content: content.frame(width: size.width, height: size.height))
@@ -189,11 +189,12 @@ enum TestTabs {
                 print("  piece:", type(of: v), "frame:", v.frame, "fitting:", v.fittingSize)
             }
             print("  stack:", window.contentView!.frame)
-            var remaining: [(String, Int)] = [("Projects", 1), ("Settings", 2), ("Office", 0), ("Projects", 1)]
+            var remaining: [(String, Int)] = [("Projects", 1), ("Settings", 2), ("Office", 0), ("Projects", 1), ("Office", 0)]
             func next() {
                 guard !remaining.isEmpty else {
                     UserDefaults.standard.set("office", forKey: TabSelection.key)
-                    exit(0)
+                    MainActor.assumeIsolated { floorSteps(controller: controller, window: window, state: state) }
+                    return
                 }
                 let (name, index) = remaining.removeFirst()
                 let frame = control.convert(control.bounds, to: nil)
@@ -216,6 +217,40 @@ enum TestTabs {
             next()
         }
         return true
+    }
+
+    /// The floor picker: clicks ▲, ▼ and Follow (found by their help tags, nothing else), printing the choice after each.
+    private static func floorSteps(controller: DropdownController, window: NSWindow, state: AppState) {
+        var steps: [(String, String)] = [("▲", "floor-up"), ("▼", "floor-down"), ("Follow", "floor-follow")]
+        let floors = controller.floorSelection
+        print("floor before: shown \(floors.shown(state)) · \(floors.choice)")
+        func step() {
+            guard !steps.isEmpty else { exit(0) }
+            let (name, help) = steps.removeFirst()
+            if let frame = floors.targets[help] {
+                // SwiftUI's .global is the window, from its top-left.
+                let point = NSPoint(x: frame.midX, y: window.contentView!.bounds.height - frame.midY)
+                let hit = window.contentView!.hitTest(window.contentView!.superview!.convert(point, from: nil))
+                print("floor: \(name) at \(frame) → window \(point), hits \(hit.map { String(describing: type(of: $0)) } ?? "nothing")")
+                NSApp.postEvent(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                   windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0)!, atStart: false)
+                window.sendEvent(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
+            } else {
+                print("floor: click target for \(name) not found; calling the action directly")
+                let shown = floors.shown(state), ids = state.building.floors.map(\.id)
+                switch name {
+                case "▲": floors.choice.step(1, from: shown, floors: ids)
+                case "▼": floors.choice.step(-1, from: shown, floors: ids)
+                default: floors.choice.resumeFollow()
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                print("floor clicked \(name) → shown \(floors.shown(state)) · \(floors.choice)")
+                step()
+            }
+        }
+        step()
     }
 
     private static func findControl(in view: NSView) -> NSSegmentedControl? {
