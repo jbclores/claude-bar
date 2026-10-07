@@ -9,6 +9,26 @@ final class PeekPointer: ObservableObject {
     @Published var location: CGPoint?
 }
 
+/// Where each cat's feet are (agent id → point in "roomContent"), for walking it to its next spot.
+struct CatFeetKey: PreferenceKey {
+    static let defaultValue: [String: CGPoint] = [:]
+    static func reduce(value: inout [String: CGPoint], nextValue: () -> [String: CGPoint]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+private struct WalkingCatsKey: EnvironmentKey {
+    static let defaultValue: Set<String> = []
+}
+
+extension EnvironmentValues {
+    /// Cats on their way somewhere: their spot stays empty until they arrive.
+    var walkingCats: Set<String> {
+        get { self[WalkingCatsKey.self] }
+        set { self[WalkingCatsKey.self] = newValue }
+    }
+}
+
 private struct CatFramesKey: PreferenceKey {
     static let defaultValue: [String: CGRect] = [:]
     static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
@@ -39,6 +59,12 @@ struct OfficeRoomView: View {
     @EnvironmentObject var zoom: RoomZoom
     @Environment(\.colorScheme) private var colorScheme
     @State private var catFrames: [String: CGRect] = [:]
+    @State private var lastFeet: [String: CGPoint] = [:]
+    /// Spots that stay put (StableSlots): a cat keeps its desk / lounge spot while it's there.
+    @State private var deskSlots: [String?] = []
+    @State private var loungeSlots: [String?] = []
+    @State private var walks: [String: CatWalk] = [:]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     static let height: CGFloat = 180
 
@@ -63,6 +89,8 @@ struct OfficeRoomView: View {
                     offline
                 }
             }
+            .overlay(alignment: .topLeading) { WalkersLayer(walks: walks, catIds: state.catIds, legFrames: !reduceMotion) }
+            .environment(\.walkingCats, Set(walks.keys))
             // Cat frames are measured here, before the zoom: in the room's own points.
             .coordinateSpace(name: "roomContent")
             .scaleEffect(zoom.view.scale, anchor: .topLeading)
@@ -87,21 +115,88 @@ struct OfficeRoomView: View {
         // Clicks only inside the visible room: the backdrop and cats extend past it, and took the tabs' clicks.
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
+        .onPreferenceChange(CatFeetKey.self) { feet in startWalks(to: feet) }
+        .onChange(of: slotKey, initial: true) { _, _ in updateSlots() }
+        .task(id: catKey) { await WalkersLayer.preload(agents: state.office?.agents ?? [], catIds: state.catIds, art: state.art) }
 
     }
 
+    /// A cat whose feet moved (status took it between desk and lounge) walks there, the way Cat Office walks.
+    private func startWalks(to feet: [String: CGPoint]) {
+        let now = Date()
+
+        for (id, to) in feet {
+            guard let from = walks[id]?.position(at: now) ?? lastFeet[id], hypot(to.x - from.x, to.y - from.y) > 12,
+                  let agent = state.office?.agents.first(where: { $0.id == id }) else { continue }
+            let walk = CatWalk(id: id, agent: agent, path: WalkPath(from: from, to: to), start: now)
+            walks[id] = walk
+            DispatchQueue.main.asyncAfter(deadline: .now() + walk.duration + CatWalk.hop) {
+                if walks[id]?.start == walk.start { walks[id] = nil }
+            }
+        }
+        // Remember where each cat last stood, also through a layout pass where it has no spot (it left the lounge
+        // before its desk appeared) or Cat Office blips offline; forget cats that left the office.
+        lastFeet.merge(feet) { $1 }
+        if let agents = state.office?.agents {
+            let here = Set(agents.filter { $0.status != .ended }.map(\.id))
+            lastFeet = lastFeet.filter { here.contains($0.key) }
+        }
+    }
+
+    private var layout: PeekLayout { PeekLayout.make(state.office?.agents ?? []) }
+    /// Changes when who sits at a desk or in the lounge changes.
+    private var slotKey: String { layout.desks.map(\.id).joined(separator: ",") + "|" + layout.lounge.map(\.id).joined(separator: ",") }
+    /// Changes when the cats in the office change (to preload their walks).
+    private var catKey: String {
+        (state.office?.agents ?? []).filter { $0.status != .ended }.map { CatPicker.cat(for: $0, catIds: state.catIds) }.sorted().joined(separator: ",")
+    }
+
+    private func updateSlots() {
+        let l = layout
+        deskSlots = StableSlots.assign(l.desks.map(\.id), previous: deskSlots, count: 3)
+        loungeSlots = StableSlots.assign(l.lounge.map(\.id), previous: loungeSlots, count: Lounge.spots.count)
+    }
+
+    private enum DeskSlot: Identifiable {
+        case cat(OfficeAgent), free(Int), empty(Int)
+        var id: String {
+            switch self {
+            case .cat(let a): a.id
+            case .free(let i): "free-\(i)"
+            case .empty(let i): "empty-\(i)"
+            }
+        }
+    }
+
+    /// The desk row in stable slots: cats at their desks, then free desks for cats out in the lounge.
+    private func deskRow(_ layout: PeekLayout) -> [DeskSlot] {
+        let byId = Dictionary(layout.desks.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        var freeLeft = layout.freeDesks
+        return (deskSlots.isEmpty ? [String?](repeating: nil, count: 3) : deskSlots).enumerated().compactMap { i, id in
+            if let id, let agent = byId[id] { return .cat(agent) }
+            if freeLeft > 0 { freeLeft -= 1; return .free(i) }
+            return nil
+        }
+    }
+
     private func room(_ layout: PeekLayout) -> some View {
-        HStack(alignment: .bottom, spacing: 0) {
+        let byId = Dictionary(layout.lounge.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        return HStack(alignment: .bottom, spacing: 0) {
             HStack(alignment: .bottom, spacing: 4) {
-                ForEach(layout.desks) { agent in CatView(agent: agent, atDesk: true).catFrame(agent.id) }
-                ForEach(0..<layout.freeDesks, id: \.self) { _ in FreeDesk() }
+                ForEach(deskRow(layout)) { slot in
+                    switch slot {
+                    case .cat(let agent): CatView(agent: agent, atDesk: true).catFrame(agent.id)
+                    case .free: FreeDesk()
+                    case .empty: EmptyView()
+                    }
+                }
                 if layout.deskOverflow > 0 {
                     RoomPill(text: "+\(layout.deskOverflow) more")
                 }
             }
             .padding(.leading, 36)
             .frame(maxWidth: .infinity, alignment: .leading)
-            Lounge(cats: layout.lounge, overflow: layout.loungeOverflow)
+            Lounge(slots: loungeSlots.map { $0.flatMap { byId[$0] } }, overflow: layout.loungeOverflow)
         }
         .padding(.bottom, 8)
         .frame(maxHeight: .infinity, alignment: .bottom)
@@ -202,12 +297,13 @@ struct LampLight: View {
 
 /// The lounge: a rug, a round sofa and a cat bed, with up to three sleeping cats on them.
 struct Lounge: View {
-    let cats: [OfficeAgent]
+    /// Who sleeps where (stable): index = spot.
+    let slots: [OfficeAgent?]
     let overflow: Int
     @EnvironmentObject var state: AppState
 
     /// Where the 1st to 5th cat sleep: the bed, the sofa (two), the rug, the bean bag.
-    private static let spots: [CGSize] = [
+    static let spots: [CGSize] = [
         CGSize(width: -40, height: 10), CGSize(width: 18, height: -28), CGSize(width: 46, height: -28),
         CGSize(width: 20, height: 22), CGSize(width: -50, height: -30),
     ]
@@ -219,20 +315,56 @@ struct Lounge: View {
                 art("assets/room/props/sofa-round.png", 512).frame(width: 96).offset(x: 34, y: -26)
                 art("assets/room/props/cat-bed-blue.png", 384).frame(width: 52).offset(x: -40, y: 14)
                 art("assets/room/props/bean-bag-cream.png", 384).frame(width: 40).offset(x: -50, y: -24)
-                ForEach(Array(cats.prefix(Self.spots.count).enumerated()), id: \.element.id) { i, agent in
-                    CatView(agent: agent, atDesk: false, width: i == 0 ? 46 : 38, plain: true)
-                        .catFrame(agent.id)
-                        .offset(Self.spots[i])
+                ForEach(Array(slots.prefix(Self.spots.count).enumerated()), id: \.offset) { i, agent in
+                    if let agent {
+                        CatView(agent: agent, atDesk: false, width: Self.width(i), plain: true)
+                            .offset(Self.spots[i])
+                    }
                 }
             }
-            .frame(width: 166, height: 110)
+            .frame(width: Self.size.width, height: Self.size.height)
+            // Feet and hover frames from the spots themselves (an offset doesn't move a view's measured frame).
+            .background(GeometryReader { proxy in
+                let origin = proxy.frame(in: .named("roomContent")).origin
+                Color.clear
+                    .preference(key: CatFeetKey.self, value: feet(origin))
+                    .preference(key: CatFramesKey.self, value: frames(origin))
+            })
             RoomPill(text: summary)
         }
         .frame(width: 170)
     }
 
+    static let size = CGSize(width: 166, height: 110)
+    static func width(_ spot: Int) -> CGFloat { spot == 0 ? 46 : 38 }
+
+    /// A sleeping cat's rect at spot `i` (CatView plain: width × 0.95, centred on the spot).
+    private static func rect(_ i: Int) -> CGRect {
+        let w = width(i), h = w * 0.95
+        return CGRect(x: size.width / 2 + spots[i].width - w / 2, y: size.height / 2 + spots[i].height - h / 2, width: w, height: h)
+    }
+
+    private func feet(_ origin: CGPoint) -> [String: CGPoint] {
+        var out: [String: CGPoint] = [:]
+        for (i, agent) in slots.prefix(Self.spots.count).enumerated() {
+            guard let agent else { continue }
+            let r = Self.rect(i)
+            out[agent.id] = CGPoint(x: origin.x + r.midX, y: origin.y + r.minY + r.height * 0.9)
+        }
+        return out
+    }
+
+    private func frames(_ origin: CGPoint) -> [String: CGRect] {
+        var out: [String: CGRect] = [:]
+        for (i, agent) in slots.prefix(Self.spots.count).enumerated() {
+            guard let agent else { continue }
+            out[agent.id] = Self.rect(i).offsetBy(dx: origin.x, dy: origin.y)
+        }
+        return out
+    }
+
     private var summary: String {
-        let asleep = cats.count + overflow
+        let asleep = slots.compactMap { $0 }.count + overflow
         return asleep == 0 ? "lounge · empty" : "lounge · \(asleep) asleep"
     }
 
@@ -305,6 +437,16 @@ struct OfficePeekView: View {
     }
 }
 
+extension View {
+    /// Reports a point (this view's own coordinates) as a cat's feet, in "roomContent".
+    func catFeet(_ id: String, at point: CGPoint) -> some View {
+        background(GeometryReader { proxy in
+            let origin = proxy.frame(in: .named("roomContent")).origin
+            Color.clear.preference(key: CatFeetKey.self, value: [id: CGPoint(x: origin.x + point.x, y: origin.y + point.y)])
+        })
+    }
+}
+
 private extension View {
     func catFrame(_ id: String) -> some View {
         background(GeometryReader { proxy in
@@ -323,6 +465,7 @@ struct CatView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.officeNight) private var officeNight
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.walkingCats) private var walkingCats
 
     var body: some View {
         let cat = CatPicker.cat(for: agent, catIds: state.catIds)
@@ -341,7 +484,7 @@ struct CatView: View {
                 if atDesk {
                     DeskStation(agent: agent, cat: cat, scene: scene)
                 } else {
-                    animatedCat(cat, scene)
+                    animatedCat(cat, scene).opacity(walkingCats.contains(agent.id) ? 0 : 1)
                 }
                 if agent.status == .waiting && !atDesk {
                     Text("!").font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
@@ -398,6 +541,7 @@ struct DeskStation: View {
     @Environment(\.officeNight) private var officeNight
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var geometry: DeskGeometry?
+    @Environment(\.walkingCats) private var walkingCats
 
     /// Floor pixels to points: a desk about 60pt wide.
     static let scale: CGFloat = 0.22
@@ -429,11 +573,12 @@ struct DeskStation: View {
                     .offset(x: desk.midX - 40, y: desk.minY - 6)
                     .blendMode(.screen)
             }
+            let here = walkingCats.contains(agent.id) ? 0.0 : 1.0
             if c.catInFront {
                 deskImage(desk)
-                catImage(catRect)
+                catImage(catRect).opacity(here)
             } else {
-                catImage(catRect)
+                catImage(catRect).opacity(here)
                 deskImage(desk)
             }
             if agent.status == .waiting {
@@ -443,6 +588,7 @@ struct DeskStation: View {
             }
         }
         .frame(width: b.width * k, height: b.height * k, alignment: .topLeading)
+        .catFeet(agent.id, at: feet)
         .task(id: scene.deskId) { geometry = await state.art.deskGeometry(id: scene.deskId) }
     }
 
@@ -474,6 +620,82 @@ struct DeskStation: View {
             .scaleEffect(motion.scale, anchor: .bottom)
             .offset(x: r.minX, y: r.minY + motion.offsetY)
         }
+    }
+}
+
+/// One cat walking to its next spot.
+struct CatWalk: Equatable {
+    let id: String
+    let agent: OfficeAgent
+    let path: WalkPath
+    let start: Date
+
+    /// Cat Office's 190 floor px/s at ClaudeBar's scale (0.22 pt per px), twice as fast: a walk takes a few seconds.
+    static let baseSpeed: CGFloat = 190 * DeskStation.scale * 2
+    /// A walk frame every 22 floor px (Cat Office's STRIDE_PX), at ClaudeBar's scale.
+    static let stride: CGFloat = 22 * DeskStation.scale
+    /// The hop onto the spot on arrival (Cat Office: 0.18 sim min, a small arc).
+    static let hop: TimeInterval = 0.18
+
+    var speed: CGFloat { WalkPath.speed(for: id, base: Self.baseSpeed) }
+    var duration: TimeInterval { TimeInterval(path.length / speed) }
+
+    func distance(at now: Date) -> CGFloat { CGFloat(now.timeIntervalSince(start)) * speed }
+    func position(at now: Date) -> CGPoint { path.position(atDistance: distance(at: now)) }
+}
+
+/// The walking cats, drawn over the room: walk frames by distance, feet on the path, a little hop on arrival.
+struct WalkersLayer: View {
+    /// Loads the cats' walk frames (4 directions × still + 4 steps) ahead, so a walk never starts invisible.
+    @MainActor static func preload(agents: [OfficeAgent], catIds: [String], art: ArtCache) async {
+        let cats = Set(agents.filter { $0.status != .ended }.map { CatPicker.cat(for: $0, catIds: catIds) })
+        for cat in cats {
+            for direction in ["front-left", "front-right", "back-left", "back-right"] {
+                for frame in 0...4 {
+                    let key = "walk-\(cat)-\(direction)-\(frame)"
+                    guard SpriteImage.loaded[key] == nil, let data = await art.walkImage(cat: cat, direction: direction, frame: frame),
+                          let image = NSImage(data: data) else { continue }
+                    SpriteImage.loaded[key] = image
+                }
+            }
+        }
+    }
+
+    let walks: [String: CatWalk]
+    let catIds: [String]
+    let legFrames: Bool
+    @EnvironmentObject var state: AppState
+    @Environment(\.officeNight) private var officeNight
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: walks.isEmpty)) { context in
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(walks.values), id: \.id) { walk in
+                    walker(walk, now: context.date)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func walker(_ walk: CatWalk, now: Date) -> some View {
+        let cat = CatPicker.cat(for: walk.agent, catIds: catIds)
+        let distance = walk.distance(at: now)
+        let arrived = distance >= walk.path.length
+        let direction = walk.path.direction(atDistance: min(distance, walk.path.length - 0.01))
+        let frame = arrived || !legFrames ? 0 : WalkPath.frame(distance: distance, stride: CatWalk.stride, phase: WalkPath.phase(for: walk.id))
+        let feet = walk.path.position(atDistance: distance)
+        // The hop: a small arc once there.
+        let hopT = arrived ? min(1, now.timeIntervalSince(walk.start) - walk.duration) / CatWalk.hop : 0
+        let lift = arrived ? CGFloat(sin(Double.pi * max(0, min(1, hopT)))) * 2 : 0
+        let s = DeskComposition.catScale * DeskStation.scale
+        let size = CGSize(width: 360 * s, height: 380 * s)
+        return SpriteImage(key: "walk-\(cat)-\(direction)-\(frame)", fallback: Theme.color(walk.agent.status)) {
+            await state.art.walkImage(cat: cat, direction: direction, frame: frame)
+        }
+        .frame(width: size.width, height: size.height)
+        .colorMultiply(officeNight ? Night.furniture : .white)
+        .offset(x: feet.x - 180 * s, y: feet.y - 300 * s - lift)
     }
 }
 

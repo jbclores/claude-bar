@@ -172,6 +172,13 @@ public final class ArtCache: @unchecked Sendable {
         return await image(path: catalog.path(cat: cat, pose: pose, direction: direction))
     }
 
+    /// A walk frame (1–4) facing `direction`; frame 0 is the still, paws-down stand.
+    public func walkImage(cat: String, direction: String, frame: Int) async -> Data? {
+        guard let catalog = await catalog() else { return nil }
+        let path = catalog.path(cat: cat, pose: .standing, direction: direction)
+        return await image(path: frame == 0 ? path : path.replacingOccurrences(of: "both-down.png", with: "walk-\(frame).png"))
+    }
+
     /// A desk design's geometry (anchor, stand point); the default desk's when `id` is nil or unknown.
     public func deskGeometry(id: String?) async -> DeskGeometry? {
         if deskCatalogBox.get() == nil, let data = await json("data/desks.json") { deskCatalogBox.set(DeskCatalog.parse(data)) }

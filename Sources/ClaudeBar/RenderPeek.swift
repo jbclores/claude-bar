@@ -33,6 +33,18 @@ enum RenderPeek {
         window.backgroundColor = NSColor(white: renderLight ? 0.93 : 0.16, alpha: 1) // what the popover looks like
         window.contentView = host
         window.orderFrontRegardless()
+        if let flip = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLIP_AT"].flatMap(Double.init),
+           let mid = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_MIDWALK"].flatMap(Double.init) {
+            // Capture the live window mid-walk (a fresh render has no walk in progress).
+            DispatchQueue.main.asyncAfter(deadline: .now() + flip + 0.3) { state.replayOffice() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + flip + 0.3 + mid) {
+                guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { exit(1) }
+                host.cacheDisplay(in: host.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: out)
+                exit(0)
+            }
+            return true
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
             // SwiftUI's own renderer: the window capture misses colour multiply and blend modes (the night room).
             let zoom = RoomZoom()

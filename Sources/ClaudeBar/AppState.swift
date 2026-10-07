@@ -48,6 +48,9 @@ final class AppState: ObservableObject {
     private var tracker = AttentionTracker()
     private var files: StatusInput?
     private var timer: Timer?
+    private let launched = Date()
+    /// Renders only: re-applies the last feed snapshot (so CLAUDEBAR_RENDER_FLIP_AT takes effect without waiting for one).
+    func replayOffice() { officeUpdated(office) }
     private var refreshing = false
     /// Off for `--render-peek`: no auto-start, no notifications.
     var sideEffects = true
@@ -147,6 +150,17 @@ final class AppState: ObservableObject {
                 for i in snapshot!.agents.indices where snapshot!.agents[i].status == .working {
                     snapshot!.agents[i].desk = AgentDesk(id: p[0], flip: p[1] == "1", rear: p[2] == "1")
                 }
+            }
+        }
+        // Renders only (CLAUDEBAR_RENDER_FLIP_AT=seconds): working cats go idle after that long, to watch them walk.
+        if !sideEffects, let after = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLIP_AT"].flatMap(Double.init),
+           Date().timeIntervalSince(launched) > after, snapshot != nil {
+            if ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLIP_TO"] == "working" {
+                // The first idle cat (by name) starts working: it walks from the lounge to a desk.
+                if let i = snapshot!.agents.indices.filter({ snapshot!.agents[$0].status == .idle })
+                    .min(by: { snapshot!.agents[$0].name < snapshot!.agents[$1].name }) { snapshot!.agents[i].status = .working }
+            } else {
+                for i in snapshot!.agents.indices where snapshot!.agents[i].status == .working { snapshot!.agents[i].status = .idle }
             }
         }
         guard snapshot != office else { return }
