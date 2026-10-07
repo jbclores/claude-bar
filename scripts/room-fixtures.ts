@@ -37,6 +37,7 @@ async function main(): Promise<void> {
   const office = buildRoomOffice(building, rooms, parts, desks);
 
   const r = (n: number) => Math.round(n * 1000) / 1000;
+  const r6 = (n: number) => Math.round(n * 1e6) / 1e6;
   // Cat Office's Rect is {left, top, right, bottom}; the fixture schema wants width and height.
   const box = (q: { left: number; top: number; right: number; bottom: number }) => ({ left: r(q.left), top: r(q.top), width: r(q.right - q.left), height: r(q.bottom - q.top) });
   const out = { floors: [] as unknown[] };
@@ -52,7 +53,7 @@ async function main(): Promise<void> {
       const { from, to } = wallBase(floor, side);
       const start = side === 'left' ? to : from, end = side === 'left' ? from : to;
       const length = wallLength(floor, side);
-      return { length: r(length), a: r((end.x - start.x) / length), b: r((end.y - start.y) / length), e: r(start.x), f: r(start.y - wallHeight) };
+      return { length: r(length), a: r6((end.x - start.x) / length), b: r6((end.y - start.y) / length), e: r(start.x), f: r(start.y - wallHeight) };
     };
     // RoomShell.tsx Rug (97-119): box in floor-plane px.
     const rugs = roomRugs(floor, room, parts).map((g: any) => {
@@ -75,19 +76,19 @@ async function main(): Promise<void> {
     });
     const elevators = built.elevators.map((e: any) => {
       const s = elevatorSpot(floor, e.item, e.def);
-      return { id: e.item.id, standAt: { u: r(s.standAt.u), v: r(s.standAt.v) }, facing: s.facing };
+      return { id: e.item.id, standAt: { u: r6(s.standAt.u), v: r6(s.standAt.v) }, facing: s.facing };
     });
     const fixtures = built.fixtures.map((x: any) => ({ id: x.item.id, image: x.image ?? null, mirrored: !!x.mirrored, ...box(x.rect), z: x.box.z }));
     const placedDesks = (office.desks[floor.id] ?? []).map((d: any) => ({
       id: d.placement.id, desk: d.placement.desk, image: d.sprite.image, flip: d.placement.flip, rear: d.rear,
       ...box(d.rect), z: d.box.z,
-      standAt: { u: r(d.standAt.u), v: r(d.standAt.v) }, facing: d.facing }));
+      standAt: { u: r6(d.standAt.u), v: r6(d.standAt.v) }, facing: d.facing }));
     const placedProps = built.props.map((p: any) => ({
       id: p.placement.id, prop: p.placement.prop, image: p.sprite?.image ?? null, mirrored: p.mirrored,
       ...box(p.rect), z: p.box.z, companionOf: p.companionOf ?? null,
-      spots: p.spots.map((s: any) => ({ id: s.id, kind: s.kind, pose: s.pose ?? null, u: r(s.standAt.u), v: r(s.standAt.v), facing: s.facing, lift: s.lift ?? 0 })) }));
+      spots: p.spots.map((s: any) => ({ id: s.id, kind: s.kind, pose: s.pose ?? null, u: r6(s.standAt.u), v: r6(s.standAt.v), facing: s.facing, lift: s.lift ?? 0 })) }));
     out.floors.push({ id: floor.id, corners: floor.corners, wallHeight, eu: r(eu), ev: r(ev),
-      floorPlane: { size: r(size), a: r((right.x - top.x) / size), b: r((right.y - top.y) / size), c: r((left.x - top.x) / size), d: r((left.y - top.y) / size), e: top.x, f: top.y },
+      floorPlane: { size: r(size), a: r6((right.x - top.x) / size), b: r6((right.y - top.y) / size), c: r6((left.x - top.x) / size), d: r6((left.y - top.y) / size), e: top.x, f: top.y },
       walls: { left: wall('left'), right: wall('right') }, rugs, wallItems, elevators, fixtures, desks: placedDesks, props: placedProps });
   }
   writeFileSync(outFile, JSON.stringify(out, null, 1));
