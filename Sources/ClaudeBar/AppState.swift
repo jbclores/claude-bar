@@ -23,6 +23,19 @@ final class AppState: ObservableObject {
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
     @Published private(set) var officeLaunch = OfficeLaunch.none
     @Published private(set) var catIds: [String] = []
+    /// Cat Office's floors (the fallback Lounge until it has loaded).
+    @Published private(set) var building = Building.fallback
+
+    /// Where Follow points now (FloorPlan.followTarget).
+    var followFloor: Int {
+        FloorPlan.followTarget(building: building, agents: office?.agents ?? [], attention: attention, since: statusSince, now: Date())
+    }
+
+    private func loadBuilding() {
+        Task { @MainActor in
+            if let b = await art.building(), b != building { building = b }
+        }
+    }
     /// The cat for the menu bar icon (nil: show the plain cat symbol).
     @Published private(set) var menuCat: MenuBarCat?
 
@@ -48,6 +61,7 @@ final class AppState: ObservableObject {
     private var tracker = AttentionTracker()
     private var files: StatusInput?
     private var timer: Timer?
+    private var buildingTimer: Timer?
     private let launched = Date()
     /// Renders only: re-applies the last feed snapshot (so CLAUDEBAR_RENDER_FLIP_AT takes effect without waiting for one).
     func replayOffice() { officeUpdated(office) }
@@ -61,6 +75,10 @@ final class AppState: ObservableObject {
         officeClient.start()
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
+        }
+        // Cat Office adds a floor when a new project shows up.
+        buildingTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.loadBuilding() }
         }
         // Give the feed a moment to connect; start Cat Office only if it's still unreachable.
         Task { @MainActor in
@@ -213,6 +231,7 @@ final class AppState: ObservableObject {
                 catIds = catalog.catIds
                 recompute()
             }
+            loadBuilding()
         }
     }
 

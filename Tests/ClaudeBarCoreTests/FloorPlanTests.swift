@@ -159,3 +159,35 @@ import Testing
         #expect(FloorPlan.cats(on: 10, agents: agents, in: building).map(\.id) == ["y"])
     }
 }
+
+@Suite struct FloorChoiceTests {
+    let floors = [1, 2, 6, 12]
+
+    @Test func followShowsTheTarget() {
+        #expect(FloorChoice().shown(target: 12, floors: floors) == 12)
+    }
+
+    @Test func pickingAFloorTurnsFollowOff() {
+        var c = FloorChoice()
+        c.pick(6)
+        #expect(!c.follow && c.shown(target: 12, floors: floors) == 6)
+        c.resumeFollow()
+        #expect(c.follow && c.shown(target: 12, floors: floors) == 12)
+    }
+
+    @Test func stepsMoveOneFloorAndStopAtTheEnds() {
+        var c = FloorChoice()
+        c.step(1, from: 6, floors: floors)
+        #expect(c.manual == 12 && !c.follow)
+        c.step(1, from: 12, floors: floors)
+        #expect(c.manual == 12)
+        c.step(-1, from: 1, floors: floors)
+        #expect(c.manual == 1)
+    }
+
+    @Test func aDeletedFloorFallsBackToFollow() {
+        var c = FloorChoice()
+        c.pick(9)
+        #expect(c.shown(target: 12, floors: floors) == 12, "floor 9 no longer exists")
+    }
+}

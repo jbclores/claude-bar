@@ -167,6 +167,12 @@ public final class ArtCache: @unchecked Sendable {
         return catalog
     }
 
+    /// Cat Office's building (floors, desks, textures), refreshed when Cat Office answers, else the cached copy.
+    public func building() async -> Building? {
+        guard let floors = await json("data/building.json"), let parts = await json("data/room-parts.json") else { return nil }
+        return Building.parse(building: floors, parts: parts)
+    }
+
     public func catImage(cat: String, pose: CatPose, direction: String? = nil) async -> Data? {
         guard let catalog = await catalog() else { return nil }
         return await image(path: catalog.path(cat: cat, pose: pose, direction: direction))
