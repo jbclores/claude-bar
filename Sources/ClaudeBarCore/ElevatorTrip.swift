@@ -32,6 +32,16 @@ public struct ElevatorTrip: Equatable, Sendable {
     /// Cats waiting for the elevator stand in 3 places (Cat Office: (index % 3) - 1).
     public static func waitingOffset(index: Int) -> CGFloat { CGFloat(index % 3 - 1) * 12 }
 
+    /// room.ts ELEVATOR_WAIT_SPREAD: how far apart (floor u, v) the waiting places are.
+    public static let waitSpread = (u: 0.014, v: 0.035)
+
+    /// simulation-engine.ts elevatorPoint: the `index`th waiting place by the elevator's door spot (the walk grid
+    /// check that Cat Office makes is not ported).
+    public static func waitingPlace(_ door: FloorPoint, index: Int) -> FloorPoint {
+        let k = Double(index % 3 - 1)
+        return FloorPoint(u: door.u + k * waitSpread.u, v: door.v + k * waitSpread.v)
+    }
+
     public var arrivalTime: Date { start + walkIn + Self.board + Self.rideTime(floors: abs(to - from)) }
     public var doneTime: Date { arrivalTime + Self.arrive }
 

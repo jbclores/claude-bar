@@ -26,3 +26,15 @@ import Testing
         #expect([0, 1, 2, 3].map(ElevatorTrip.waitingOffset) == [-12, 0, 12, -12])
     }
 }
+
+@Suite struct ElevatorWaitingPlaceTests {
+    /// room.ts ELEVATOR_WAIT_SPREAD (0.014, 0.035), k = (index % 3) - 1 (simulation-engine.ts elevatorPoint).
+    @Test func waitingPlacesSpreadAlongTheFloor() {
+        let door = FloorPoint(u: 0.5, v: 0.1)
+        let places = [0, 1, 2, 3].map { ElevatorTrip.waitingPlace(door, index: $0) }
+        #expect(abs(places[0].u - 0.486) < 1e-9 && abs(places[0].v - 0.065) < 1e-9)
+        #expect(places[1] == door)
+        #expect(abs(places[2].u - 0.514) < 1e-9 && abs(places[2].v - 0.135) < 1e-9)
+        #expect(places[3] == places[0])
+    }
+}

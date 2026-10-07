@@ -69,6 +69,13 @@ import Testing
         #expect(b.deskPool?.id == 2)
     }
 
+    @Test func catHeightComesFromTheBuilding() throws {
+        let json = #"{"catHeight":180,"floors":[{"id":1,"name":"Lounge","room":{}}]}"#
+        #expect(try #require(Building.parse(building: Data(json.utf8), parts: Data("{}".utf8))).catHeight == 180)
+        #expect(try building().catHeight == nil)
+        #expect(Building.fallback.catHeight == nil)
+    }
+
     @Test func brokenDataGivesNilAndTheFallbackIsOneLounge() {
         #expect(Building.parse(building: Data("nope".utf8), parts: Data("{}".utf8)) == nil)
         #expect(Building.fallback.floors.count == 1 && Building.fallback.floors[0].isLounge)

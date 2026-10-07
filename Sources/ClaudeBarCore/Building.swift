@@ -85,6 +85,8 @@ public struct Floor: Equatable, Sendable, Identifiable {
 /// Cat Office's building (public/data/building.json + room-parts.json).
 public struct Building: Equatable, Sendable {
     public var floors: [Floor]
+    /// building.json catHeight: a cat's height in world px (nil when not given: BuiltRoom.defaultCatHeight).
+    public var catHeight: Double? = nil
 
     /// Without Cat Office's data: just a Lounge, drawn with ClaudeBar's own room art.
     public static let fallback = Building(floors: [
@@ -140,6 +142,7 @@ public struct Building: Equatable, Sendable {
                 gridSize: ((f["grid"] as? [String: Any])?["size"] as? NSNumber)?.doubleValue)
         }
         guard !floors.isEmpty else { return nil }
-        return Building(floors: floors.sorted { $0.id < $1.id })
+        let catHeight = (root["catHeight"] as? NSNumber).map(\.doubleValue).flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
+        return Building(floors: floors.sorted { $0.id < $1.id }, catHeight: catHeight)
     }
 }

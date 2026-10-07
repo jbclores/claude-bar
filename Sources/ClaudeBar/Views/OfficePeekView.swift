@@ -29,7 +29,8 @@ extension EnvironmentValues {
     }
 }
 
-private struct CatFramesKey: PreferenceKey {
+/// Each cat's hover frame (agent id → rect in "roomContent").
+struct CatFramesKey: PreferenceKey {
     static let defaultValue: [String: CGRect] = [:]
     static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
         value.merge(nextValue()) { $1 }
@@ -70,6 +71,12 @@ struct OfficeRoomView: View {
     @State private var rides: [String: Rider] = [:]
     /// Arrivals whose walk out of the elevator is scheduled: agent id → its trip's start.
     @State private var walkOuts: [String: Date] = [:]
+    /// The cats' feet as last reported (CatFeetKey).
+    @State private var shownFeet: [String: CGPoint] = [:]
+    /// The building's floor ids at the last floor check.
+    @State private var buildingFloors: [Int] = []
+    /// Built floors' fits (FloorScene), by floor id, in "roomContent" points.
+    @State private var fits: [Int: SceneFit] = [:]
 
     /// Changes when any agent's floor changes.
     private var floorKey: String {
@@ -82,14 +89,16 @@ struct OfficeRoomView: View {
         let agents = state.office?.agents ?? []
         var next: [String: Int] = [:]
         for a in agents { if let f = FloorPlan.floorId(for: a, among: agents, in: state.building) { next[a.id] = f } }
-        guard !reduceMotion else { floorOf = next; return }
+        // A different building (Cat Office's floors replacing the fallback Lounge) moves cats without anyone riding.
+        let floorIds = state.building.floors.map(\.id)
+        defer { buildingFloors = floorIds }
+        guard !reduceMotion, buildingFloors == floorIds else { floorOf = next; return }
         let now = Date()
         var waiting = 0
         for (id, to) in next {
             guard let from = floorOf[id], from != to, let agent = agents.first(where: { $0.id == id }) else { continue }
             // The walk to the elevator, from where the cat last stood on the shown floor (if it was there).
-            let door = ElevatorArt.door()
-            let place = CGPoint(x: door.x + ElevatorTrip.waitingOffset(index: waiting), y: door.y)
+            let place = elevatorPlace(waiting)
             let walkIn = from == floorId ? lastFeet[id].map { WalkPath(from: $0, to: place) } : nil
             let speed = WalkPath.speed(for: id, base: CatWalk.baseSpeed)
             let trip = ElevatorTrip(from: from, to: to, start: now, walkIn: TimeInterval((walkIn?.length ?? 0) / speed))
@@ -100,6 +109,8 @@ struct OfficeRoomView: View {
             }
         }
         floorOf = next
+        // The arrival's spot may have been reported before its ride began: schedule its walk out of the elevator.
+        if waiting > 0 { startWalks(to: shownFeet) }
     }
 
     /// Cats riding up to the shown floor: their spot stays empty until they've walked out of the elevator.
@@ -125,9 +136,8 @@ struct OfficeRoomView: View {
         ZStack(alignment: .top) {
             ZStack(alignment: .topLeading) {
                 if let built = state.rooms[floorId] {
-                    // The floor as Cat Office lays it out. Its cats come in a later step: today's cats (desk rows,
-                    // lounge seats, walkers, riders) stand where the simple room has things, so they aren't drawn here.
-                    FloorScene(room: built)
+                    // The floor as Cat Office lays it out, its cats at the real desks and seats.
+                    FloorScene(room: built, floor: floor, catHeight: catHeight, cast: state.office == nil ? nil : cast(built))
                     if state.office == nil { offline }
                 } else {
                     RoomBackdrop(floor: floor)
@@ -139,10 +149,11 @@ struct OfficeRoomView: View {
                 }
             }
             .overlay(alignment: .topLeading) {
-                if state.rooms[floorId] == nil { WalkersLayer(walks: walks, catIds: state.catIds, legFrames: !reduceMotion, scale: catScale) }
+                WalkersLayer(walks: walks, catIds: state.catIds, legFrames: !reduceMotion, scale: catScale)
             }
             .overlay(alignment: .topLeading) {
-                if state.rooms[floorId] == nil { RidersLayer(rides: Array(rides.values), floorId: floorId, catIds: state.catIds, scale: catScale) }
+                RidersLayer(rides: Array(rides.values), floorId: floorId, catIds: state.catIds, scale: catScale,
+                            places: (0..<3).map(elevatorPlace))
             }
             .environment(\.walkingCats, Set(walks.keys).union(arrivingHere))
             // Cat frames are measured here, before the zoom: in the room's own points.
@@ -169,13 +180,25 @@ struct OfficeRoomView: View {
         // Clicks only inside the visible room: the backdrop and cats extend past it, and took the tabs' clicks.
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
-        .onPreferenceChange(CatFeetKey.self) { feet in startWalks(to: feet) }
+        .onPreferenceChange(SceneFitKey.self) { fits.merge($0) { $1 } }
+        .onPreferenceChange(CatFeetKey.self) { feet in
+            shownFeet = feet
+            startWalks(to: feet)
+        }
         .onChange(of: seatKey, initial: true) { _, _ in updateSeating() }
         .onChange(of: floorKey, initial: true) { _, _ in noticeFloorChanges() }
+        // A new building can leave every cat's floor id as it was (all in the Lounge): note it anyway, or the next
+        // real move would be taken for a building swap and nobody would ride.
+        .onChange(of: state.building.floors.map(\.id)) { _, _ in noticeFloorChanges() }
         // Rides are kept across a floor switch, so Follow moving to the arrival floor shows the arrival.
         .onChange(of: floorId) { _, _ in
             // A different floor: show the whole room and don't walk anyone across from the last floor.
             zoom.reset()
+            walks = [:]
+            lastFeet = [:]
+        }
+        // The simple room giving way to the built one (or back): its points mean something else, so nobody walks.
+        .onChange(of: state.rooms[floorId] != nil) { _, _ in
             walks = [:]
             lastFeet = [:]
         }
@@ -194,8 +217,7 @@ struct OfficeRoomView: View {
                 guard walks[id] == nil, walkOuts[id] != ride.trip.start else { continue }
                 walkOuts[id] = ride.trip.start
                 let delay = max(0, ride.trip.doneTime.timeIntervalSince(now))
-                let door = ElevatorArt.door()
-                let place = CGPoint(x: door.x + ElevatorTrip.waitingOffset(index: ride.waitIndex), y: door.y)
+                let place = elevatorPlace(ride.waitIndex)
                 let shownAt = floorId
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                     walkOuts[id] = nil
@@ -233,16 +255,52 @@ struct OfficeRoomView: View {
     private var floorId: Int { floors.shown(state) }
     /// Desks in two rows are drawn smaller; walking and riding cats match them.
     static let twoRowScale: CGFloat = 0.56
-    private var catScale: CGFloat { !floor.isLounge && floor.desks.count > 6 ? Self.twoRowScale : 1 }
+    /// Walking and riding cats' size: a built floor's scene cats, else the simple room's.
+    private var catScale: CGFloat {
+        if state.rooms[floorId] != nil { return fits[floorId].map { SceneCats.relative(catHeight: catHeight, fit: $0) } ?? 1 }
+        return !floor.isLounge && floor.desks.count > 6 ? Self.twoRowScale : 1
+    }
+    private var catHeight: Double { state.building.catHeight ?? BuiltRoom.defaultCatHeight }
+
+    /// The `index`th place cats wait for the elevator, in "roomContent": a built floor's real elevator (its door spot,
+    /// Cat Office's waiting spread), else the simple room's door.
+    private func elevatorPlace(_ index: Int) -> CGPoint {
+        if let built = state.rooms[floorId], let fit = fits[floorId] {
+            let door = built.elevator?.standAt ?? FloorPoint(u: 0.5, v: 0.5)
+            let p = built.frame.px(ElevatorTrip.waitingPlace(door, index: index))
+            if p.x.isFinite && p.y.isFinite { return fit.point(p) }
+        }
+        let door = ElevatorArt.door()
+        return CGPoint(x: door.x + ElevatorTrip.waitingOffset(index: index), y: door.y)
+    }
+
+    /// The floor as seated on a built room: only the desks the room could place (unknown designs are skipped).
+    private func seatFloor(_ built: BuiltRoom) -> Floor {
+        let ids = Set(built.desks.map(\.id))
+        var f = floor
+        f.desks = floor.desks.filter { ids.contains($0.id) }
+        return f
+    }
+
+    private func cast(_ built: BuiltRoom) -> SceneCast {
+        let f = seatFloor(built)
+        let seating = seatings[floorId] ?? FloorPlan.seating(on: f, agents: floorCats, previous: nil, seats: built.seats.count)
+        return SceneCast(seating: seating, agents: floorCats, deskIds: f.desks.map(\.id), lounge: floor.isLounge)
+    }
     private var floor: Floor { state.building.floor(id: floorId) ?? Building.fallback.floors[0] }
     private var floorCats: [OfficeAgent] { FloorPlan.cats(on: floorId, agents: state.office?.agents ?? [], in: state.building) }
     /// Changes when who's on the shown floor, or their status or desk, changes.
     private var seatKey: String {
-        "\(floorId)|" + floorCats.map { "\($0.id):\($0.status.rawValue):\($0.desk?.id ?? "")" }.sorted().joined(separator: ",")
+        let built = state.rooms[floorId].map { "built:\($0.seats.count):\($0.desks.map(\.id).joined(separator: "+"))" } ?? ""
+        return "\(floorId)|\(built)|" + floorCats.map { "\($0.id):\($0.status.rawValue):\($0.desk?.id ?? "")" }.sorted().joined(separator: ",")
     }
 
     private func updateSeating() {
-        seatings[floorId] = FloorPlan.seating(on: floor, agents: floorCats, previous: seatings[floorId])
+        if let built = state.rooms[floorId] {
+            seatings[floorId] = FloorPlan.seating(on: seatFloor(built), agents: floorCats, previous: seatings[floorId], seats: built.seats.count)
+        } else {
+            seatings[floorId] = FloorPlan.seating(on: floor, agents: floorCats, previous: seatings[floorId])
+        }
     }
 
     private func room() -> some View {
@@ -532,6 +590,8 @@ struct RidersLayer: View {
     let floorId: Int
     let catIds: [String]
     var scale: CGFloat = 1
+    /// Where cats wait for the shown floor's elevator (3 places, "roomContent").
+    var places: [CGPoint] = []
     @EnvironmentObject var state: AppState
     @Environment(\.officeNight) private var officeNight
 
@@ -546,8 +606,9 @@ struct RidersLayer: View {
 
     @ViewBuilder
     private func rider(_ ride: Rider, now: Date) -> some View {
-        let door = ElevatorArt.door()
-        let place = CGPoint(x: door.x + ElevatorTrip.waitingOffset(index: ride.waitIndex), y: door.y)
+        let place = places.isEmpty
+            ? CGPoint(x: ElevatorArt.door().x + ElevatorTrip.waitingOffset(index: ride.waitIndex), y: ElevatorArt.door().y)
+            : places[ride.waitIndex % places.count]
         switch (ride.trip.phase(at: now), ride.trip.from == floorId, ride.trip.to == floorId) {
         case (.walkingIn, true, _):
             let speed = WalkPath.speed(for: ride.id, base: CatWalk.baseSpeed)
@@ -1085,7 +1146,8 @@ struct StatusRing: View {
 /// An image loaded once from the art cache, keyed so the same sprite isn't reloaded. When it can't be loaded,
 /// a plain circle in `fallback` stands in (nothing for nil); it's tried again the next time the peek opens.
 struct SpriteImage: View {
-    enum Mode { case fit, fill, tile }
+    /// stretch: the image over the whole frame (a room sprite redrawn over its own box).
+    enum Mode { case fit, fill, tile, stretch }
 
     let key: String
     let fallback: Color?
@@ -1104,6 +1166,7 @@ struct SpriteImage: View {
                 case .fit: Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
                 case .fill: Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fill)
                 case .tile: Image(nsImage: image).resizable(resizingMode: .tile)
+                case .stretch: Image(nsImage: image).resizable().interpolation(.high)
                 }
             } else if failed, let fallback {
                 Circle().fill(fallback.opacity(0.8)).frame(width: 22, height: 22)

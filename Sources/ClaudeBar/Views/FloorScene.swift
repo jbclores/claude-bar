@@ -3,14 +3,20 @@ import ClaudeBarCore
 import ImageIO
 import SwiftUI
 
-/// A floor drawn as Cat Office lays it out (BuiltRoom): one cached picture of the room, fitted by SceneFit.
-/// The live layer (cats) comes on top of it in a later step.
+/// A floor drawn as Cat Office lays it out (BuiltRoom): one cached picture of the room, fitted by SceneFit, with the
+/// live layer (cats, and the furniture in front of them) on top.
 struct FloorScene: View {
     let room: BuiltRoom
+    /// The same floor's simple room, shown until its picture exists (so a failed load never leaves it blank).
+    let floor: Floor
+    /// building.json catHeight (world px).
+    let catHeight: Double
+    /// Who's where; nil draws no cats (Cat Office offline).
+    var cast: SceneCast?
     @EnvironmentObject var state: AppState
     @Environment(\.officeNight) private var night
-    /// The last picture loaded, shown until the cache has the current one.
-    @State private var loaded: NSImage?
+    /// The last picture loaded for this floor, shown until the cache has the current one.
+    @State private var loaded: (floorId: Int, image: NSImage)?
 
     /// Pixels per point of the room's picture (Retina).
     static let pixelsPerPoint: CGFloat = 2
@@ -23,25 +29,357 @@ struct FloorScene: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let cat = BuiltRoom.defaultCatHeight
-            let fit = SceneFit.fill(floor: room.frame, content: room.contentBounds(catHeight: cat),
-                                    keep: room.catBounds(catHeight: cat), into: proxy.size)
+            let fit = SceneFit.fill(floor: room.frame, content: room.contentBounds(catHeight: catHeight),
+                                    keep: room.catBounds(catHeight: catHeight), into: proxy.size)
             let scale = RoomImageCache.quantized(fit.scale * Self.pixelsPerPoint)
             let frame = fit.rect(RoomImageCache.imageBounds(room))
+            let origin = proxy.frame(in: .named("roomContent")).origin
             ZStack(alignment: .topLeading) {
-                if let image = RoomImageCache.shared.cached(room, night: night, scale: scale) ?? loaded {
+                if let image = RoomImageCache.shared.cached(room, night: night, scale: scale)
+                    ?? (loaded?.floorId == room.floorId ? loaded?.image : nil) {
                     Image(nsImage: image).resizable().interpolation(.high)
                         .frame(width: frame.width, height: frame.height)
                         .offset(x: frame.minX, y: frame.minY)
+                } else {
+                    RoomBackdrop(floor: floor)
+                }
+                if let cast {
+                    SceneCats(room: room, fit: fit, origin: origin, catHeight: catHeight, cast: cast)
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+            .preference(key: SceneFitKey.self,
+                        value: [room.floorId: SceneFit(scale: fit.scale, origin: CGPoint(x: origin.x + fit.origin.x, y: origin.y + fit.origin.y))])
             .task(id: LoadKey(room: room, night: night, scale: scale)) {
                 if let image = await RoomImageCache.shared.image(for: room, night: night, scale: scale, art: state.art) {
-                    loaded = image
+                    loaded = (room.floorId, image)
                 }
             }
         }
+    }
+}
+
+/// Each shown floor's fit, by floor id, in "roomContent" points: for walks and rides from its real elevator.
+struct SceneFitKey: PreferenceKey {
+    static let defaultValue: [Int: SceneFit] = [:]
+    static func reduce(value: inout [Int: SceneFit], nextValue: () -> [Int: SceneFit]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+/// Who's on a built floor and where they sit (FloorPlan.seating over the floor's built desks and seats).
+struct SceneCast: Equatable {
+    var seating: FloorSeating
+    var agents: [OfficeAgent]
+    /// The desk id at each of `seating.desks`.
+    var deskIds: [String]
+    var lounge: Bool
+}
+
+/// One cat placed on a built floor, in world terms.
+struct SceneCat {
+    enum Kind { case desk, seat, helper, queue }
+    let agent: OfficeAgent
+    let kind: Kind
+    let at: FloorPoint
+    /// World px above its floor point.
+    let lift: Double
+    /// 1, or 0.8 for a helper beside its parent.
+    let size: Double
+    let pose: CatPose
+    let direction: String
+    let perch: String?
+    /// The desk it works at (world px), for the screen's glow at night.
+    let desk: CGRect?
+}
+
+extension SceneCast {
+    /// Helpers stand beside their parent this far apart (floor u, v), at this size.
+    static let helperStep = (u: 0.04, v: -0.02)
+    static let helperSize = 0.8
+    /// Lounge cats with no seat sleep in a cluster: 3 wide, this far apart (floor u, v), up to this many.
+    static let clusterStep = 0.03
+    static let clusterShown = 6
+
+    /// Every cat's place, plus "+N" notes (text, floor point).
+    func layout(in room: BuiltRoom) -> (cats: [SceneCat], notes: [(String, FloorPoint)]) {
+        let byId = Dictionary(agents.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        var cats: [SceneCat] = [], notes: [(String, FloorPoint)] = []
+        var anchor: [String: FloorPoint] = [:]
+
+        if lounge {
+            for (i, id) in seating.lounge.enumerated() {
+                guard let id, let agent = byId[id], room.seats.indices.contains(i) else { continue }
+                let spot = room.seats[i]
+                // simulation-engine.ts perches: only a raised spot puts the cat up on its prop (room.ts spotOwner).
+                cats.append(SceneCat(agent: agent, kind: .seat, at: spot.standAt, lift: spot.lift, size: 1, pose: .sleeping,
+                                     direction: "front-left", perch: spot.lift > 0 ? spot.owner : nil, desk: nil))
+                anchor[id] = spot.standAt
+            }
+            // The rest cluster on the first rug spot, else the floor's centre.
+            let rugs = Set(room.rugs.map(\.id))
+            let base = room.seats.first { rugs.contains($0.owner) }?.standAt ?? FloorPoint(u: 0.5, v: 0.5)
+            let seated = Set(seating.lounge.compactMap { $0 })
+            let extra = agents.filter { !$0.isSubagent && !seated.contains($0.id) }
+                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            for (j, agent) in extra.prefix(Self.clusterShown).enumerated() {
+                let at = FloorPoint(u: base.u + Double(j % 3 - 1) * Self.clusterStep, v: base.v + Double(j / 3) * Self.clusterStep)
+                cats.append(SceneCat(agent: agent, kind: .seat, at: at, lift: 0, size: 1, pose: .sleeping,
+                                     direction: "front-left", perch: nil, desk: nil))
+                anchor[agent.id] = at
+            }
+            if extra.count > Self.clusterShown {
+                notes.append(("+\(extra.count - Self.clusterShown) asleep",
+                              FloorPoint(u: base.u, v: base.v + Double((Self.clusterShown + 2) / 3) * Self.clusterStep)))
+            }
+        } else {
+            let desks = Dictionary(room.desks.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            for (i, id) in seating.desks.enumerated() {
+                guard let id, let agent = byId[id], deskIds.indices.contains(i), let desk = desks[deskIds[i]] else { continue }
+                var seated = agent
+                seated.desk = AgentDesk(id: desk.design, flip: desk.flip, rear: desk.rear)
+                let scene = DeskScene(seated)
+                cats.append(SceneCat(agent: agent, kind: .desk, at: desk.standAt, lift: 0, size: 1, pose: scene.pose,
+                                     direction: agent.status == .working ? desk.facing : scene.direction, perch: nil, desk: desk.rect))
+                anchor[id] = desk.standAt
+            }
+        }
+        // Helpers beside their parent.
+        for (parent, helpers) in seating.nearby.sorted(by: { $0.key < $1.key }) {
+            guard let base = anchor[parent] else { continue }
+            func beside(_ k: Int) -> FloorPoint {
+                FloorPoint(u: base.u + Self.helperStep.u * Double(k + 1), v: base.v + Self.helperStep.v * Double(k + 1))
+            }
+            for (k, id) in helpers.enumerated() {
+                guard let agent = byId[id] else { continue }
+                cats.append(SceneCat(agent: agent, kind: .helper, at: beside(k), lift: 0, size: Self.helperSize, pose: .standing,
+                                     direction: "front-left", perch: nil, desk: nil))
+            }
+            if let more = seating.nearbyOverflow[parent] { notes.append(("+\(more)", beside(helpers.count))) }
+        }
+        // The queue at the elevator's waiting places.
+        let door = room.elevator?.standAt ?? FloorPoint(u: 0.5, v: 0.5)
+        for (i, id) in seating.queue.enumerated() {
+            guard let agent = byId[id] else { continue }
+            cats.append(SceneCat(agent: agent, kind: .queue, at: ElevatorTrip.waitingPlace(door, index: i), lift: 0,
+                                 size: agent.isSubagent ? Self.helperSize : 1, pose: .standing,
+                                 direction: "front-left", perch: nil, desk: nil))
+        }
+        if seating.queueOverflow > 0 {
+            let last = ElevatorTrip.waitingPlace(door, index: 2)
+            notes.append(("+\(seating.queueOverflow)", FloorPoint(u: last.u + ElevatorTrip.waitSpread.u, v: last.v + ElevatorTrip.waitSpread.v)))
+        }
+        return (cats, notes)
+    }
+}
+
+/// The live layer: cats at their real desks and seats, each at Cat Office's depth (catZ); a desk, prop or fixture in
+/// front of a cat it overlaps is drawn again over it. Rings, "!" bubbles and name pills (only those that don't
+/// overlap at the current zoom) on top.
+struct SceneCats: View {
+    let room: BuiltRoom
+    let fit: SceneFit
+    /// FloorScene's origin in "roomContent".
+    let origin: CGPoint
+    let catHeight: Double
+    let cast: SceneCast
+    @EnvironmentObject var state: AppState
+    @EnvironmentObject var zoom: RoomZoom
+    @Environment(\.officeNight) private var night
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.walkingCats) private var walkingCats
+
+    /// Today's cats are drawn at catScale × 0.22 points per canvas px: a scene cat's size relative to that, for
+    /// walkers, riders, rings and glows.
+    static func relative(catHeight: Double, fit: SceneFit) -> CGFloat {
+        CGFloat(catHeight / 210) * fit.scale / (DeskComposition.catScale * DeskStation.scale)
+    }
+
+    /// A cat as drawn: feet (points, lifted), canvas scale (points per canvas px), depth.
+    private struct Drawn {
+        let cat: SceneCat
+        let feet: CGPoint
+        let k: CGFloat
+        let z: Int
+        let figure: CGRect
+        var canvas: CGRect { CGRect(x: feet.x - 180 * k, y: feet.y - 300 * k, width: 360 * k, height: 380 * k) }
+        var rel: CGFloat { k / (DeskComposition.catScale * DeskStation.scale) }
+    }
+
+    private struct Cover {
+        let key: String
+        let image: String
+        let rect: CGRect
+        let mirrored: Bool
+        let box: OccluderBox
+    }
+
+    private enum Item {
+        case cat(Drawn)
+        case cover(Cover)
+    }
+
+    private struct Entry: Identifiable {
+        let z: Int
+        let order: Int
+        let id: String
+        let item: Item
+    }
+
+    var body: some View {
+        let (cats, notes) = cast.layout(in: room)
+        let drawn = cats.compactMap(draw)
+        let covers = room.desks.map { Cover(key: "desk:\($0.id)", image: $0.image, rect: $0.rect, mirrored: $0.flip, box: $0.box) }
+            + room.props.compactMap { p in p.image.map { Cover(key: "prop:\(p.id)", image: $0, rect: p.rect, mirrored: p.mirrored, box: p.box) } }
+            + room.fixtures.compactMap { f in f.image.map { Cover(key: "fixture:\(f.id)", image: $0, rect: f.rect, mirrored: f.mirrored, box: f.box) } }
+        // Furniture over a cat it overlaps, by depth.
+        let shownCovers = covers.filter { c in drawn.contains { d in c.box.z > d.z && Self.overlaps(d.figure, c.box.rect) } }
+        let items = drawn.map { Entry(z: $0.z, order: 0, id: $0.cat.agent.id, item: .cat($0)) }
+            + shownCovers.map { Entry(z: $0.box.z, order: 1, id: $0.key, item: .cover($0)) }
+        let sorted = items.sorted { ($0.z, $0.order, $0.id) < ($1.z, $1.order, $1.id) }
+        let scale = zoom.view.scale
+        let pills = Dictionary(drawn.map { ($0.cat.agent.id, pillRect($0, scale: scale)) }, uniquingKeysWith: { a, _ in a })
+        // "+N" notes are always shown: they go first (their keys sort before any agent id), names fit round them.
+        let noteRects = Dictionary(notes.enumerated().map { i, note -> (String, CGRect) in
+            let p = fit.point(room.frame.px(note.1)), size = Self.pillSize(note.0, detail: nil)
+            return ("\u{0}note\(i)", CGRect(x: p.x * scale, y: p.y * scale, width: size.width, height: size.height))
+        }, uniquingKeysWith: { a, _ in a })
+        let needy = Set(drawn.map(\.cat.agent).filter(needsYou).map(\.id)).union(noteRects.keys)
+        let shownPills = PillLayout.visible(pills.mapValues(\.rect).merging(noteRects) { a, _ in a }, priority: needy)
+
+        ZStack(alignment: .topLeading) {
+            ForEach(sorted) { entry in
+                switch entry.item {
+                case .cat(let d): catView(d)
+                case .cover(let c): coverView(c)
+                }
+            }
+            ForEach(drawn.filter { $0.cat.agent.status == .waiting }, id: \.cat.agent.id) { d in
+                Text("!").font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
+                    .frame(width: 16, height: 16).background(Circle().fill(Color(hex: 0xE5484D)))
+                    .offset(x: d.feet.x + 8 * d.rel, y: d.canvas.minY + 2 * d.rel)
+            }
+            ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
+                let p = fit.point(room.frame.px(note.1))
+                RoomPill(text: note.0).fixedSize()
+                    .scaleEffect(1 / scale, anchor: .topLeading)
+                    .offset(x: p.x, y: p.y)
+            }
+            ForEach(drawn.filter { shownPills.contains($0.cat.agent.id) }, id: \.cat.agent.id) { d in
+                let pill = pills[d.cat.agent.id]!
+                namePill(d.cat.agent)
+                    .frame(width: pill.size.width, height: pill.size.height)
+                    .scaleEffect(1 / scale, anchor: .top)
+                    .offset(x: d.feet.x - pill.size.width / 2, y: d.feet.y + 3 / scale)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .preference(key: CatFeetKey.self, value: Dictionary(drawn.map { ($0.cat.agent.id, shift($0.feet)) }, uniquingKeysWith: { a, _ in a }))
+        .preference(key: CatFramesKey.self, value: Dictionary(drawn.map { ($0.cat.agent.id, fit.rect($0.figure).offsetBy(dx: origin.x, dy: origin.y)) },
+                                                              uniquingKeysWith: { a, _ in a }))
+    }
+
+    private func shift(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x + origin.x, y: p.y + origin.y) }
+
+    /// occlusion.ts's strict overlap.
+    private static func overlaps(_ a: CGRect, _ b: CGRect) -> Bool {
+        a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY
+    }
+
+    private func needsYou(_ a: OfficeAgent) -> Bool { a.status == .waiting || state.attention.contains(a.key) }
+
+    private func draw(_ cat: SceneCat) -> Drawn? {
+        let px = room.frame.px(cat.at)
+        guard px.x.isFinite, px.y.isFinite, cat.lift.isFinite else { return nil }
+        let h = catHeight * cat.size
+        let figure = RoomGeometry.figure(feet: px, catHeight: h, lift: cat.lift)
+        let z = RoomGeometry.catZ(feet: cat.at, figure: figure, boxes: room.boxes, perch: cat.perch)
+        let ground = fit.point(px)
+        let feet = CGPoint(x: ground.x, y: ground.y - CGFloat(cat.lift) * fit.scale)
+        return Drawn(cat: cat, feet: feet, k: CGFloat(h / 210) * fit.scale, z: z, figure: figure)
+    }
+
+    /// Where a cat's name pill would go, in view points after zoom: centred under its feet, the pill's own size.
+    private func pillRect(_ d: Drawn, scale: CGFloat) -> (rect: CGRect, size: CGSize) {
+        let size = Self.pillSize(d.cat.agent.label, detail: detail(d.cat.agent))
+        return (CGRect(x: d.feet.x * scale - size.width / 2, y: d.feet.y * scale + 3, width: size.width, height: size.height), size)
+    }
+
+    private func detail(_ a: OfficeAgent) -> String {
+        Format.statusText(a.status, needsYou: needsYou(a), since: a.waitingSince ?? state.statusSince[a.key])
+    }
+
+    /// RoomPill's size: a 9pt semibold line and an 8pt detail line, padded 6 × 2; a name pill is at most 84 wide.
+    static func pillSize(_ text: String, detail: String?) -> CGSize {
+        let a = NSFont.systemFont(ofSize: 9, weight: .semibold), b = NSFont.systemFont(ofSize: 8)
+        let line = { (f: NSFont) in ceil(f.ascender - f.descender + f.leading) }
+        let tw = ceil((text as NSString).size(withAttributes: [.font: a]).width)
+        guard let detail else { return CGSize(width: tw + 12, height: line(a) + 4) }
+        let w = max(tw, ceil((detail as NSString).size(withAttributes: [.font: b]).width))
+        return CGSize(width: min(84, w + 12), height: line(a) + line(b) + 4)
+    }
+
+    private func namePill(_ a: OfficeAgent) -> some View {
+        let needy = needsYou(a)
+        return RoomPill(text: a.label, detail: detail(a), detailColor: needy ? Theme.waiting : Theme.color(a.status))
+    }
+
+    @ViewBuilder
+    private func catView(_ d: Drawn) -> some View {
+        let agent = d.cat.agent
+        let rel = d.rel
+        ZStack(alignment: .topLeading) {
+            if agent.status == .waiting && d.cat.kind != .seat {
+                Ellipse()
+                    .fill(RadialGradient(colors: [Theme.waiting.opacity(0.6), Theme.waiting.opacity(0)], center: .center, startRadius: 3, endRadius: 46))
+                    .frame(width: 96, height: 30)
+                    .scaleEffect(rel)
+                    .offset(x: d.feet.x - 48, y: d.feet.y - 15)
+            }
+            if d.cat.kind != .seat {
+                StatusRing(status: agent.status, attention: false).frame(width: 40, height: 10)
+                    .scaleEffect(0.8 * rel)
+                    .offset(x: d.feet.x - 20, y: d.feet.y - 5)
+            }
+            if let desk = d.cat.desk, agent.status == .working && night {
+                let r = fit.rect(desk)
+                Ellipse()
+                    .fill(RadialGradient(colors: [Night.screen.opacity(0.55), Night.screen.opacity(0)], center: .center, startRadius: 2, endRadius: 40))
+                    .frame(width: 80, height: 50)
+                    .scaleEffect(rel)
+                    .offset(x: r.midX - 40, y: r.minY - 6)
+                    .blendMode(.screen)
+            }
+            sprite(d).opacity(walkingCats.contains(agent.id) ? 0 : 1)
+        }
+    }
+
+    private func sprite(_ d: Drawn) -> some View {
+        let agent = d.cat.agent
+        let cat = CatPicker.cat(for: agent, catIds: state.catIds)
+        let pose = d.cat.pose, direction = d.cat.direction
+        let r = d.canvas
+        return TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || agent.status == .waiting)) { context in
+            let motion = reduceMotion ? CatMotion(offsetY: 0, scale: 1)
+                : CatMotion.at(status: agent.status, time: context.date.timeIntervalSinceReferenceDate)
+            SpriteImage(key: "\(cat)-\(pose.rawValue)-\(direction)", fallback: Theme.color(agent.status)) {
+                await state.art.catImage(cat: cat, pose: pose, direction: direction)
+            }
+            .frame(width: r.width, height: r.height)
+            .colorMultiply(!night ? .white : agent.status == .idle ? Night.asleep : Night.furniture)
+            .scaleEffect(motion.scale, anchor: .bottom)
+            .offset(x: r.minX, y: r.minY + motion.offsetY * d.rel)
+        }
+    }
+
+    private func coverView(_ c: Cover) -> some View {
+        let r = fit.rect(c.rect)
+        return SpriteImage(key: c.image, fallback: nil, mode: .stretch) { await state.art.image(path: c.image, maxPixelSize: 1024) }
+            .frame(width: r.width, height: r.height)
+            .scaleEffect(x: c.mirrored ? -1 : 1, y: 1)
+            .colorMultiply(night ? Night.furniture : .white)
+            .offset(x: r.minX, y: r.minY)
+            .allowsHitTesting(false)
     }
 }
 
