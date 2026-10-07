@@ -3,18 +3,24 @@
 A macOS menu bar app: your Claude Code 5h / 7d usage at a glance, your pinned projects (branch, model,
 context, status), and a hover peek of Cat Office's cats. Design: `docs/superpowers/specs/2026-10-06-claude-bar-design.md`.
 
-## Install
+## Run it (no admin password needed)
 
 ```sh
-scripts/install-statusline.sh          # status line also saves snapshots (backs up the old script)
-scripts/build.sh                       # → build/ClaudeBar.app
-mkdir -p ~/Applications && rm -rf ~/Applications/ClaudeBar.app && cp -R build/ClaudeBar.app ~/Applications/
-~/Applications/ClaudeBar.app/Contents/MacOS/ClaudeBar --launch-at-login on   # or tick it in the dropdown
-open ~/Applications/ClaudeBar.app
+git clone <this repo> && cd claude-bar
+scripts/run.sh             # checks the tools, builds, and opens ClaudeBar from this folder
+scripts/run.sh --install   # or: copy it to ~/Applications and run it from there
 ```
 
-`~/Applications` needs no admin rights (use `/Applications` if you have them). After a rebuild, quit ClaudeBar
-and copy the new build over the old one.
+- **Needs:** a Mac on macOS 14 or newer, and Apple's Command Line Tools with Swift 6 (you have them if `git` works;
+  else `xcode-select --install`, which may need IT on a company Mac).
+- **No IT credentials:** building happens in this folder, and `~/Applications` is your own folder, not the system
+  `/Applications`. A ClaudeBar you build yourself doesn't get macOS's "unidentified developer" warning.
+- **First launch:** the Set up ClaudeBar window finds your Cat Office and turns on usage (see below).
+- **Updating:** `git pull`, then `scripts/run.sh` again (with `--install` if you installed); it quits the old one.
+- **Start at login:** tick Launch at Login in Settings. Use `--install` first, so it doesn't point into this folder.
+- **Don't use `swift run`:** it leaves out the setup scripts, sounds and guide that `scripts/build.sh` bundles.
+
+Doing it by hand: `scripts/build.sh` builds `build/ClaudeBar.app`; copy it to `~/Applications` and open it.
 
 Config: `~/.config/claude-bar/projects.json` (Add Folder… / Edit Config in the dropdown).
 
