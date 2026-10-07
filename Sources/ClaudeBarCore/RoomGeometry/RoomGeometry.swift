@@ -23,10 +23,34 @@ public struct BuiltRoom: Equatable, Sendable {
     public var floorTint: String? = nil
 }
 
+/// A desk, prop or fixture in the room's drawing order (BuiltRoom.standing).
+public struct StandingPiece: Equatable, Sendable {
+    public enum Kind: Int, Sendable { case desk, prop, fixture }
+    public var kind: Kind
+    /// Its index in the room's desks, props or fixtures.
+    public var index: Int
+    /// "desk:<id>", "prop:<id>" or "fixture:<id>".
+    public var id: String
+    public var box: OccluderBox
+
+    public init(kind: Kind, index: Int, id: String, box: OccluderBox) {
+        self.kind = kind; self.index = index; self.id = id; self.box = box
+    }
+}
+
 extension BuiltRoom {
     /// Everything that can cover a cat, as Office.tsx 329-337 lists it.
     public var boxes: [OccluderBox] {
         desks.map(\.box) + props.map(\.box) + fixtures.map(\.box)
+    }
+
+    /// Desks, props and fixtures in the order the room's picture draws them: by depth, then desks, props, fixtures,
+    /// then each in its own order (later pieces paint over earlier ones).
+    public var standing: [StandingPiece] {
+        let all = desks.enumerated().map { StandingPiece(kind: .desk, index: $0.offset, id: "desk:\($0.element.id)", box: $0.element.box) }
+            + props.enumerated().map { StandingPiece(kind: .prop, index: $0.offset, id: "prop:\($0.element.id)", box: $0.element.box) }
+            + fixtures.enumerated().map { StandingPiece(kind: .fixture, index: $0.offset, id: "fixture:\($0.element.id)", box: $0.element.box) }
+        return all.sorted { ($0.box.z, $0.kind.rawValue, $0.index) < ($1.box.z, $1.kind.rawValue, $1.index) }
     }
 
     /// Cat Office's building.json catHeight (world px), used while the building's own value isn't parsed.
@@ -142,6 +166,27 @@ public enum RoomGeometry {
     /// occlusion.ts 54-55 (strict overlap).
     private static func overlaps(_ a: CGRect, _ b: CGRect) -> Bool {
         a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY
+    }
+
+    /// What the live layer draws again over its cats (`standing` in the room's drawing order): every piece in front
+    /// of a cat (z above the cat's) overlapping its figure, and then, until nothing changes, every piece later in the
+    /// drawing order overlapping a piece already chosen (it was painted over that piece in the room's picture, so it
+    /// must be painted over it again). In drawing order.
+    public static func overCats(_ cats: [(z: Int, figure: CGRect)], standing: [StandingPiece]) -> [StandingPiece] {
+        var chosen = standing.indices.map { i in
+            cats.contains { standing[i].box.z > $0.z && overlaps($0.figure, standing[i].box.rect) }
+        }
+        var changed = chosen.contains(true)
+        while changed {
+            changed = false
+            for j in standing.indices where !chosen[j] {
+                if (0..<j).contains(where: { chosen[$0] && overlaps(standing[$0].box.rect, standing[j].box.rect) }) {
+                    chosen[j] = true
+                    changed = true
+                }
+            }
+        }
+        return standing.indices.filter { chosen[$0] }.map { standing[$0] }
     }
 
     /// occlusion.ts 65-76: z-index for a cat at `feet` whose figure covers `figure`.
