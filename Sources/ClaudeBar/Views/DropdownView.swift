@@ -35,13 +35,14 @@ final class TabSelection: ObservableObject {
     }
 }
 
-/// Top of the dropdown: usage, and a config error if there is one.
+/// Top of the dropdown: the ClaudeBar title with the theme switch, then usage, and a config error if there is one.
 struct DropdownHeader: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            UsageHeader(usage: state.output.usage, onToggleTheme: { state.toggleOfficeLighting() })
+            TitleRow()
+            UsageHeader(usage: state.output.usage)
             if let error = state.configError {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .font(.caption).foregroundStyle(Theme.waiting)
@@ -273,29 +274,47 @@ struct SettingsTabView: View {
     }
 }
 
+/// "ClaudeBar" with a cat on the left; ClaudeBar's ☀️/🌙 theme switch on the right.
+struct TitleRow: View {
+    @EnvironmentObject var state: AppState
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 6) {
+            // The menu bar's cat in its current pose; a plain cat while Cat Office is offline or empty.
+            if let cat = state.menuCat {
+                SpriteImage(key: "title-\(cat.cat)-\(cat.pose.rawValue)", fallback: nil) {
+                    guard let data = await state.art.catImage(cat: cat.cat, pose: cat.pose) else { return nil }
+                    return ArtCache.trimmed(data)
+                }
+                .frame(width: 20, height: 18)
+            } else {
+                Image(systemName: "cat.fill").font(.system(size: 13)).foregroundStyle(.secondary)
+            }
+            Text("ClaudeBar").font(.headline)
+            Spacer()
+            Button { state.toggleOfficeLighting() } label: {
+                Text(colorScheme == .dark ? "🌙" : "☀️").font(.system(size: 12))
+                    .frame(width: 26, height: 18)
+                    .background(Capsule().fill(Color.primary.opacity(0.08)))
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .help(colorScheme == .dark ? "Switch ClaudeBar to day" : "Switch ClaudeBar to night")
+        }
+    }
+}
+
 struct UsageHeader: View {
     let usage: UsageSummary
-    /// ClaudeBar's ☀️/🌙 theme switch, beside "as of" (nil: not shown).
-    var onToggleTheme: (() -> Void)?
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Usage").font(.headline)
+                Text("Usage").font(.subheadline.weight(.semibold))
                 Spacer()
                 if let asOf = usage.asOf {
                     Text("as of \(Format.age(asOf, now: Date()))").font(.caption).foregroundStyle(.secondary)
-                }
-                if let onToggleTheme {
-                    Button(action: onToggleTheme) {
-                        Text(colorScheme == .dark ? "🌙" : "☀️").font(.system(size: 12))
-                            .frame(width: 26, height: 18)
-                            .background(Capsule().fill(Color.primary.opacity(0.08)))
-                            .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .help(colorScheme == .dark ? "Switch ClaudeBar to day" : "Switch ClaudeBar to night")
                 }
             }
             row("5h", usage.fiveHourPct, usage.fiveHourResetsAt,
