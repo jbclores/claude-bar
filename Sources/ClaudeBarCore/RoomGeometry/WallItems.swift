@@ -6,6 +6,7 @@ public enum WindowPiece: Equatable, Sendable {
     case nineSlice(image: String, rect: CGRect, slice: SliceDef)
     case stretch(image: String, rect: CGRect)
     case repeatX(image: String, rect: CGRect)
+    case decor(image: String, rect: CGRect)
     case fill(color: String, rect: CGRect)
 }
 
@@ -155,7 +156,21 @@ public enum WallItems {
                 out.append(.stretch(image: m, rect: CGRect(x: x, y: g.y0, width: mw, height: g.y1 - g.y0)))
             }
         }
-        // Window decoration (WindowDecorDef) isn't in ClaudeBar's catalogue, so there is none to draw.
+        // RoomShell.tsx DecorArt (153-179): the unlit art; the glow copy is not drawn.
+        if let d = def.decor {
+            if d.kind == "strip" {
+                // Repeated a whole number of times across the glass, along its top.
+                let k = max(1, Int((gw / d.width + 0.5).rounded(.down)))
+                for i in 0..<k {
+                    out.append(.decor(image: d.image, rect: CGRect(x: g.x0 + Double(i) * gw / Double(k), y: g.y0 + 1, width: gw / Double(k), height: d.height)))
+                }
+            } else {
+                // Tied to the glass's top, centred, no taller than the glass leaves room for.
+                let h = max(8, min(d.height, gh - 6))
+                let w = d.width * h / d.height
+                out.append(.decor(image: d.image, rect: CGRect(x: g.x0 + (gw - w) / 2, y: g.y0, width: w, height: h)))
+            }
+        }
         return out
     }
 

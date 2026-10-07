@@ -55,6 +55,16 @@ public struct RugDef: Codable, Equatable, Sendable {
     public var size: [Double]?
 }
 
+/// A window's decoration over its glass: a strip of lights or a hung lantern (Cat Office's WindowDecorDef).
+public struct WindowDecorDef: Codable, Equatable, Sendable {
+    public var kind: String
+    public var image: String
+    public var emissiveImage: String?
+    public var emissive: String?
+    public var width: Double
+    public var height: Double
+}
+
 public struct WallItemDef: Codable, Equatable, Sendable {
     public var id: String
     public var width: Double
@@ -97,6 +107,7 @@ public struct WallItemDef: Codable, Equatable, Sendable {
     public var transomAt: Double?
     public var transomOptional: Bool?
     public var sill: Double?
+    public var decor: WindowDecorDef?
     public var color: String?
 }
 

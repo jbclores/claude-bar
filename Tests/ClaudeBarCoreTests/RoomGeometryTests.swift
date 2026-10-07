@@ -98,6 +98,21 @@ func near(_ a: Double, _ b: Double, _ tol: Double = 0.5) -> Bool { abs(a - b) <=
         #expect(p.pieces.count >= 4)
     }
 
+    @Test func windowDecorIsDrawnLikeCatOffice() throws {
+        let c = try RoomCatalogueTests().catalogue()
+        let frame = try #require(FloorFrame(corners: try expected("user").floors[1].corners))
+        func decor(_ item: String) throws -> [CGRect] {
+            let w = WallItemPlacement(id: "w", item: item, wall: .left, at: 0.5, width: nil, height: nil, bottom: nil, up: nil, transom: nil)
+            let p = try #require(WallItems.place(w, frame: frame, catalogue: c, wallHeight: 399))
+            #expect({ if case .nineSlice = p.pieces.first { return true } else { return false } }())
+            return p.pieces.compactMap { if case .decor(_, let r) = $0 { return r } else { return nil } }
+        }
+        // 163x127 window, glass x 20...129, y 17...102: one 75px strip repeat, stretched over the 109px glass, 1px under its top.
+        #expect(try decor("window-string-lights") == [CGRect(x: 20, y: 18, width: 109, height: 30)])
+        // A hung lantern 53x61, centred on the glass, at its top.
+        #expect(try decor("window-star-lantern") == [CGRect(x: 48, y: 17, width: 53, height: 61)])
+    }
+
     @Test func unknownWallItemIsSkipped() throws {
         let c = try RoomCatalogueTests().catalogue()
         let frame = try #require(FloorFrame(corners: try expected("user").floors[1].corners))
