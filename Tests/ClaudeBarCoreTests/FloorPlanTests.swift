@@ -49,3 +49,70 @@ import Testing
 
     @Test func endedIsNotShown() { #expect(floor(agent("a", .ended)) == nil) }
 }
+
+@Suite struct FloorSeatingTests {
+    let desks = [
+        FloorDesk(id: "d0", design: "s1-walnut", flip: false, rear: false),
+        FloorDesk(id: "d1", design: "s2-pink", flip: true, rear: false),
+        FloorDesk(id: "d2", design: "s2-pink", flip: true, rear: false),
+        FloorDesk(id: "d3", design: "s1-oak", flip: false, rear: false),
+    ]
+    var floor: Floor { Floor(id: 12, name: "claude-bar", repoRoot: "/w", floorTexture: nil, wallTexture: nil, desks: desks, elevator: nil, hasLoungeSign: false) }
+    var lounge: Floor { Floor(id: 1, name: "Lounge", repoRoot: nil, floorTexture: nil, wallTexture: nil, desks: [], elevator: nil, hasLoungeSign: true) }
+
+    func a(_ id: String, _ status: AgentStatus = .working, desk: AgentDesk? = nil, parent: String? = nil) -> OfficeAgent {
+        var x = OfficeAgent(id: id, name: id, owner: "office", status: status, cwd: "/w")
+        x.desk = desk
+        if let parent { x.kind = "subagent"; x.parentName = parent }
+        return x
+    }
+
+    @Test func catsSitAtTheirReportedDeskDesign() {
+        let s = FloorPlan.seating(on: floor, agents: [a("p", desk: AgentDesk(id: "s2-pink", flip: true, rear: false))], previous: nil)
+        #expect(s.desks == [nil, "p", nil, nil])
+    }
+
+    @Test func twoCatsWithTheSameDesignGetTwoDesks() {
+        let pink = AgentDesk(id: "s2-pink", flip: true, rear: false)
+        let s = FloorPlan.seating(on: floor, agents: [a("p", desk: pink), a("q", desk: pink)], previous: nil)
+        #expect(s.desks == [nil, "p", "q", nil])
+    }
+
+    @Test func catsKeepTheirDeskWhileOthersComeAndGo() {
+        let first = FloorPlan.seating(on: floor, agents: [a("x"), a("y")], previous: nil)
+        #expect(first.desks == ["x", "y", nil, nil])
+        let next = FloorPlan.seating(on: floor, agents: [a("y"), a("z")], previous: first)
+        #expect(next.desks == ["z", "y", nil, nil], "y stays at d1; z takes the free d0")
+    }
+
+    @Test func helpersTakeTheFreeDeskNearestTheirParent() {
+        let s = FloorPlan.seating(on: floor, agents: [a("p", desk: AgentDesk(id: "s1-oak", flip: false, rear: false)), a("h", parent: "p")], previous: nil)
+        #expect(s.desks == [nil, nil, "h", "p"])
+    }
+
+    @Test func helpersStandBesideTheirParentWhenNoDeskIsFree() {
+        let agents = [a("p"), a("q"), a("r"), a("s"), a("h1", parent: "p"), a("h2", parent: "p"), a("h3", parent: "p")]
+        let s = FloorPlan.seating(on: floor, agents: agents, previous: nil)
+        #expect(s.desks == ["p", "q", "r", "s"])
+        #expect(s.nearby["p"] == ["h1", "h2"] && s.nearbyOverflow["p"] == 1)
+    }
+
+    @Test func otherOverflowQueuesThenCounts() {
+        let agents = ["a", "b", "c", "d", "e", "f", "g", "h"].map { a($0) }
+        let s = FloorPlan.seating(on: floor, agents: agents, previous: nil)
+        #expect(s.desks == ["a", "b", "c", "d"])
+        #expect(s.queue == ["e", "f", "g"] && s.queueOverflow == 1)
+    }
+
+    @Test func loungeSeatsTenThenCountsAndHelpersSitBesideTheirParent() {
+        let cats = (0..<12).map { a("c\($0)", .idle) } + [a("h", .working, parent: "c0")]
+        let s = FloorPlan.seating(on: lounge, agents: cats, previous: nil)
+        #expect(s.lounge.count == FloorSeating.loungeSpots && s.lounge.compactMap { $0 }.count == 10)
+        #expect(s.loungeOverflow == 2)
+        #expect(s.nearby["c0"] == ["h"])
+    }
+
+    @Test func deskPositionsRunInRowsOfSix() {
+        #expect(FloorPlan.deskPosition(0) == (0, 0) && FloorPlan.deskPosition(5) == (0, 5) && FloorPlan.deskPosition(6) == (1, 0))
+    }
+}
