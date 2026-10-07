@@ -40,20 +40,25 @@ enum SetupActions {
     }
 
     /// Whether the bundled patch is applied: true when it reverses cleanly (a dry run, nothing changes), false when
-    /// it doesn't but the folder is Cat Office, nil when the folder isn't Cat Office or the check can't run.
+    /// it doesn't but the folder is Cat Office, nil when the folder isn't Cat Office or the check can't run (patch
+    /// missing, launch failure, or patch's exit 2: trouble).
     static func isPatched(_ dir: String, env: SetupEnvironment) async -> Bool? {
         let fm = FileManager.default
         guard fm.fileExists(atPath: dir + "/package.json"), fm.fileExists(atPath: dir + "/server/agent-bridge") else { return nil }
         let patch = env.resources.appendingPathComponent("cat-office.patch").path
         guard fm.fileExists(atPath: patch) else { return nil }
         let result = await run("/bin/sh", ["-c", "patch -d \"$1\" -p1 -R --dry-run -s -f < \"$2\"", "sh", dir, patch], env: [:])
-        if result.code == -1 { return nil }
-        return result.code == 0
+        switch result.code {
+        case 0: return true
+        case 1: return false
+        default: return nil
+        }
     }
 
     /// Stops this folder's Cat Office dev server (only its own node/npm processes), then starts it again.
     static func restartCatOffice(_ dir: String, env: SetupEnvironment, settings: CatOfficeSettings) async -> CatOfficeLauncher.Result {
-        let stop = await run("/bin/bash", [env.resources.appendingPathComponent("stop-cat-office.sh").path, dir], env: [:])
+        let stop = await run("/bin/bash", [env.resources.appendingPathComponent("stop-cat-office.sh").path, dir],
+                             env: ["CAT_OFFICE_BRIDGE_FILE": env.bridgeFile.path])
         guard stop.code == 0 else { return .failed(stop.output) }
         var s = settings; s.dir = dir
         return await CatOfficeLauncher().start(settings: s)

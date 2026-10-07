@@ -71,6 +71,23 @@ if [ -z "$standin" ]; then bad "stop: stand-in process didn't start"; else
   out=$(CAT_OFFICE_BRIDGE_FILE=/nonexistent bash "$REPO/scripts/stop-cat-office.sh" "$stopmini" 2>&1); code=$?
   if [ $code = 0 ] && ! kill -0 "$standin" 2>/dev/null; then ok "stop kills the running process and exits 0"; else bad "stop ($code: $out)"; kill "$standin" 2>/dev/null; fi
 fi
+# The bridge file's pid (cwd outside the folder, so only the bridge names it), read without python3: a python3 that
+# fails first in PATH stands for a Mac without the developer tools (its shim pops an install dialog).
+fakebin=$(mktemp -d); printf '#!/bin/sh\ntouch "%s/python-ran"; exit 1\n' "$fakebin" > "$fakebin/python3"; chmod +x "$fakebin/python3"
+(cd / && exec "$stopmini/bin/node" 60 >/dev/null 2>&1 &)
+sleep 1; standin=$(pgrep -f "$stopmini/bin/node" | head -1)
+if [ -z "$standin" ]; then bad "bridge stop: stand-in process didn't start"; else
+  other=$(mktemp -d)
+  printf '{"pid": %s, "dir": "%s"}' "$standin" "$other" > "$fakebin/bridge-other.json"
+  out=$(PATH="$fakebin:$PATH" CAT_OFFICE_BRIDGE_FILE="$fakebin/bridge-other.json" bash "$REPO/scripts/stop-cat-office.sh" "$stopmini" --check 2>&1)
+  [[ "$out" == *"nothing running"* ]] && ok "bridge pid of another folder is not stopped" || bad "bridge other folder ($out)"
+  printf '{"pid": %s, "dir": "%s"}' "$standin" "$stopmini" > "$fakebin/bridge.json"
+  out=$(PATH="$fakebin:$PATH" CAT_OFFICE_BRIDGE_FILE="$fakebin/bridge.json" bash "$REPO/scripts/stop-cat-office.sh" "$stopmini" 2>&1); code=$?
+  if [ $code = 0 ] && ! kill -0 "$standin" 2>/dev/null && [ ! -e "$fakebin/python-ran" ]; then ok "stop finds the bridge pid without python3"
+  else bad "bridge stop ($code: $out; python ran: $([ -e "$fakebin/python-ran" ] && echo yes || echo no))"; kill "$standin" 2>/dev/null; fi
+  rm -rf "$other"
+fi
+rm -rf "$fakebin"
 fi
 rm -rf "$stopmini"
 

@@ -76,6 +76,21 @@ final class StatusItemController: NSResponder {
         state.$menuCat.removeDuplicates()
             .sink { [weak self] cat in self?.updateIcon(cat) }
             .store(in: &subscriptions)
+
+        // "Open the office" in the setup window opens the dropdown.
+        SetupWindow.shared.openDropdown = { [weak self] in
+            guard let self, !self.dropdown.isShown else { return }
+            self.toggleDropdown()
+        }
+        // Onboarding: the setup window opens by itself once (not for a setup that already works).
+        if state.sideEffects {
+            Task { @MainActor in
+                if await state.inferSetupIfNeeded() {
+                    try? await Task.sleep(for: .seconds(1))
+                    SetupWindow.shared.open(state: state)
+                }
+            }
+        }
     }
 
     private func applyTheme(_ appearance: NSAppearance?) {

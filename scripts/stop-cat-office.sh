@@ -25,8 +25,12 @@ is_node_or_npm() { case "$(basename "$(ps -o comm= -p "$1" 2>/dev/null | awk '{p
 # processes running from the folder. Plus their npm parent when it runs from the folder too.
 pids=""
 if [ -f "$BRIDGE" ]; then
-  bpid=$(python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["pid"] if d.get("dir") and __import__("os").path.realpath(d["dir"])==sys.argv[2] else "")' "$BRIDGE" "$FROM" 2>/dev/null || true)
-  [ -n "$bpid" ] && kill -0 "$bpid" 2>/dev/null && pids="$bpid"
+  # plutil, not python3: on a Mac without the developer tools, python3 is a shim that pops an install dialog.
+  bdir=$(/usr/bin/plutil -extract dir raw -o - "$BRIDGE" 2>/dev/null || true)
+  bpid=$(/usr/bin/plutil -extract pid raw -o - "$BRIDGE" 2>/dev/null || true)
+  breal=""; [ -n "$bdir" ] && [ -d "$bdir" ] && breal=$(cd "$bdir" 2>/dev/null && pwd -P || true)
+  case "$bpid" in ''|*[!0-9]*) bpid="";; esac
+  [ -n "$bpid" ] && [ -n "$breal" ] && [ "$breal" = "$FROM" ] && kill -0 "$bpid" 2>/dev/null && pids="$bpid"
 fi
 if [ -z "$pids" ]; then
   for p in $(lsof -a -c node -c npm -d cwd -Fp 2>/dev/null | sed -n 's/^p//p' | sort -u); do

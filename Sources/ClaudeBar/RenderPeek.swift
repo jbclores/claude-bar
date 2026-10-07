@@ -19,6 +19,15 @@ enum RenderPeek {
             renderWindow(DropdownView(forcedTab: tab).environmentObject(state).environmentObject(PeekPointer()), width: 500, to: out)
             return true
         }
+        // `--render-setup <welcome|find|find-searching|connect|done|done-restart> <out.png>`: the setup window over
+        // temp folders only (a fake home with one Cat Office, a claude folder with its own status line).
+        if let i = CommandLine.arguments.firstIndex(of: "--render-setup"), i + 2 < CommandLine.arguments.count {
+            let args = CommandLine.arguments
+            guard let model = setupModel(step: args[i + 1], state: state) else { print("unknown setup step \(args[i + 1])"); exit(1) }
+            renderWindow(SetupView(model: model).environmentObject(state), width: SetupView.size.width,
+                         to: URL(fileURLWithPath: args[i + 2]))
+            return true
+        }
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--render-peek"), i + 1 < args.count else { return false }
         let out = URL(fileURLWithPath: args[i + 1])
@@ -127,6 +136,43 @@ enum RenderLabel {
 }
 
 /// `--flag <a> [b]`: the values after a flag.
+/// A SetupModel over a temp SetupEnvironment (never the real home, ~/.claude or Cat Office), at `step`.
+@MainActor
+private func setupModel(step: String, state: AppState) -> SetupModel? {
+    let fm = FileManager.default
+    let root = fm.temporaryDirectory.appendingPathComponent("claudebar-setup-render-\(UUID().uuidString)").resolvingSymlinksInPath()
+    let home = root.appendingPathComponent("home")
+    let office = home.appendingPathComponent("Documents/projects/cat-office")
+    let claude = home.appendingPathComponent(".claude")
+    try? fm.createDirectory(at: office.appendingPathComponent("server/agent-bridge"), withIntermediateDirectories: true)
+    try? fm.createDirectory(at: claude, withIntermediateDirectories: true)
+    try? Data(#"{"name":"cat-office"}"#.utf8).write(to: office.appendingPathComponent("package.json"))
+    try? Data(#"{"statusLine":{"type":"command","command":"npx ccstatusline"}}"#.utf8).write(to: claude.appendingPathComponent("settings.json"))
+    let env = SetupEnvironment(home: home, claudeDir: claude, resources: root.appendingPathComponent("resources"),
+                               bridgeFile: root.appendingPathComponent("bridge.json"))
+    let model = SetupModel(state: state, env: env)
+    // The finder over the temp home only (not the real saved folder).
+    model.candidates = CatOfficeFinder.candidates(running: nil, saved: nil, roots: CatOfficeFinder.defaultRoots(home: home.path))
+    model.chosen = model.candidates.first?.path
+    switch step {
+    case "welcome": model.step = .welcome
+    case "find": model.step = .find
+    case "find-searching": model.step = .find; model.searching = true
+    case "connect": model.step = .connect
+    case "done", "done-restart":
+        model.step = .done
+        model.results["usage"] = StepResult(ok: true, text: "Your status line is kept; ClaudeBar reads its data quietly.")
+        model.results["patch"] = StepResult(ok: false, text: "Your Cat Office version isn't supported for the extras. Nothing was changed.")
+        if step == "done-restart" {
+            model.results["patch"] = StepResult(ok: true, text: "Patched (a backup of the changed files is in .cat-office/).")
+            model.results["start"] = StepResult(ok: true, text: "Cat Office is running: restart it to load the patch.")
+            model.needsRestart = true
+        }
+    default: return nil
+    }
+    return model
+}
+
 @MainActor
 private func flag(_ name: String) -> (URL, String?)? {
     let args = CommandLine.arguments

@@ -400,6 +400,8 @@ final class AppState: ObservableObject {
         if let dir = settings.catOffice.dir { patched = await SetupActions.isPatched(dir, env: env) }
         let inferred = SetupSettings.inferred(catOfficeDir: settings.catOffice.dir, bridgeDir: SetupActions.runningDir(env: env),
                                               patched: patched, statusLine: SetupActions.statusLine(env: env).state())
+        // The setup window may have been opened (and finished or skipped) during the await.
+        guard !settings.setup.seen else { return false }
         if let inferred { setSetup(inferred) }
         return SetupSettings.opensByItself(settings.setup, inferred: inferred)
     }
