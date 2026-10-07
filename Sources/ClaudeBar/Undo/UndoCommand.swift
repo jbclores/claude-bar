@@ -62,8 +62,7 @@ enum UndoCommand {
         for kind in UndoRow.Kind.allCases {
             if let r = results[kind] { print("\(r.ok ? "✓" : "✗") \(r.text)") }
         }
-        let leftOut = rows.contains { $0.available && $0.kind != .remove && !ticked.contains($0.kind) }
-        for line in UndoText.doneLines(results: results.mapValues(\.ok), leftOut: leftOut) { print(line) }
+        for line in UndoText.doneLines(results: results.mapValues(\.ok), leftOut: UndoPlan.leftOut(rows: rows, ticked: ticked)) { print(line) }
         if results[.unpatch]?.ok == true, runningHere || (answers && !another) {
             print("Cat Office was running: if it looks stuck, stop its dev server and run npm run dev again.")
         }

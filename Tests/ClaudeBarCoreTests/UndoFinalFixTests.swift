@@ -52,3 +52,25 @@ extension StatusLineSetupTests {
         #expect(s.canRestore)
     }
 }
+
+extension UndoPlanTests {
+    /// A greyed row (still patched, or ClaudeBar's status line with no record) is left out, as is an unticked one.
+    @Test func leftOutCountsGreyedAndUntickedRows() {
+        let greyed = UndoPlan.rows(catOfficeDir: dir, unpatch: .cannotUndo, statusLine: .claudeBar, canRestore: true, home: home)
+        #expect(UndoPlan.leftOut(rows: greyed, ticked: [.statusLine]))
+        let all = UndoPlan.rows(catOfficeDir: dir, unpatch: .patched, statusLine: .claudeBar, canRestore: true, home: home)
+        #expect(!UndoPlan.leftOut(rows: all, ticked: [.unpatch, .statusLine]))
+        #expect(UndoPlan.leftOut(rows: all, ticked: [.unpatch]))
+        #expect(!UndoPlan.leftOut(rows: all, ticked: [.unpatch, .statusLine, .remove]))
+        let onlyRemove = UndoPlan.rows(catOfficeDir: dir, unpatch: .notPatched, statusLine: .none, canRestore: false, home: home)
+        #expect(!UndoPlan.leftOut(rows: onlyRemove, ticked: [.remove]))
+    }
+
+    @Test func doneLinesNeverClaimAllDoneWithAGreyedRow() {
+        let rows = UndoPlan.rows(catOfficeDir: dir, unpatch: .cannotUndo, statusLine: .claudeBar, canRestore: true, home: home)
+        let leftOut = UndoPlan.leftOut(rows: rows, ticked: [.statusLine])
+        #expect(UndoText.doneLines(results: [.statusLine: true], leftOut: leftOut) == [UndoText.extrasBack])
+        #expect(UndoText.doneLines(results: [:], leftOut: false) == [UndoText.extrasBack])
+        #expect(UndoText.doneLines(results: [.remove: false], leftOut: false) == [UndoText.extrasBack])
+    }
+}

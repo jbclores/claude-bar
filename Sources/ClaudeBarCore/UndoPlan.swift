@@ -66,6 +66,11 @@ public enum UndoPlan {
         Set(rows.filter { $0.available && $0.tickedAtStart }.map(\.kind))
     }
 
+    /// Something stays as ClaudeBar set it: a change row that is greyed (can't be undone here) or not ticked.
+    public static func leftOut(rows: [UndoRow], ticked: Set<UndoRow.Kind>) -> Bool {
+        rows.contains { $0.kind != .remove && (!$0.available || !ticked.contains($0.kind)) }
+    }
+
     /// Unpatched or usage off: a full setup is now reduced. `seen` stays, so the window never opens by itself.
     public static func setupAfter(_ s: SetupSettings, unpatched: Bool, statusLineRestored: Bool) -> SetupSettings {
         (unpatched || statusLineRestored) && s.state == .full ? SetupSettings(seen: s.seen, state: .reduced) : s

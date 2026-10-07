@@ -62,14 +62,13 @@ final class UndoModel: ObservableObject {
         defer { working = false }
         let wasRunning = runningHere || (somethingAnswers && !bridgeNamesAnotherFolder)
         results = await UndoActions.run(ticked, dir: dir, env: env)
-        if results[.remove]?.ok != true {
-            // After "Also remove", ClaudeBar's settings are in the Trash: writing them would make a new file.
+        if results[.remove] == nil {
+            // After "Also remove" (even partly), ClaudeBar's settings are in the Trash: writing them would make a new file.
             state.setSetup(UndoPlan.setupAfter(state.settings.setup, unpatched: results[.unpatch]?.ok == true,
                                                statusLineRestored: results[.statusLine]?.ok == true))
         }
         needsRestart = results[.unpatch]?.ok == true && wasRunning && results[.remove]?.ok != true
-        let leftOut = rows.contains { $0.available && $0.kind != .remove && !ticked.contains($0.kind) }
-        doneLines = UndoText.doneLines(results: results.mapValues(\.ok), leftOut: leftOut)
+        doneLines = UndoText.doneLines(results: results.mapValues(\.ok), leftOut: UndoPlan.leftOut(rows: rows, ticked: ticked))
         phase = .done
     }
 
