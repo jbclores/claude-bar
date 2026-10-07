@@ -37,12 +37,14 @@ after=$(cd "$broken" && find . -type f -not -path './.cat-office/*' -exec md5 -q
 [ $code = 3 ] && [ "$before" = "$after" ] && ok "doesn't fit: exit 3, nothing changed" || bad "doesn't fit (got $code)"
 
 # An older version (from a history folder, no git) is upgraded.
-hist=$(mktemp -d); git -C "$REPO" log --format=%h -- patches/cat-office.patch | sed -n '2p' | while read -r rev; do
+hist="$(mktemp -d)/history dir"; mkdir -p "$hist"; git -C "$REPO" log --format=%h -- patches/cat-office.patch | sed -n '2p' | while read -r rev; do
   git -C "$REPO" show "$rev:patches/cat-office.patch" > "$hist/01.patch"; done
 if [ -s "$hist/01.patch" ] && ! cmp -s "$hist/01.patch" "$PATCH"; then
   old=$(mktemp -d); cp -R "$mini/." "$old/"; patch -d "$old" -p1 -R -s -f < "$PATCH"; patch -d "$old" -p1 -s -f < "$hist/01.patch" 2>/dev/null
   out=$(CAT_OFFICE_PATCH="$PATCH" CAT_OFFICE_PATCH_HISTORY="$hist" bash "$REPO/scripts/patch-cat-office.sh" "$old" 2>&1); code=$?
-  [ $code = 0 ] && patch -d "$old" -p1 -R --dry-run -s -f < "$PATCH" >/dev/null 2>&1 && ok "upgrades an older patch from the history folder" || bad "upgrade ($code: $out)"
+  [ $code = 0 ] && patch -d "$old" -p1 -R --dry-run -s -f < "$PATCH" >/dev/null 2>&1 && ok "upgrades an older patch from a history folder (path with a space)" || bad "upgrade ($code: $out)"
+else
+  echo "SKIP upgrade from history folder (no older patch in git)"
 fi
 
 # stop-cat-office.sh --check on a folder with nothing running.
@@ -56,6 +58,21 @@ out=$(printf '%s' "$json" | HOME="$home" CLAUDE_BAR_DIR="$home/cb" CLAUDEBAR_STA
 [ -z "$out" ] && [ -f "$home/cb/sessions/t1.json" ] && ok "quiet status line: data saved, nothing printed" || bad "quiet status line (out: $out)"
 out=$(printf '%s' "$json" | HOME="$home" CLAUDE_BAR_DIR="$home/cb" bash "$REPO/scripts/statusline-command.sh")
 [ -n "$out" ] && ok "normal status line still prints" || bad "normal status line"
+
+# A real stop exits 0: a stand-in "node" process whose cwd is inside a temp folder (never the real Cat Office).
+stopmini=$(mktemp -d); mkdir -p "$stopmini/server/agent-bridge" "$stopmini/bin"; echo '{}' > "$stopmini/package.json"
+# (a copied system binary is killed on Apple silicon, so build a tiny one)
+printf '#include <unistd.h>\nint main(void){sleep(60);return 0;}\n' > "$stopmini/n.c"
+clang -o "$stopmini/bin/node" "$stopmini/n.c" 2>/dev/null
+if [ ! -x "$stopmini/bin/node" ]; then echo "SKIP real stop (no C compiler)"; else
+(cd "$stopmini" && exec "$stopmini/bin/node" 60 >/dev/null 2>&1 &)
+sleep 1; standin=$(pgrep -f "$stopmini/bin/node" | head -1)
+if [ -z "$standin" ]; then bad "stop: stand-in process didn't start"; else
+  out=$(CAT_OFFICE_BRIDGE_FILE=/nonexistent bash "$REPO/scripts/stop-cat-office.sh" "$stopmini" 2>&1); code=$?
+  if [ $code = 0 ] && ! kill -0 "$standin" 2>/dev/null; then ok "stop kills the running process and exits 0"; else bad "stop ($code: $out)"; kill "$standin" 2>/dev/null; fi
+fi
+fi
+rm -rf "$stopmini"
 
 rm -rf "$mini" "$notco" "$broken" "$hist" "${old:-/nonexistent}" "$home"
 echo "$pass passed, $fail failed"; [ $fail = 0 ]

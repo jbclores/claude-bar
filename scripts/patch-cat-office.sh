@@ -21,11 +21,13 @@ fi
 OLD=""
 if ! patch -d "$DIR" -p1 --dry-run -s -f < "$PATCH" >/dev/null 2>&1; then
   if [ -n "${CAT_OFFICE_PATCH_HISTORY:-}" ]; then
+    # Names are fixed-width NN.patch, so reverse lexical order = newest first. One path per line (paths may hold spaces).
     revs=$(ls -r "$CAT_OFFICE_PATCH_HISTORY"/*.patch 2>/dev/null || true)
   else
     revs=$(git -C "$REPO" log --format=%h -- patches/cat-office.patch 2>/dev/null || true)
   fi
-  for rev in $revs; do
+  while IFS= read -r rev; do
+    [ -n "$rev" ] || continue
     candidate=$(mktemp)
     if [ -n "${CAT_OFFICE_PATCH_HISTORY:-}" ]; then
       cp "$rev" "$candidate" 2>/dev/null || { rm -f "$candidate"; continue; }
@@ -34,7 +36,7 @@ if ! patch -d "$DIR" -p1 --dry-run -s -f < "$PATCH" >/dev/null 2>&1; then
     fi
     if patch -d "$DIR" -p1 -R --dry-run -s -f < "$candidate" >/dev/null 2>&1; then OLD="$candidate"; break; fi
     rm -f "$candidate"
-  done
+  done <<< "$revs"
   if [ -z "$OLD" ]; then
     patch -d "$DIR" -p1 --dry-run -s -f < "$PATCH" || true
     echo "The patch doesn't apply cleanly to this Cat Office; nothing was changed." >&2; exit 3

@@ -58,6 +58,7 @@ if [ -n "$pids" ]; then
     alive=""; for p in $pids; do kill -0 "$p" 2>/dev/null && alive="$alive $p"; done
     [ -z "$alive" ] && break; sleep 0.5
   done
-  [ -n "$alive" ] && { echo "Cat Office didn't stop (pids:$alive); it was not stopped." >&2; exit 1; }
+  if [ -n "${alive:-}" ]; then echo "Cat Office didn't stop (pids:$alive); it was not stopped." >&2; exit 1; fi
 fi
+exit 0
 
