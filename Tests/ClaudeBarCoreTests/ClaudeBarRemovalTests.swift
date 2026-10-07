@@ -37,7 +37,7 @@ import Testing
         let h = makeTempDir(); write("x", to: h.appendingPathComponent(".config/claude-bar/projects.json"))
         let (_, trash) = fakeTrash()
         let result = ClaudeBarRemoval(home: h, trash: trash).remove()
-        #expect(result.trashed == [h.appendingPathComponent(".config/claude-bar")])
+        #expect(result.trashed.map { $0.standardizedFileURL.path } == [h.appendingPathComponent(".config/claude-bar", isDirectory: true).standardizedFileURL.path])
         #expect(result.failures.isEmpty)
     }
 

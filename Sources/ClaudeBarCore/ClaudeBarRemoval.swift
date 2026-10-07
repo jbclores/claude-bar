@@ -19,7 +19,7 @@ public struct ClaudeBarRemoval: Sendable {
     /// Settings, usage files from the status line, the art cache, the log.
     public var folders: [URL] {
         [".config/claude-bar", ".claude/claude-bar", "Library/Caches/ClaudeBar", "Library/Logs/ClaudeBar"]
-            .map { home.appendingPathComponent($0) }
+            .map { home.appendingPathComponent($0, isDirectory: true) }
     }
 
     public func remove() -> Result {
@@ -27,9 +27,7 @@ public struct ClaudeBarRemoval: Sendable {
         for folder in folders where FileManager.default.fileExists(atPath: folder.path) {
             do {
                 try trash(folder)
-                // Normalize the URL to remove any trailing slash for consistent comparison
-                let normalizedFolder = URL(fileURLWithPath: folder.path)
-                result.trashed.append(normalizedFolder)
+                result.trashed.append(folder)
             } catch {
                 result.failures.append("\(folder.path): \(error.localizedDescription)")
             }
