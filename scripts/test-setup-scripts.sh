@@ -114,5 +114,44 @@ rm -rf "$fakebin"
 fi
 rm -rf "$stopmini"
 
+# --- Undo (--undo). An unpatched original to compare against.
+orig=$(mktemp -d); cp -R "$mini/." "$orig/"; rm -rf "$orig/.cat-office"
+if patch -d "$orig" -p1 -R --dry-run -s -f < "$PATCH" >/dev/null 2>&1; then patch -d "$orig" -p1 -R -s -f -E < "$PATCH"; fi
+tree_sum() { (cd "$1" && find . -type f -not -path './.cat-office/*' | sort | while read -r f; do echo "$f $(md5 -q "$f")"; done | md5 -q); }
+
+u=$(mktemp -d); cp -R "$orig/." "$u/"
+CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" "$u" >/dev/null 2>&1
+out=$(CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo --dry-run "$u" 2>&1); code=$?
+[ $code = 0 ] && [[ "$out" == "Would unpatch"* ]] && patch -d "$u" -p1 -R --dry-run -s -f < "$PATCH" >/dev/null 2>&1 \
+  && ok "undo --dry-run says it would unpatch and changes nothing" || bad "undo --dry-run ($code: $out)"
+out=$(CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo "$u" 2>&1); code=$?
+backups=$(ls -d "$u"/.cat-office/patch-backup-* 2>/dev/null | wc -l | tr -d ' ')
+[ $code = 0 ] && [[ "$out" == Unpatched* ]] && [ "$(tree_sum "$u")" = "$(tree_sum "$orig")" ] && [ "$backups" = 2 ] \
+  && ok "patch then undo gives the original back, with its own backup (no collision)" || bad "undo ($code, backups $backups: $out)"
+
+out=$(CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo "$u" 2>&1); code=$?
+[ $code = 0 ] && [[ "$out" == "Not patched"* ]] && [ "$(tree_sum "$u")" = "$(tree_sum "$orig")" ] \
+  && ok "undo on an unpatched copy: nothing to do" || bad "undo unpatched ($code: $out)"
+
+e=$(mktemp -d); cp -R "$orig/." "$e/"; CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" "$e" >/dev/null 2>&1
+printf 'edited after patching\n' > "$e/$first"; before=$(tree_sum "$e")
+CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo "$e" >/dev/null 2>&1; code=$?
+[ $code = 3 ] && [ "$(tree_sum "$e")" = "$before" ] && ok "undo after an edit: exit 3, nothing changed" || bad "undo after an edit (got $code)"
+
+CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo "$notco" >/dev/null 2>&1; code=$?
+[ $code = 2 ] && ok "undo on a non-Cat Office folder exits 2" || bad "undo non-Cat Office (got $code)"
+bash "$REPO/scripts/patch-cat-office.sh" --dry-run "$u" >/dev/null 2>&1; code=$?
+[ $code = 64 ] && ok "--dry-run without --undo is a usage error" || bad "--dry-run alone (got $code)"
+
+if [ -s "$hist/01.patch" ] && ! cmp -s "$hist/01.patch" "$PATCH"; then
+  o=$(mktemp -d); cp -R "$orig/." "$o/"; patch -d "$o" -p1 -s -f < "$hist/01.patch" >/dev/null 2>&1
+  out=$(CAT_OFFICE_PATCH="$PATCH" CAT_OFFICE_PATCH_HISTORY="$hist" bash "$REPO/scripts/patch-cat-office.sh" --undo "$o" 2>&1); code=$?
+  [ $code = 0 ] && [[ "$out" == Unpatched* ]] && [ "$(tree_sum "$o")" = "$(tree_sum "$orig")" ] \
+    && ok "undo takes out an older version of the patch" || bad "undo older version ($code: $out)"
+  rm -rf "$o"
+else
+  echo "SKIP undo of an older version (no older patch in git)"
+fi
+rm -rf "$orig" "$u" "$e"
 rm -rf "$mini" "$notco" "$broken" "$hist" "${old:-/nonexistent}" "$home"
 echo "$pass passed, $fail failed"; [ $fail = 0 ]
