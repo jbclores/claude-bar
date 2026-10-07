@@ -163,16 +163,21 @@ final class AppState: ObservableObject {
                 for i in snapshot!.agents.indices where snapshot!.agents[i].status == .working { snapshot!.agents[i].status = .idle }
             }
         }
-        // Renders only (CLAUDEBAR_RENDER_SUBAGENT=1): a stand-in helper working for the first working office cat.
-        if !sideEffects, ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_SUBAGENT"] == "1", snapshot != nil,
+        // Renders only (CLAUDEBAR_RENDER_SUBAGENT=n): n stand-in helpers working for the first working office cat.
+        if !sideEffects, let n = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_SUBAGENT"].flatMap(Int.init), n > 0, snapshot != nil,
            let parent = snapshot!.agents.first(where: { $0.isOffice && $0.status == .working && $0.repoRoot != nil })
                ?? snapshot!.agents.first(where: { $0.isOffice && $0.status == .working }) {
-            var helper = OfficeAgent(id: "a69adf54739f5af29", name: "a69adf54739f5af29", status: .working, cwd: parent.cwd,
-                                     repoName: parent.repoName, repoRoot: parent.repoRoot, model: "claude-haiku-4-5",
-                                     lastAction: "Grep: walkFrame", sessionId: "a69adf54739f5af29")
-            helper.kind = "subagent"; helper.parentName = parent.name; helper.agentType = "Explore"
-            helper.agentDescription = "Review Cat Office walking"
-            snapshot!.agents.append(helper)
+            let jobs = [("Explore", "Review Cat Office walking"), ("general-purpose", "Write the walking tests"),
+                        ("Explore", "Find desk geometry"), ("Plan", "Plan the sub-agent list"), ("Explore", "Check feed fields"),
+                        ("general-purpose", "Render previews")]
+            for i in 0..<n {
+                let id = "helper\(i)a69adf54739f"
+                var helper = OfficeAgent(id: id, name: id, status: .working, cwd: parent.cwd, repoName: parent.repoName,
+                                         repoRoot: parent.repoRoot, model: "claude-haiku-4-5", lastAction: "Grep: walkFrame", sessionId: id)
+                helper.kind = "subagent"; helper.parentName = parent.name
+                (helper.agentType, helper.agentDescription) = jobs[i % jobs.count]
+                snapshot!.agents.append(helper)
+            }
         }
         guard snapshot != office else { return }
         let cameOnline = office == nil && snapshot != nil
