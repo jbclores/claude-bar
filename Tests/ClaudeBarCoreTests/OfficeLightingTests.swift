@@ -10,9 +10,14 @@ import Testing
         #expect(!OfficeLighting.day.isNight(systemDark: true))
     }
 
-    @Test func theQuickButtonFlipsWhatYouSee() {
+    @Test func theButtonFlipsWhatYouSeeAndReturnsToFollowingTheMac() {
+        // From following the Mac: the opposite, fixed.
         #expect(OfficeLighting.auto.toggled(systemDark: true) == .day)
         #expect(OfficeLighting.auto.toggled(systemDark: false) == .night)
+        // Flipping back to what the Mac shows: follow the Mac again.
+        #expect(OfficeLighting.day.toggled(systemDark: true) == .auto)
+        #expect(OfficeLighting.night.toggled(systemDark: false) == .auto)
+        // Fixed against the Mac's own theme stays fixed.
         #expect(OfficeLighting.night.toggled(systemDark: true) == .day)
         #expect(OfficeLighting.day.toggled(systemDark: false) == .night)
     }

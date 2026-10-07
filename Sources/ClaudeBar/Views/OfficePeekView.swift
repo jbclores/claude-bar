@@ -69,12 +69,6 @@ struct OfficeRoomView: View {
             .offset(x: zoom.view.offset.x, y: zoom.view.offset.y)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .environment(\.officeNight, night)
-            Text(night ? "🌙" : "☀️").font(.system(size: 10))
-                .frame(width: RoomZoom.lightSize.width, height: RoomZoom.lightSize.height)
-                .background(Capsule().fill(.black.opacity(0.45)))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 8).padding(.top, 6)
-                .help(night ? "Switch ClaudeBar to day" : "Switch ClaudeBar to night")
             if zoom.view.isZoomed {
                 Text("1×").font(.system(size: 10, weight: .semibold)).foregroundStyle(.white)
                     .frame(width: RoomZoom.pillSize.width, height: RoomZoom.pillSize.height)
@@ -93,7 +87,7 @@ struct OfficeRoomView: View {
         // Clicks only inside the visible room: the backdrop and cats extend past it, and took the tabs' clicks.
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
-        .onAppear { zoom.onLightToggle = { [weak state] in state?.toggleOfficeLighting() } }
+
     }
 
     private func room(_ layout: PeekLayout) -> some View {

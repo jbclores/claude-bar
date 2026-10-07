@@ -41,7 +41,7 @@ struct DropdownHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            UsageHeader(usage: state.output.usage)
+            UsageHeader(usage: state.output.usage, onToggleTheme: { state.toggleOfficeLighting() })
             if let error = state.configError {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .font(.caption).foregroundStyle(Theme.waiting)
@@ -275,6 +275,9 @@ struct SettingsTabView: View {
 
 struct UsageHeader: View {
     let usage: UsageSummary
+    /// ClaudeBar's ☀️/🌙 theme switch, beside "as of" (nil: not shown).
+    var onToggleTheme: (() -> Void)?
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -283,6 +286,16 @@ struct UsageHeader: View {
                 Spacer()
                 if let asOf = usage.asOf {
                     Text("as of \(Format.age(asOf, now: Date()))").font(.caption).foregroundStyle(.secondary)
+                }
+                if let onToggleTheme {
+                    Button(action: onToggleTheme) {
+                        Text(colorScheme == .dark ? "🌙" : "☀️").font(.system(size: 12))
+                            .frame(width: 26, height: 18)
+                            .background(Capsule().fill(Color.primary.opacity(0.08)))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help(colorScheme == .dark ? "Switch ClaudeBar to day" : "Switch ClaudeBar to night")
                 }
             }
             row("5h", usage.fiveHourPct, usage.fiveHourResetsAt,

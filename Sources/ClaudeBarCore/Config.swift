@@ -26,7 +26,7 @@ public struct CatOfficeSettings: Equatable, Sendable {
     }
 }
 
-/// The office room's lighting: follow the Mac's appearance, or always day / night.
+/// ClaudeBar's theme: follow the Mac's appearance (the default), or always day / night.
 public enum OfficeLighting: String, Equatable, Sendable, CaseIterable {
     case auto, day, night
 
@@ -38,9 +38,11 @@ public enum OfficeLighting: String, Equatable, Sendable, CaseIterable {
         }
     }
 
-    /// The office's ☀️/🌙 button: the opposite of what's showing, fixed.
+    /// The ☀️/🌙 button: the opposite of what's showing; when that's the Mac's own theme, follow the Mac again.
     public func toggled(systemDark: Bool) -> OfficeLighting {
-        isNight(systemDark: systemDark) ? .day : .night
+        let night = !isNight(systemDark: systemDark)
+        if night == systemDark { return .auto }
+        return night ? .night : .day
     }
 }
 

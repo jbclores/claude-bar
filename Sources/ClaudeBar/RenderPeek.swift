@@ -262,11 +262,21 @@ enum TestZoom {
             mouse(.leftMouseDown, pill); mouse(.leftMouseUp, pill)
             report("click 1× pill")
             let before = state.settings.officeLighting
-            let light = CGPoint(x: zoom.lightRect.midX, y: zoom.lightRect.midY)
-            mouse(.leftMouseDown, light); mouse(.leftMouseUp, light)
-            print("click ☀️/🌙 pill → lighting", before.rawValue, "→", state.settings.officeLighting.rawValue, "· app appearance", NSApp.appearance?.name.rawValue ?? "follows the Mac")
-            mouse(.leftMouseDown, light); mouse(.leftMouseUp, light)
-            print("click it again → lighting", state.settings.officeLighting.rawValue, "· app appearance", NSApp.appearance?.name.rawValue ?? "follows the Mac")
+            // The theme button: right end of the usage header's top row (the header is the stack's first view).
+            if let header = window.contentView?.subviews.first {
+                let f = header.convert(header.bounds, to: nil)
+                let button = NSPoint(x: f.maxX - 13, y: f.maxY - 9)
+                for t in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                    window.sendEvent(NSEvent.mouseEvent(with: t, location: button, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                        windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
+                }
+                print("click ☀️/🌙 → theme", before.rawValue, "→", state.settings.officeLighting.rawValue, "· app appearance", NSApp.appearance?.name.rawValue ?? "follows the Mac")
+                for t in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                    window.sendEvent(NSEvent.mouseEvent(with: t, location: button, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                        windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
+                }
+                print("click it again → theme", state.settings.officeLighting.rawValue, "· app appearance", NSApp.appearance?.name.rawValue ?? "follows the Mac")
+            }
             state.setOfficeLighting(before)
             exit(0)
         } }
