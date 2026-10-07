@@ -207,8 +207,10 @@ struct OfficeTabView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Known Cat Office: configured, or its feed is live.
-            if let card = state.settings.setup.card(catOfficeKnown: state.settings.catOffice.dir != nil || state.office != nil) {
+            // Known Cat Office: configured or last seen running (a folder that exists), or its feed is live.
+            let known = CatOfficeDiscovery.folderToStart(configured: state.settings.catOffice.dir,
+                                                         remembered: UserDefaults.standard.string(forKey: AppState.rememberedDirKey)) != nil
+            if let card = state.settings.setup.card(catOfficeKnown: known || state.office != nil) {
                 SetupCard(reduced: card == .reduced) { SetupWindow.shared.open(state: state) }
             }
             FloorPicker()
@@ -302,6 +304,8 @@ struct SettingsTabView: View {
                     do {
                         try SetupActions.statusLine(env: .real).restore()
                         restoreMessage = "Your old status line is back."
+                        // Usage is off now: a full setup is reduced (the Settings line and Office card tell the truth).
+                        state.setSetup(state.settings.setup.afterStatusLineRestore())
                     } catch {
                         restoreMessage = (error as? StatusLineError)?.message ?? error.localizedDescription
                     }

@@ -14,6 +14,7 @@ struct SetupView: View {
     @EnvironmentObject var state: AppState
     static let size = CGSize(width: 460, height: 420)
     static let restartWarning = "This stops Cat Office's dev server and ends any Claude sessions running inside Cat Office."
+    static let runningPatchWarning = "Cat Office is running: patching restarts it, which ends any Claude sessions running inside Cat Office."
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -257,7 +258,14 @@ struct SetupView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Connect").font(.title3.weight(.semibold))
             if model.chosen != nil {
-                choice($model.patch, "Patch Cat Office", "Matching cats, helpers, and usage without a terminal.", result: "patch")
+                VStack(alignment: .leading, spacing: 4) {
+                    choice($model.patch, "Patch Cat Office", "Matching cats, helpers, and usage without a terminal.", result: "patch")
+                    if model.patch, model.running {
+                        Text(Self.runningPatchWarning).font(.caption).foregroundStyle(Theme.waiting)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.leading, 20)
+                    }
+                }
             }
             VStack(alignment: .leading, spacing: 6) {
                 choice($model.usage, "Usage in the menu bar", "Claude Code's status line tells ClaudeBar your usage and projects.", result: "usage")

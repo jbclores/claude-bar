@@ -7,6 +7,8 @@ struct SetupEnvironment: Sendable {
     var claudeDir: URL
     var resources: URL
     var bridgeFile: URL
+    /// Apple's command line tools are installed (ClaudeBar's status line runs python3 and git).
+    var toolsInstalled: @Sendable () -> Bool = { StatusLineSetup.commandLineToolsInstalled() }
 
     static var real: SetupEnvironment {
         let home = Paths.home
@@ -66,13 +68,30 @@ enum SetupActions {
 
     static func statusLine(env: SetupEnvironment) -> StatusLineSetup {
         let script = (try? String(contentsOf: env.resources.appendingPathComponent("statusline-command.sh"), encoding: .utf8)) ?? ""
-        return StatusLineSetup(claudeDir: env.claudeDir, script: script)
+        return StatusLineSetup(claudeDir: env.claudeDir, script: script, toolsInstalled: env.toolsInstalled)
     }
 
     static func hasNode() -> Bool { CatOfficeLauncher.hasNode(home: NSHomeDirectory()) }
 
+    /// The folder of the Cat Office running now. A stale bridge file (dead pid, or a pid reused by something that
+    /// isn't node/npm) names nothing.
     static func runningDir(env: SetupEnvironment) -> String? {
-        CatOfficeDiscovery.bridgeInfo(file: env.bridgeFile, isAlive: { kill($0, 0) == 0 })?.dir
+        CatOfficeDiscovery.bridgeInfo(file: env.bridgeFile, isAlive: CatOfficeDiscovery.isCatOfficeProcess)?.dir
+    }
+
+    static func bridgeStamp(env: SetupEnvironment) -> BridgeStamp? {
+        CatOfficeDiscovery.bridgeStamp(file: env.bridgeFile, isAlive: CatOfficeDiscovery.isCatOfficeProcess)
+    }
+
+    /// After patching a running Cat Office: waits up to `seconds` for it to reload by itself (Vite reloads when the
+    /// patch changes its server files), i.e. for a new start's bridge naming `dir`.
+    static func waitForReload(_ dir: String, before: BridgeStamp?, env: SetupEnvironment, seconds: Double = 5) async -> Bool {
+        let deadline = Date().addingTimeInterval(seconds)
+        while true {
+            if CatOfficeDiscovery.reloaded(before: before, after: bridgeStamp(env: env), dir: dir) { return true }
+            guard Date() < deadline else { return false }
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
     }
 
     struct Output { var code: Int32; var output: String }

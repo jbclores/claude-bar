@@ -35,8 +35,12 @@ final class SetupModel: ObservableObject {
         statusLine = SetupActions.statusLine(env: env).state()
     }
 
-    /// The chosen copy is the one running now (its bridge file names it).
-    var running: Bool { candidates.contains { $0.path == chosen && $0.running } }
+    /// The chosen copy is the one running now (its live bridge file names it).
+    var running: Bool {
+        guard let chosen else { return false }
+        return candidates.contains { $0.path == chosen && $0.running }
+            || SetupActions.runningDir(env: env).map(Paths.normalize) == Paths.normalize(chosen)
+    }
 
     /// Looks for Cat Office off the main thread (the usual places can be slow, and macOS may ask for folder access).
     func find() async {
@@ -69,12 +73,15 @@ final class SetupModel: ObservableObject {
     }
 
     func connect() async {
+        guard !working else { return }   // never a second run while one is going
         working = true
         defer { working = false }
         results = [:]
         needsRestart = false
         var patched: Bool? = nil
         var patchChanged = false
+        // Which start of Cat Office is running before the patch: a reload after it is a new one.
+        let bridgeBefore = SetupActions.bridgeStamp(env: env)
         if let dir = chosen {
             state.setCatOfficeDir(dir)
             if patch {
@@ -123,8 +130,7 @@ final class SetupModel: ObservableObject {
         }
         if let dir = chosen {
             if running {
-                results["start"] = StepResult(ok: true, text: patchChanged ? "Cat Office is running: restart it to load the patch." : "Cat Office is running.")
-                needsRestart = patchChanged
+                await runningAfterPatch(dir, patchChanged: patchChanged, before: bridgeBefore)
             } else if start {
                 if !SetupActions.hasNode() {
                     results["start"] = StepResult(ok: false, text: "Cat Office needs Node.js. Install it from nodejs.org, then start Cat Office.")
@@ -133,8 +139,7 @@ final class SetupModel: ObservableObject {
                     switch await CatOfficeLauncher().start(settings: s) {
                     case .started: results["start"] = StepResult(ok: true, text: "Cat Office is starting.")
                     case .alreadyRunning:
-                        results["start"] = StepResult(ok: true, text: patchChanged ? "Cat Office is running: restart it to load the patch." : "Cat Office is running.")
-                        needsRestart = patchChanged
+                        await runningAfterPatch(dir, patchChanged: patchChanged, before: bridgeBefore)
                     case .notConfigured, .npmNotFound: results["start"] = StepResult(ok: false, text: "Cat Office needs Node.js. Install it from nodejs.org.")
                     case .failed(let why): results["start"] = StepResult(ok: false, text: "Cat Office didn't start: \(why)")
                     }
@@ -148,9 +153,22 @@ final class SetupModel: ObservableObject {
         step = .done
     }
 
+    /// Cat Office was running when it was patched: it usually reloads by itself (Vite); Restart is offered only when it
+    /// hasn't within a few seconds.
+    private func runningAfterPatch(_ dir: String, patchChanged: Bool, before: BridgeStamp?) async {
+        guard patchChanged else { results["start"] = StepResult(ok: true, text: "Cat Office is running."); return }
+        if await SetupActions.waitForReload(dir, before: before, env: env) {
+            results["start"] = StepResult(ok: true, text: "Cat Office reloaded with the patch.")
+            needsRestart = false
+        } else {
+            results["start"] = StepResult(ok: true, text: "Cat Office is running: restart it to load the patch.")
+            needsRestart = true
+        }
+    }
+
     /// Stops this folder's Cat Office dev server (ending Claude sessions inside it), then starts it again.
     func restart() async {
-        guard let dir = chosen else { return }
+        guard let dir = chosen, !working else { return }
         working = true
         defer { working = false }
         switch await SetupActions.restartCatOffice(dir, env: env, settings: state.settings.catOffice) {

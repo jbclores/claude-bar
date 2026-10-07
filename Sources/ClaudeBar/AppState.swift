@@ -401,10 +401,11 @@ final class AppState: ObservableObject {
     /// From before onboarding existed: a working setup counts as done, so its window doesn't open by itself.
     func inferSetupIfNeeded(env: SetupEnvironment = .real) async -> Bool {
         guard !settings.setup.seen else { return false }
-        var patched: Bool?
-        if let dir = settings.catOffice.dir { patched = await SetupActions.isPatched(dir, env: env) }
-        let inferred = SetupSettings.inferred(catOfficeDir: settings.catOffice.dir, bridgeDir: SetupActions.runningDir(env: env),
-                                              patched: patched, statusLine: SetupActions.statusLine(env: env).state())
+        // The configured folder, else the one last seen running (as starting Cat Office uses).
+        let inferred = await SetupSettings.inferred(
+            configured: settings.catOffice.dir, remembered: UserDefaults.standard.string(forKey: Self.rememberedDirKey),
+            bridgeDir: SetupActions.runningDir(env: env), statusLine: SetupActions.statusLine(env: env).state(),
+            patched: { await SetupActions.isPatched($0, env: env) })
         // The setup window may have been opened (and finished or skipped) during the await.
         guard !settings.setup.seen else { return false }
         if let inferred { setSetup(inferred) }
