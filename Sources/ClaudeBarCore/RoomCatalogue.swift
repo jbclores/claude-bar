@@ -53,6 +53,19 @@ public struct RugDef: Codable, Equatable, Sendable {
     public var shape: String?
     /// Added to the brief: the rug art's size, image px.
     public var size: [Double]?
+    /// Where cats settle on it (room.ts rugSpots).
+    public var spots: [RugSpotDef]?
+}
+
+/// A spot on a rug: `at` is its offset from the rug's centre, a share of its depth (u) and width (v).
+public struct RugSpotDef: Codable, Equatable, Sendable {
+    public var id: String?
+    public var kind: String
+    public var pose: String?
+    public var at: FloorPoint
+    public var facing: String
+    public var capacity: Int?
+    public var optional: Bool?
 }
 
 /// A window's decoration over its glass: a strip of lights or a hung lantern (Cat Office's WindowDecorDef).

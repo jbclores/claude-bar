@@ -58,7 +58,8 @@ public struct PropPlacement: Codable, Equatable, Sendable {
     public var facing: Int
     public var decor: Bool?
     public var panels: Int?
-    public var companionsOff: Bool?
+    /// Indices of the companion parts (PropDef.companions) this placement turns off.
+    public var companionsOff: [Int]?
 }
 
 public struct DeskPlacement: Codable, Equatable, Sendable {
