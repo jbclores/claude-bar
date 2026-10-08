@@ -58,16 +58,18 @@ import Testing
             "a": MirrorPlace(floor: 1, u: spot.standAt.u, v: spot.standAt.v, direction: spot.facing, state: def.state.rawValue,
                              activity: .init(kind: def.kind, label: def.label), spotId: spot.id, minutesLeft: 7, phase: "using", at: 0),
         ])
-        #expect(host.mirror(browser, live: true, now: t0) == browser)
+        // Drawn without the minutes (the layout's input); the hover card reads them apart.
+        #expect(host.mirror(browser, live: true, now: t0) == browser.withoutMinutes && host.minutesLeft == ["a": 7])
         host.setVisible(true, now: t0.addingTimeInterval(5))
         host.tick(now: t0.addingTimeInterval(10))
         #expect(host.sim.time == 0 && host.placement == 0 && host.live)
         let out = host.mirror(.off, live: false, now: t0.addingTimeInterval(10))
         let p = try #require(out.places["a"])
-        #expect(!host.live && p.spotId == spot.id && p.phase == "using" && p.minutesLeft == 7)
+        #expect(!host.live && p.spotId == spot.id && p.phase == "using" && host.minutesLeft["a"] == 7)
         host.tick(now: t0.addingTimeInterval(11.5))
         #expect(abs(host.sim.time - 1.5) < 1e-9)
-        #expect(host.mirror(.off, live: false, now: t0.addingTimeInterval(11.5)).places["a"]?.minutesLeft == 6)
+        _ = host.mirror(.off, live: false, now: t0.addingTimeInterval(11.5))
+        #expect(host.minutesLeft["a"] == 6)
     }
 
     /// The sim's cats: idle main agents (not working, waiting, helpers or ended), plus the roster with the switch on;
@@ -150,6 +152,36 @@ import Testing
             #expect(!host.sim.runtimes.contains { $0.target?.spot.id == desk })
             #expect(host.seatings[pool.id]?.desks.firstIndex(of: "w") == i && host.takenSpotIds == [desk])
         }
+    }
+
+    /// Minutes left only counting down don't change what the layout compares (no republish, no re-seat): they go to
+    /// `minutesLeft`, which the hover card reads. A move or an activity change still changes the layout's input.
+    @Test func countingDownLeavesTheLayoutAlone() throws {
+        let host = SimHost(seed: 6, now: t0)
+        update(host, [agent("a", .idle)])
+        host.setVisible(true, now: t0)
+        var k = 0
+        var now = t0
+        func tick() { k += 1; now = t0.addingTimeInterval(Double(k) * 0.25); host.tick(now: now) }
+        // Until the cat uses a spot with a few minutes left, its arrival pose over.
+        while true {
+            tick()
+            try #require(k < 4 * 600, "never settled at a spot")
+            let rt = try #require(host.sim.runtimes.first)
+            if case let .using(t, _) = rt.phase, t > 4, rt.arrivalLeft <= 0, rt.hop == nil { break }
+        }
+        let layout = host.mirror(.off, live: false, now: now)
+        let left = try #require(host.minutesLeft["a"])
+        #expect(layout.places["a"]?.minutesLeft == nil)
+        for _ in 0..<8 { tick() } // two sim minutes
+        let raw = try #require(host.sim.output(showSpares: true, forDrawing: true).places["a"])
+        #expect(raw.minutesLeft != left && raw.phase == "using")
+        #expect(host.mirror(.off, live: false, now: now) == layout)
+        #expect(host.minutesLeft["a"] == raw.minutesLeft && host.minutesLeft["a"]! < left)
+        // It leaves the spot: the layout changes.
+        while host.sim.runtimes.first?.phase.label == "using" { tick(); try #require(k < 4 * 6000) }
+        #expect(host.mirror(.off, live: false, now: now) != layout)
+        #expect(host.minutesLeft["a"] == nil)
     }
 
     /// A long stall with the office open (the Mac slept): the gap is a catch-up and a placement, not walks.

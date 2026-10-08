@@ -138,9 +138,14 @@ final class AppState: ObservableObject {
     /// so the desks the sim keeps its cats off are the ones drawn.
     @Published private(set) var seatings: [Int: FloorSeating] = [:]
 
+    /// Each cat's minutes left at its spot (SimHost.minutesLeft), apart from `mirror` so a countdown redraws only the
+    /// hover card that shows it, not every view watching the app state.
+    let minutesLeft = MinutesLeft()
+
     private func publish(_ next: OfficeMirror) {
         if simHost.seatings != seatings { seatings = simHost.seatings }
         if next != mirror { mirror = next }
+        if simHost.minutesLeft != minutesLeft.byCat { minutesLeft.byCat = simHost.minutesLeft }
     }
 
     /// Renders only (CLAUDEBAR_SIM_ADVANCE=<minutes>): once the cats are in, that many sim minutes at once.
@@ -646,4 +651,9 @@ final class AppState: ObservableObject {
         }
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
+}
+
+/// Minutes left at each cat's spot (agent id or spare key → whole minutes), published only when one shown changes.
+final class MinutesLeft: ObservableObject {
+    @Published var byCat: [String: Double] = [:]
 }

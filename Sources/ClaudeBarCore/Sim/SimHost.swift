@@ -28,6 +28,9 @@ public final class SimHost {
     private var grids: [Int: NavGrid] = [:]
     /// A tick this long after the last one (the Mac slept with the office open) is a catch-up and a placement.
     public static let stall: TimeInterval = 2
+    /// Each cat's minutes left at its spot (OfficeMirror.minutesLeft of what the office draws), kept out of `mirror`'s
+    /// result so a countdown changes nothing the layout compares: the hover card reads these.
+    public private(set) var minutesLeft: [String: Double] = [:]
     /// Who sits where on each floor: the one seating both office views draw rule-placed cats with (see `reseat`).
     public private(set) var seatings: [Int: FloorSeating] = [:]
 
@@ -139,13 +142,16 @@ public final class SimHost {
     }
 
     /// What the office draws: the browser's places while they're live (`live`), else the sim's (OfficeSim.output
-    /// forDrawing). The first time they aren't, the sim starts from the browser's last places.
+    /// forDrawing). The first time they aren't, the sim starts from the browser's last places. Either way without
+    /// minutes left (OfficeMirror.withoutMinutes): those are in `minutesLeft`.
     public func mirror(_ browser: OfficeMirror, live isLive: Bool, now: Date) -> OfficeMirror {
         if isLive {
             live = true
             lastLive = browser
-            drawing(browser)
-            return browser
+            minutesLeft = browser.minutesLeft
+            let out = browser.withoutMinutes
+            drawing(out)
+            return out
         }
         if live {
             live = false
@@ -153,13 +159,14 @@ public final class SimHost {
             lastLive = nil
             lastStep = now
         }
-        var out = sim.output(showSpares: true, forDrawing: true)
-        if drawing(out) {
+        var full = sim.output(showSpares: true, forDrawing: true)
+        if drawing(full.withoutMinutes) {
             // Desks were freed or taken: a sim cat headed for one now taken leaves it.
-            out = sim.output(showSpares: true, forDrawing: true)
-            drawing(out)
+            full = sim.output(showSpares: true, forDrawing: true)
+            drawing(full.withoutMinutes)
         }
-        return out
+        minutesLeft = full.minutesLeft
+        return full.withoutMinutes
     }
 
     /// Notes what the office draws now and seats the floors with it; true when that changed the taken desks (passed on

@@ -1188,7 +1188,9 @@ struct CatCard: View {
     private var spareCard: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(agent.name).font(.callout.weight(.semibold)).lineLimit(1)
-            if let line = agent.place?.activityLine { Text(line).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+            if let p = agent.place, let key = p.key {
+                ActivityLine(place: p, key: key, clock: state.minutesLeft).foregroundStyle(.secondary)
+            }
         }
         .padding(8)
         .frame(maxWidth: 340, alignment: .leading)
@@ -1209,7 +1211,7 @@ struct CatCard: View {
                 .compactMap { $0 }.filter { !$0.isEmpty }
             Text(place.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             // What the cat is doing: the browser's while the mirror is live, else the office's own life (OfficeSim).
-            if let line = state.mirror.places[agent.id]?.activityLine { Text(line).font(.caption).lineLimit(1) }
+            if let p = state.mirror.places[agent.id] { ActivityLine(place: p, key: agent.id, clock: state.minutesLeft) }
             if let reason = agent.waitReason { Text(reason).font(.caption).foregroundStyle(Theme.waiting) }
             if let task = agent.task, !task.isEmpty { Text(task).font(.caption).lineLimit(3) }
             if let last = agent.lastAction, !last.isEmpty {
@@ -1221,5 +1223,16 @@ struct CatCard: View {
         .padding(8)
         .frame(maxWidth: 340, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// What a cat is doing, with its minutes left (AppState.minutesLeft): only this redraws as they count down.
+private struct ActivityLine: View {
+    let place: MirrorPlace
+    let key: String
+    @ObservedObject var clock: MinutesLeft
+
+    var body: some View {
+        if let line = place.activityLine(minutesLeft: clock.byCat[key]) { Text(line).font(.caption).lineLimit(1) }
     }
 }

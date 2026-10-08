@@ -53,7 +53,10 @@ public struct MirrorPlace: Equatable, Sendable, Decodable {
 
     /// What the cat is doing, for its hover card: "Coffee break · 4 min left" (minutes rounded up), just the label with
     /// no time left, nil with no activity.
-    public var activityLine: String? {
+    public var activityLine: String? { activityLine(minutesLeft: minutesLeft) }
+
+    /// `activityLine` with the minutes left kept apart (OfficeMirror.minutesLeft: the layout's places carry none).
+    public func activityLine(minutesLeft: Double?) -> String? {
         guard let label = activity?.label, !label.isEmpty else { return nil }
         guard let left = minutesLeft, left > 0 else { return label }
         return "\(label) · \(Int(left.rounded(.up))) min left"
@@ -139,6 +142,28 @@ public struct OfficeMirror: Equatable, Sendable {
         guard let snapshot, MirrorPlaces.isLive(placesAt: snapshot.placesAt, now: now) else { self = .off; return }
         places = Dictionary(snapshot.agents.compactMap { a in a.place.map { (a.id, $0) } }, uniquingKeysWith: { a, _ in a })
         if showSpares { spares = snapshot.spares.filter { $0.key != nil } }
+    }
+
+    /// The layout's input: these places without their minutes left, which change every sim minute while a cat only
+    /// counts down at a spot (the layout, seating and walks read floor, point, pose and activity; the hover card reads
+    /// `minutesLeft`). Comparing these, a countdown republishes nothing and re-seats no floor.
+    public var withoutMinutes: OfficeMirror {
+        var out = self
+        for k in out.places.keys { out.places[k]?.minutesLeft = nil }
+        for i in out.spares.indices { out.spares[i].minutesLeft = nil }
+        return out
+    }
+
+    /// Each cat's minutes left at its spot as its hover card shows them (whole minutes, rounded up; only those with
+    /// time left): agent id → minutes, and a spare's key → minutes.
+    public var minutesLeft: [String: Double] {
+        var out: [String: Double] = [:]
+        func note(_ key: String?, _ left: Double?) {
+            if let key, let left, left.isFinite, left > 0 { out[key] = left.rounded(.up) }
+        }
+        for (id, p) in places { note(id, p.minutesLeft) }
+        for p in spares { note(p.key, p.minutesLeft) }
+        return out
     }
 
     /// How far past the floor's edges (0…1) a mirrored point may be: spots against a wall stand just outside it (the
