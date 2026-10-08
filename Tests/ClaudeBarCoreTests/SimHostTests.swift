@@ -184,6 +184,31 @@ import Testing
         #expect(host.minutesLeft["a"] == nil)
     }
 
+    /// With no desk pool, a working cat outside every project falls back to the Lounge and sleeps on a seat there
+    /// (FloorPlan.seating's lounge): that seat is taken for the sim too, and no sim cat takes it.
+    @Test func aLoungeSeatARulePlacedCatUsesIsTaken() throws {
+        var b = building
+        b.floors.removeAll { !$0.isLounge && $0.repoRoot == nil }
+        try #require(b.deskPool == nil && b.lounge != nil)
+        var r = rooms, g = grids
+        for id in rooms.keys where b.floor(id: id) == nil { r[id] = nil; g[id] = nil }
+        let lounge = try #require(r[1])
+        let host = SimHost(seed: 8, now: t0)
+        let idle = (0..<3).map { agent("i\($0)", .idle) }
+        host.update(agents: [agent("w", .working)] + idle, building: b, rooms: r, grids: g, spares: [], showSpares: false)
+        let i = try #require(host.seatings[1]?.lounge.firstIndex(of: "w"))
+        let seat = lounge.seats[i].id
+        #expect(host.takenSpotIds == [seat])
+        host.setVisible(true, now: t0)
+        for k in 1...(4 * 120) {
+            let now = t0.addingTimeInterval(Double(k) * 0.25)
+            host.tick(now: now)
+            let out = host.mirror(.off, live: false, now: now)
+            #expect(!out.places.values.contains { $0.spotId == seat })
+            #expect(!host.sim.runtimes.contains { $0.target?.spot.id == seat })
+        }
+    }
+
     /// A long stall with the office open (the Mac slept): the gap is a catch-up and a placement, not walks.
     @Test func aLongStallWhileOpenIsAPlacement() {
         let host = SimHost(seed: 3, now: t0)

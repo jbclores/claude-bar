@@ -16,7 +16,8 @@ public final class SimHost {
     public private(set) var placement = 0
     /// The cats it runs now: idle sessions' cats, then the spares (with the switch on).
     public private(set) var cats: [SimCat] = []
-    /// The desks working and waiting cats sit at, as FloorPlan seats them: the sim's cats keep off them.
+    /// The desks working and waiting cats sit at, and the Lounge seats rule-placed cats sleep on, as FloorPlan seats
+    /// them: the sim's cats keep off them.
     public private(set) var takenSpotIds: Set<String> = []
     /// The browser's places while live, to start the sim from when they stop.
     private var lastLive: OfficeMirror?
@@ -64,7 +65,7 @@ public final class SimHost {
             sim.setCats([], building: building, rooms: rooms, grids: grids, takenSpotIds: takenSpotIds)
             return
         }
-        var wanted: [SimCat] = agents.filter { $0.status == .idle && !$0.isSubagent }.map { a in
+        var wanted: [SimCat] = agents.filter(Self.runsInSim).map { a in
             if let cat = running[a.id], !cat.isSpare { return cat }
             let desk = deskOf[a.id]
             return SimCat(id: a.id, isSpare: false, floor: desk?.floor, at: desk?.at)
@@ -76,6 +77,9 @@ public final class SimHost {
         sim.setCats(wanted, building: building, rooms: rooms, grids: grids, takenSpotIds: takenSpotIds)
     }
 
+    /// A session's cat the sim runs: an idle main agent (helpers stay with their parent).
+    static func runsInSim(_ a: OfficeAgent) -> Bool { a.status == .idle && !a.isSubagent }
+
     /// Who sits where on every floor, as both office views draw it (FloorPlan.seating over the cats on the floor with
     /// what the office draws now, each floor kept from last time; a built floor over its built desks and seats), and
     /// the desks the rule-placed cats there use: taken for the sim. True when the taken desks changed.
@@ -83,6 +87,7 @@ public final class SimHost {
     private func reseat() -> Bool {
         var next: [Int: FloorSeating] = [:]
         var taken = Set<String>()
+        let simRuns = Set(agents.filter(Self.runsInSim).map(\.id))
         for f in building.floors {
             let here = FloorPlan.cats(on: f.id, agents: agents, in: building, mirror: drawn)
             guard let room = rooms[f.id] else {
@@ -91,8 +96,17 @@ public final class SimHost {
             }
             let seating = FloorPlan.seating(on: Self.seatFloor(f, room), agents: here, previous: seatings[f.id], seats: room.seats.count)
             next[f.id] = seating
-            guard !f.isLounge else { continue }
-            // A cat drawn where the office has it (mirrored) isn't at its rule desk.
+            // A cat drawn where the office has it (mirrored) isn't at its rule desk or seat.
+            if f.isLounge {
+                // Rule-placed cats in the Lounge (working cats with no desk pool to go to) sleep on its seats; the
+                // idle ones are the sim's own cats, not rule-placed (seated here only until its output draws them).
+                for (i, agent) in seating.lounge.enumerated() {
+                    if let agent, drawn.places[agent] == nil, !simRuns.contains(agent), room.seats.indices.contains(i) {
+                        taken.insert(room.seats[i].id)
+                    }
+                }
+                continue
+            }
             for (agent, desk) in seatedDesks(f.id, seating, building, room) where drawn.places[agent] == nil { taken.insert(desk) }
         }
         seatings = next
