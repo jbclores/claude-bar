@@ -1,6 +1,6 @@
 --- a/server/agent-bridge/cat-assignments.ts
 +++ b/server/agent-bridge/cat-assignments.ts
-@@ -0,0 +1,290 @@
+@@ -0,0 +1,308 @@
 +/**
 + * The cat the page shows for each agent, and the desk that cat works at (POST /__agents/cats), kept in
 + * <stateDir>/cat-assignments.json by agent id, so other local apps (ClaudeBar's menu bar office) show the same
@@ -42,6 +42,11 @@
 +const PLACE_AHEAD_MS = 5000;
 +/** Unchanged places still go out to the stream this often while posts keep coming (ClaudeBar's 10 s liveness). */
 +const PLACE_HEARTBEAT_MS = 5000;
++/**
++ * With several pages shown, each runs its own office (the same keys, cats in different places). The bridge follows
++ * one page, the first that posted, and ignores the others' places until it has been silent this long.
++ */
++const PAGE_SILENT_MS = 5000;
 +
 +type ChangeListener = () => void;
 +
@@ -110,6 +115,8 @@
 +  private places = new Map<string, KeptPlace>();
 +  /** When places last went out to the stream (server clock). */
 +  private placesSent = -Infinity;
++  /** The page whose places are kept, and when it last posted (server clock). */
++  private following: { page: string; last: number } | null = null;
 +  private listeners = new Set<ChangeListener>();
 +  readonly file: string;
 +
@@ -129,17 +136,20 @@
 +
 +  /**
 +   * Takes the page's `{ assignments?: { [agentId]: catId }, desks?: { [agentId]: { desk, flip, rear } },
-+   * places?: { [agentId | "spare:<sim id>"]: place }, at? }` (`at`, epoch ms, required with places, at most 5 s
-+   * ahead of `now`). False for a bad body (nothing kept) or a failed save. A malformed place is skipped; per cat the
-+   * newest `at` wins. Places go out to the stream when they changed (`at` aside), and at least every 5 s.
++   * places?: { [agentId | "spare:<sim id>"]: place }, at?, page? }` (`at`, epoch ms, required with places, at most 5 s
++   * ahead of `now`; `page`, the posting page's id, made once per page load). False for a bad body (nothing kept) or
++   * a failed save. A malformed place is skipped; per cat the newest `at` wins. Only the followed page's places are
++   * kept (the first page that posted, until it is silent 5 s). Places go out to the stream when they changed (`at`
++   * aside), and at least every 5 s.
 +   */
 +  merge(body: unknown, now: number = Date.now()): boolean {
-+    const b = body as { assignments?: unknown; desks?: unknown; places?: unknown; at?: unknown } | null;
++    const b = body as { assignments?: unknown; desks?: unknown; places?: unknown; at?: unknown; page?: unknown } | null;
 +    if (!b || (b.assignments === undefined && b.desks === undefined && b.places === undefined)) return false;
 +    const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 +    if (b.assignments !== undefined && !isMap(b.assignments)) return false;
 +    if (b.desks !== undefined && !isMap(b.desks)) return false;
 +    if (b.places !== undefined && (!isMap(b.places) || !finite(b.at) || b.at > now + PLACE_AHEAD_MS)) return false;
++    if (b.page !== undefined && !(typeof b.page === 'string' && ID.test(b.page))) return false;
 +    const cats = Object.entries((b.assignments ?? {}) as Record<string, unknown>);
 +    if (!cats.every(([id, cat]) => ID.test(id) && typeof cat === 'string' && CAT.test(cat))) return false;
 +    const desks = Object.entries((b.desks ?? {}) as Record<string, unknown>).map(([id, v]) => [id, readDesk(v)] as const);
@@ -159,7 +169,7 @@
 +    }
 +    while (this.cats.size > KEEP_MAX) this.cats.delete(this.cats.keys().next().value as string);
 +    while (this.desks.size > KEEP_MAX) this.desks.delete(this.desks.keys().next().value as string);
-+    const placed = b.places === undefined ? 'none' : this.mergePlaces(b.places as Record<string, unknown>, b.at as number, now);
++    const placed = b.places === undefined || !this.follows((b.page as string | undefined) ?? '', now) ? 'none' : this.mergePlaces(b.places as Record<string, unknown>, b.at as number, now);
 +    const moved = placed === 'changed' || (placed === 'same' && now - this.placesSent >= PLACE_HEARTBEAT_MS);
 +    if (!changed && !moved) return true;
 +    if (moved) this.placesSent = now;
@@ -177,6 +187,14 @@
 +        // A broken listener must not stop the others.
 +      }
 +    }
++    return true;
++  }
++
++  /** Whether `page`'s places are kept: it is the followed page, or there is none, or that one has gone silent. */
++  private follows(page: string, now: number): boolean {
++    const f = this.following;
++    if (f && f.page !== page && now - f.last < PAGE_SILENT_MS) return false;
++    this.following = { page, last: now };
 +    return true;
 +  }
 +
@@ -615,7 +633,7 @@
 +}
 --- a/src/agents/live/places-share.ts
 +++ b/src/agents/live/places-share.ts
-@@ -0,0 +1,129 @@
+@@ -0,0 +1,135 @@
 +import { useEffect, useRef } from 'react';
 +import { activityFor, type ActivityKind } from '../../simulation/activities';
 +import type { SimulationEngine } from '../../simulation/simulation-engine';
@@ -626,7 +644,7 @@
 +/*
 + * Where each cat is and what it's doing, shared with other local apps (ClaudeBar's menu bar office mirrors it):
 + * every 2 s while it is shown, the page posts every cat's place to the bridge (POST /__agents/cats
-+ * `{ places, at }`), keyed by the live session its cat stands for, or `spare:<sim id>` for a spare cat. The bridge
++ * `{ places, at, page }`, `page` this page load's id: the bridge follows one page when several are shown), keyed by the live session its cat stands for, or `spare:<sim id>` for a spare cat. The bridge
 + * keeps them in memory only (server/agent-bridge/cat-assignments.ts) and every snapshot carries them.
 + */
 +
@@ -653,7 +671,10 @@
 +  activity: { kind: string; label: string } | null;
 +  /** The spot the cat is at (after arriving), or null while walking or standing. */
 +  spotId: string | null;
-+  /** Sim minutes left at the spot, or null. */
++  /**
++   * Sim minutes left at the spot, rounded up to whole minutes (as the page shows them, CatInspector.tsx), or null.
++   * Whole minutes keep a still cat's place the same between posts, so the bridge only broadcasts on change.
++   */
 +  minutesLeft: number | null;
 +  phase: 'walking' | 'using' | 'elevator' | 'idle';
 +  /** The floor the elevator takes it to, or null. */
@@ -701,7 +722,7 @@
 +      asleep: def?.asleep === true || a.pose === 'sleep',
 +      activity: a.activity ? { kind, label: a.activity.label } : null,
 +      spotId: a.usingSpotId,
-+      minutesLeft: finite(a.minutesLeft) ? a.minutesLeft : null,
++      minutesLeft: finite(a.minutesLeft) ? Math.ceil(a.minutesLeft) : null,
 +      phase,
 +      ridingTo: a.ridingTo,
 +    };
@@ -710,6 +731,9 @@
 +}
 +
 +const SHARE_EVERY_MS = 2000;
++
++/** This page load's id, sent with every post (the bridge follows one page's places at a time). */
++const PAGE_ID = `page-${Math.random().toString(36).slice(2, 12)}-${Date.now().toString(36)}`;
 +
 +/**
 + * Whether the page should share now: only while it is shown. The engine steps on requestAnimationFrame, which
@@ -733,7 +757,7 @@
 +      if (busy || !shouldShare(document.visibilityState)) return;
 +      busy = true;
 +      const places = buildPlaces(engine.snapshot(), latest.current, engine.building);
-+      void post('/__agents/cats', { places, at: Date.now() }, () => true).finally(() => {
++      void post('/__agents/cats', { places, at: Date.now(), page: PAGE_ID }, () => true).finally(() => {
 +        busy = false;
 +      });
 +    };
@@ -957,7 +981,7 @@
 +});
 --- a/tests/sim/places.test.ts
 +++ b/tests/sim/places.test.ts
-@@ -0,0 +1,286 @@
+@@ -0,0 +1,332 @@
 +// Where each cat is and what it's doing, shared with other local apps (ClaudeBar): the page posts
 +// `{ places: { <live agent id | "spare:<sim id>">: Place }, at }` to POST /__agents/cats every 2 s; the bridge keeps
 +// the newest per cat in memory and every snapshot carries it (agent `place`, top-level `spares` and `placesAt`).
@@ -1243,6 +1267,52 @@
 +  assert.equal(shouldShare('visible'), true);
 +  assert.equal(shouldShare('hidden'), false);
 +  assert.equal(shouldShare('prerender'), false);
++});
++
++test('places: two shown pages: the bridge follows the first that posted until it is silent 5 s', () => {
++  const store = new CatAssignmentStore(join(TMP, 'l', 'cats.json'));
++  // Pages A and B post alternately, each its own position for the same keys (spare keys are the same in every page).
++  for (let t = 0; t <= 8000; t += 2000) {
++    assert.equal(store.merge({ page: 'page-a', places: { s1: place({ u: 0.1 }), 'spare:agent-3': place({ u: 0.1 }) }, at: NOW + t }, NOW + t), true);
++    assert.equal(store.merge({ page: 'page-b', places: { s1: place({ u: 0.9 }), 'spare:agent-3': place({ u: 0.9 }) }, at: NOW + t + 1000 }, NOW + t + 1000), true);
++    const out = store.apply(snap('s1'), NOW + t + 1000) as unknown as Snap;
++    assert.equal(out.agents[0].place?.u, 0.1, `page A's place at ${t + 1000}`);
++    assert.equal(out.spares?.[0]?.u, 0.1, `page A's spare at ${t + 1000}`);
++  }
++  // A goes quiet (last post at 8000); B keeps posting. Before 5 s of silence B is still ignored.
++  store.merge({ page: 'page-b', places: { s1: place({ u: 0.9 }) }, at: NOW + 12_999 }, NOW + 12_999);
++  assert.equal((store.apply(snap('s1'), NOW + 12_999) as unknown as Snap).agents[0].place?.u, 0.1);
++  // A silent 5 s: B is followed from its next post.
++  store.merge({ page: 'page-b', places: { s1: place({ u: 0.9 }), 'spare:agent-3': place({ u: 0.9 }) }, at: NOW + 13_000 }, NOW + 13_000);
++  let out = store.apply(snap('s1'), NOW + 13_000) as unknown as Snap;
++  assert.equal(out.agents[0].place?.u, 0.9, "A silent 5 s: B's place");
++  assert.equal(out.spares?.[0]?.u, 0.9);
++  // And now A is the one ignored.
++  store.merge({ page: 'page-a', places: { s1: place({ u: 0.1 }) }, at: NOW + 14_000 }, NOW + 14_000);
++  out = store.apply(snap('s1'), NOW + 14_000) as unknown as Snap;
++  assert.equal(out.agents[0].place?.u, 0.9);
++});
++
++test('places: a page id must be a short id', () => {
++  const store = new CatAssignmentStore(join(TMP, 'm', 'cats.json'));
++  for (const page of [7, '', 'a b', 'x'.repeat(129)]) assert.equal(store.merge({ page, places: { s1: place() }, at: NOW }, NOW), false, String(page));
++});
++
++test('buildPlaces: minutes left rounded up to whole minutes, so a still cat posts the same place', () => {
++  const store = new CatAssignmentStore(join(TMP, 'n', 'cats.json'));
++  let changes = 0;
++  store.onChange(() => changes++);
++  const first = buildPlaces({ agents: [simCat({ minutesLeft: 11.9 })] } as never, new Map() as never, building as never);
++  const later = buildPlaces({ agents: [simCat({ minutesLeft: 11.2 })] } as never, new Map() as never, building as never);
++  assert.equal(first['spare:agent-1'].minutesLeft, 12);
++  assert.deepEqual(later, first);
++  store.merge({ places: first, at: NOW }, NOW);
++  store.merge({ places: later, at: NOW + 2000 }, NOW + 2000);
++  assert.equal(changes, 1, 'the same place: no broadcast');
++  store.merge({ places: later, at: NOW + 4000 }, NOW + 4000);
++  assert.equal(changes, 1, 'only the 5 s heartbeat');
++  store.merge({ places: later, at: NOW + 6000 }, NOW + 6000);
++  assert.equal(changes, 2, 'the heartbeat');
 +});
 --- a/tests/sim/plan-usage-workers.test.ts
 +++ b/tests/sim/plan-usage-workers.test.ts
