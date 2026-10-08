@@ -24,8 +24,13 @@ table, plant or sofa. Nothing else about the office changes.
 A port of the parts of Cat Office's `src/world/nav-grid.ts`, `desks.ts` (`footprintCells`, `cellIndex`,
 `carveGrid`) and `room.ts` (prop carving) that build a floor's grid:
 
-- **Base:** the floor's `grid` from `building.json` (`size`, usually 48, and `walkable[ui][vi] == "1"` for open floor).
-  Cell (ui, vi) has its centre at u = (ui + 0.5) / size, v = (vi + 0.5) / size.
+- **Base:** like Cat Office's `buildRoomFloor` for a built room: every cell open except a one-cell band along the edges;
+  `building.json`'s `grid` gives only the size (usually 48) and, with valid rows, says the floor has a grid at all (its
+  saved `walkable` is stale for built rooms: it differs from what the browser walks by tens to hundreds of cells).
+  Cell (ui, vi) has its centre at u = (ui + 0.5) / size, v = (vi + 0.5) / size. Floors without a built room are drawn as
+  the simple room and walk the L.
+- **Spots:** every floor spot's cells (elevator, prop and rug spots, and their slots) are reopened unless another piece's
+  footprint covers them, as `buildRoomFloor` does.
 - **Furniture:** every prop on the floor blocks the cells whose centre lies in its footprint grown by half a cell
   (`FOOTPRINT_MARGIN_CELLS`); props that stand on tables (table bits) block nothing; companion parts block like props.
 - **Desks:** every placed desk blocks the same way; then each desk's stand-at cell is reopened if the base grid has it
