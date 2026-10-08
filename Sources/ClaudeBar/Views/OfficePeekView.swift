@@ -1129,7 +1129,9 @@ struct CatCard: View {
             if let reason = agent.waitReason { Text(reason).font(.caption).foregroundStyle(Theme.waiting) }
             if let task = agent.task, !task.isEmpty { Text(task).font(.caption).lineLimit(3) }
             if let last = agent.lastAction, !last.isEmpty {
-                Text("Last: \(last)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                // Plain words, as in the session list (the raw action is on the list row's hover).
+                Text("Last: \(ActionSummary.calm(last, working: agent.status == .working))")
+                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
             }
         }
         .padding(8)
