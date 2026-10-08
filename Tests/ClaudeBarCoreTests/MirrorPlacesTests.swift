@@ -122,4 +122,28 @@ import Testing
             #expect(try pose(s, kind: k) == .standing, "\(s)/\(k ?? "-")")
         }
     }
+
+    @Test func sameExceptPlaces() throws {
+        var a = try snapshot(#","place":\#(placeJSON())"#)
+        a.spares = [sparePlace("s1", name: "Mochi")]
+        a.placesAt = 1_791_266_000_000
+        var moved = a
+        moved.agents[0].place = try decode(placeJSON(u: "5.5"))
+        moved.spares = []
+        moved.placesAt = 1_791_266_002_000
+        #expect(a.sameExceptPlaces(moved), "only places differ")
+        #expect(a.sameExceptPlaces(a))
+        #expect(a != moved)
+        var busy = moved
+        busy.agents[0].status = .waiting
+        #expect(!a.sameExceptPlaces(busy), "a status change")
+        var more = a
+        more.agents.append(more.agents[0])
+        more.agents[1].id = "a2"
+        #expect(!a.sameExceptPlaces(more), "a new agent")
+        var hindered = a
+        hindered.claudeHindered = true
+        #expect(!a.sameExceptPlaces(hindered))
+        #expect(a.withoutPlaces.agents[0].place == nil && a.withoutPlaces.spares.isEmpty && a.withoutPlaces.placesAt == nil)
+    }
 }

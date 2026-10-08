@@ -164,6 +164,19 @@ public struct OfficeSnapshot: Equatable, Sendable, Decodable {
         placesAt = at?.isFinite == true ? at : nil
     }
     private struct Skip: Decodable { init(from decoder: Decoder) throws {} }
+
+    /// The snapshot without the browser's places (each agent's `place`, `spares`, `placesAt`).
+    public var withoutPlaces: OfficeSnapshot {
+        var s = self
+        for i in s.agents.indices { s.agents[i].place = nil }
+        s.spares = []
+        s.placesAt = nil
+        return s
+    }
+
+    /// Only the browser's places differ (a Cat Office page posts them every 2 s): nothing the status, the menu bar
+    /// title or the menu bar cat read has changed.
+    public func sameExceptPlaces(_ other: OfficeSnapshot) -> Bool { withoutPlaces == other.withoutPlaces }
 }
 
 extension LiveSession {

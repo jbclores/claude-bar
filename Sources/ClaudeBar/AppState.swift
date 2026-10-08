@@ -301,11 +301,13 @@ final class AppState: ObservableObject {
         }
         guard snapshot != office else { updateMirror(); return }
         let cameOnline = office == nil && snapshot != nil
+        // Only the browser's places moved (every 2 s while a Cat Office page is shown): the mirror, not the status.
+        let placesOnly = office.flatMap { old in snapshot.map(old.sameExceptPlaces) } ?? false
         office = snapshot
         updateMirror()
         if snapshot != nil { officeLaunch = .none }
         if cameOnline { loadCatalog() }
-        recompute()
+        if !placesOnly { recompute() }
     }
 
     /// Renders only: a JSON object of agent (its id, session id, name, project name or label; a main agent before its
