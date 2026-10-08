@@ -232,19 +232,19 @@ public final class OfficeSim {
         let rt = Runtime(cat: cat, index: nextIndex, floor: floorId, position: FloorPoint(u: 0.5, v: 0.5),
                          direction: desk?.spot.facing ?? "front-left", needs: needs, phase: .waiting(t: waiting), speedPx: speed)
         nextIndex += 1
-        if let desk {
-            rt.position = desk.spot.standAt
-        } else {
-            place(rt, onFloor: floorId, at: cat.at)
+        // The day starts with everyone already at their desk, staggered so they don't all leave together. A desk it
+        // can't have (taken: a working cat sits there) it doesn't stand on: it starts on open floor, as a cat without
+        // a desk does (on the desk's floor).
+        guard let desk, let def = SimActivities.activity(for: desk.spot), let slot = reserve(desk.spot, rt.cat.id) else {
+            place(rt, onFloor: floorId, at: desk == nil ? cat.at : nil)
+            return rt
         }
-        // The day starts with everyone already at their desk, staggered so they don't all leave together.
-        if let desk, let slot = reserve(desk.spot, rt.cat.id), let def = SimActivities.activity(for: desk.spot) {
-            rt.target = Target(floor: desk.floor, spot: desk.spot, def: def, slot: slot, point: desk.spot.standAt)
-            let left = rng.range(4, 50)
-            rt.phase = .using(t: left, total: left)
-            applyActivityPose(rt, def, desk.spot, facing: desk.spot.facing)
-            rt.groundLift = desk.spot.lift
-        }
+        rt.position = desk.spot.standAt
+        rt.target = Target(floor: desk.floor, spot: desk.spot, def: def, slot: slot, point: desk.spot.standAt)
+        let left = rng.range(4, 50)
+        rt.phase = .using(t: left, total: left)
+        applyActivityPose(rt, def, desk.spot, facing: desk.spot.facing)
+        rt.groundLift = desk.spot.lift
         return rt
     }
 

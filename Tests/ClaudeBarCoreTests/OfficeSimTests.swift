@@ -327,6 +327,26 @@ import Testing
         #expect(fresh.runtimes.first?.target?.spot.id != desk)
     }
 
+    /// A spare joining with its own desk taken (a working cat sits there) doesn't stand on that desk's spot: it starts
+    /// on open floor on its desk's floor, away from the desk.
+    @Test func aSpareWhoseDeskIsTakenStartsOffIt() throws {
+        let roster = SpareRoster.roster(floors: OfficeSim.floors(building: building, rooms: rooms),
+                                        cats: try JSONDecoder().decode(SpareRoster.Manifest.self, from: fixture("rooms/user/cats.json")).cats)
+        let withDesks = roster.filter { $0.desk != nil }
+        try #require(!withDesks.isEmpty)
+        for spare in withDesks {
+            let id = try #require(spare.desk?.spotId)
+            let (floorId, desk) = try #require(rooms.lazy.compactMap { f, r in r.spots.first { $0.id == id }.map { (f, $0) } }.first)
+            let sim = OfficeSim(seed: 6)
+            sim.setCats([SimCat(spare: spare)], building: building, rooms: rooms, grids: grids, takenSpotIds: [id])
+            let rt = try #require(sim.runtimes.first)
+            let f = try #require(sim.floor(floorId))
+            #expect(rt.floor == floorId && rt.target == nil)
+            #expect(f.pxDistance(rt.position, desk.standAt) > 8, "\(spare.id) stands on its taken desk \(id)")
+            #expect(grids[floorId]?.isOpenAt(rt.position) == true)
+        }
+    }
+
     /// Like the engine's per-frame cap: one call steps at most 30 minutes; nonsense steps nothing.
     @Test func stepIsCapped() {
         let sim = OfficeSim(seed: 1)
