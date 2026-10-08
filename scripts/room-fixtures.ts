@@ -18,6 +18,7 @@ async function main(): Promise<void> {
   const { snapRoomsToCells } = await mod('src/world/room-edit.ts');
   const { isBuiltRoom } = await mod('src/world/room-parts.ts');
   const { roomRugs, placeFixture } = await mod('src/world/room.ts');
+  const { NavGrid } = await mod('src/world/nav-grid.ts');
 
   const building = load('building.json');
   const manifest = load('room-parts.json');
@@ -87,9 +88,38 @@ async function main(): Promise<void> {
       id: p.placement.id, prop: p.placement.prop, image: p.sprite?.image ?? null, mirrored: p.mirrored,
       ...box(p.rect), z: p.box.z, companionOf: p.companionOf ?? null,
       spots: p.spots.map((s: any) => ({ id: s.id, kind: s.kind, pose: s.pose ?? null, u: r6(s.standAt.u), v: r6(s.standAt.v), facing: s.facing, lift: s.lift ?? 0 })) }));
-    out.floors.push({ id: floor.id, corners: floor.corners, wallHeight, eu: r(eu), ev: r(ev),
+    // The floor the browser walks: SimulationEngine.indexFloors builds `new NavGrid(floor)` from the building that
+    // buildRoomOffice returns (RoomSimulator.tsx:218), whose floors already have props and desks carved into the grid.
+    const floorOut: any = { id: floor.id, corners: floor.corners, wallHeight, eu: r(eu), ev: r(ev),
       floorPlane: { size: r(size), a: r6((right.x - top.x) / size), b: r6((right.y - top.y) / size), c: r6((left.x - top.x) / size), d: r6((left.y - top.y) / size), e: top.x, f: top.y },
-      walls: { left: wall('left'), right: wall('right') }, rugs, wallItems, elevators, fixtures, desks: placedDesks, props: placedProps });
+      walls: { left: wall('left'), right: wall('right') }, rugs, wallItems, elevators, fixtures, desks: placedDesks, props: placedProps };
+    if (floor.grid) {
+      const walkFloor = floor;
+      const placedDesksForWalk = office.desks[floor.id] ?? [];
+      const nav = new NavGrid(walkFloor);
+      const pts: { u: number; v: number }[] = [];
+      const elevator = walkFloor.spots.find((s: any) => s.kind === 'elevator');
+      if (elevator) pts.push(elevator.standAt);
+      for (const d of placedDesksForWalk) pts.push(d.standAt);
+      for (const s of walkFloor.spots) if (s.kind !== 'elevator' && s.standAt) pts.push(s.standAt);
+      // Plus fixed probes across the floor (some on open floor, some on furniture), the same for every floor.
+      for (const [u, v] of [[0.1, 0.1], [0.5, 0.5], [0.9, 0.9], [0.2, 0.8], [0.8, 0.2], [0.33, 0.66]]) pts.push({ u, v });
+      const routes: unknown[] = [];
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = 0; j < pts.length; j++) {
+          if (i === j) continue;
+          // Every pair from/to the elevator, else a fixed sample: pairs (i, i+1), (i, i+3), (i, i+7) mod n.
+          const n = pts.length;
+          const sampled = i === 0 || j === 0 || j === (i + 1) % n || j === (i + 3) % n || j === (i + 7) % n;
+          if (!sampled) continue;
+          const path = nav.findPath(pts[i], pts[j]);
+          routes.push({ from: { u: r6(pts[i].u), v: r6(pts[i].v) }, to: { u: r6(pts[j].u), v: r6(pts[j].v) },
+                        path: path ? path.map((p: any) => ({ u: r6(p.u), v: r6(p.v) })) : null });
+        }
+      }
+      floorOut.nav = { size: walkFloor.grid.size, walkable: walkFloor.grid.walkable, routes };
+    }
+    out.floors.push(floorOut);
   }
   writeFileSync(outFile, JSON.stringify(out, null, 1));
   console.log(`room-fixtures: ${out.floors.length} floors → ${outFile}`);
