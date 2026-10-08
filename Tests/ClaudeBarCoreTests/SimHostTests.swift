@@ -209,6 +209,102 @@ import Testing
         }
     }
 
+    /// A sim cat that starts working mid-walk leaves the sim at once (no place of the sim's, no claim held) and goes
+    /// to its desk by the rules: the desk is taken and seated, and it is no placement, so the view walks it there from
+    /// where it was drawn.
+    @Test func idleToWorkingMidWalkLeavesTheSimAtOnce() throws {
+        let host = SimHost(seed: 9, now: t0)
+        update(host, [agent("a", .idle, project: true)])
+        host.setVisible(true, now: t0)
+        var k = 0, now = t0
+        while host.sim.runtimes.first?.phase.label != "walking" {
+            k += 1; now = t0.addingTimeInterval(Double(k) * 0.25); host.tick(now: now)
+            try #require(k < 4 * 600, "never walked")
+        }
+        let drawn = try #require(host.mirror(.off, live: false, now: now).places["a"])
+        #expect(drawn.phase == "walking" && drawn.floor == 1)
+        let claimed = try #require(host.sim.runtimes.first?.target?.spot.id)
+        let placed = host.placement
+        update(host, [agent("a", .working, project: true)])
+        #expect(host.cats.isEmpty && host.sim.runtimes.isEmpty)
+        #expect(host.sim.occupancy[claimed]?.contains("a") != true)
+        let out = host.mirror(.off, live: false, now: now)
+        #expect(out.places["a"] == nil && host.minutesLeft["a"] == nil)
+        let seating = try #require(host.seatings[claudeBar.id])
+        let i = try #require(seating.desks.firstIndex(of: "a"))
+        let room = try #require(rooms[claudeBar.id])
+        #expect(host.takenSpotIds == [SimHost.seatFloor(claudeBar, room).desks[i].id])
+        #expect(FloorPlan.floorId(for: agent("a", .working, project: true), among: [], in: building, mirror: out) == claudeBar.id)
+        #expect(host.placement == placed)
+    }
+
+    /// The live mirror lost while cats are mid-activity (a session cat and a spare): each goes on with the same activity
+    /// at the same spot, its minutes left carrying on from the browser's.
+    @Test func mirrorLostMidActivityCarriesOn() throws {
+        let cats = try JSONDecoder().decode(SpareRoster.Manifest.self, from: fixture("rooms/user/cats.json")).cats
+        let host = SimHost(seed: 10, now: t0)
+        update(host, [agent("a", .idle)], spares: cats, showSpares: true)
+        let spare = try #require(host.cats.first { $0.isSpare })
+        let lounge = try #require(rooms[1])
+        let spots = lounge.spots.filter { $0.kind != "elevator" && $0.capacity == 1 && SimActivities.activity(for: $0)?.lounge == true }
+        try #require(spots.count >= 2)
+        func place(_ spot: RoomSpot, _ left: Double, key: String? = nil) throws -> MirrorPlace {
+            let def = try #require(SimActivities.activity(for: spot))
+            return MirrorPlace(floor: 1, u: spot.standAt.u, v: spot.standAt.v, direction: spot.facing, state: def.state.rawValue,
+                               activity: .init(kind: def.kind, label: def.label), spotId: spot.id, minutesLeft: left, phase: "using",
+                               at: 0, key: key)
+        }
+        var browser = OfficeMirror(places: ["a": try place(spots[0], 9)])
+        browser.spares = [try place(spots[1], 5.5, key: "spare:\(spare.id)")]
+        _ = host.mirror(browser, live: true, now: t0)
+        #expect(host.minutesLeft == ["a": 9, "spare:\(spare.id)": 6])
+        host.setVisible(true, now: t0)
+        let out = host.mirror(.off, live: false, now: t0.addingTimeInterval(3))
+        let a = try #require(out.places["a"]), s = try #require(out.spares.first { $0.key == "spare:\(spare.id)" })
+        #expect(a.spotId == spots[0].id && a.activity == browser.places["a"]?.activity && a.phase == "using")
+        #expect(s.spotId == spots[1].id && s.activity == browser.spares[0].activity && s.phase == "using")
+        #expect(host.minutesLeft["a"] == 9 && host.minutesLeft["spare:\(spare.id)"] == 6)
+        // Two sim minutes on: the same activity, two minutes less.
+        host.tick(now: t0.addingTimeInterval(5))
+        let later = host.mirror(.off, live: false, now: t0.addingTimeInterval(5))
+        #expect(later.places["a"]?.activity == a.activity && later.places["a"]?.spotId == a.spotId)
+        #expect(host.minutesLeft["a"] == 7 && host.minutesLeft["spare:\(spare.id)"] == 4)
+    }
+
+    /// One seating for the views and the sim: the desks and Lounge seats the office views draw rule-placed cats at
+    /// (SceneCast.on with SimHost.seatings, as OfficePeekView casts each floor) are exactly the sim's taken spots, tick
+    /// after tick, with working, waiting and idle cats and the spares, with and without a desk pool.
+    @Test func theViewsSeatingIsTheSims() throws {
+        let cats = try JSONDecoder().decode(SpareRoster.Manifest.self, from: fixture("rooms/user/cats.json")).cats
+        var noPool = building
+        noPool.floors.removeAll { !$0.isLounge && $0.repoRoot == nil }
+        for b in [building, noPool] {
+            var r = rooms, g = grids
+            for id in rooms.keys where b.floor(id: id) == nil { r[id] = nil; g[id] = nil }
+            let agents = [agent("w1", .working, project: true), agent("w2", .working), agent("q", .waiting), agent("i1", .idle), agent("i2", .idle)]
+            let host = SimHost(seed: 12, now: t0)
+            host.update(agents: agents, building: b, rooms: r, grids: g, spares: cats, showSpares: true)
+            host.setVisible(true, now: t0)
+            for k in 0...(4 * 60) {
+                let now = t0.addingTimeInterval(Double(k) * 0.25)
+                host.tick(now: now)
+                let mirror = host.mirror(.off, live: false, now: now)
+                var drawnAt = Set<String>()
+                for f in b.floors {
+                    guard let room = r[f.id] else { continue }
+                    let cast = SceneCast.on(floor: f, room: room, building: b, agents: agents, mirror: mirror, seatings: host.seatings)
+                    #expect(cast.seating == host.seatings[f.id])
+                    for c in cast.layout(in: room).cats {
+                        if c.kind == .desk, let d = room.desks.first(where: { $0.standAt == c.at }) { drawnAt.insert(d.id) }
+                        if c.kind == .seat, let s = room.seats.first(where: { $0.standAt == c.at }) { drawnAt.insert(s.id) }
+                    }
+                }
+                #expect(drawnAt == host.takenSpotIds, "tick \(k): drawn \(drawnAt.sorted()) taken \(host.takenSpotIds.sorted())")
+                #expect(!(mirror.spares + Array(mirror.places.values)).contains { $0.spotId.map(host.takenSpotIds.contains) == true })
+            }
+        }
+    }
+
     /// A long stall with the office open (the Mac slept): the gap is a catch-up and a placement, not walks.
     @Test func aLongStallWhileOpenIsAPlacement() {
         let host = SimHost(seed: 3, now: t0)

@@ -372,12 +372,9 @@ struct OfficeRoomView: View {
     }
 
     private func cast(_ built: BuiltRoom) -> SceneCast {
-        let f = SimHost.seatFloor(floor, built)
-        // Everyone's seating (AppState.seatings, the same in both views and for the sim's taken desks).
-        let seating = state.seatings[floorId] ?? FloorPlan.seating(on: f, agents: floorCats, previous: nil, seats: built.seats.count)
-        return SceneCast(seating: seating, agents: floorCats, deskIds: f.desks.map(\.id), lounge: floor.isLounge,
-                         mirrored: state.mirror.places(on: floorId, agents: state.office?.agents ?? [], in: state.building),
-                         spares: state.mirror.spares(on: floorId, in: state.building))
+        // Everyone's seating (AppState.seatings, the same in both views and for the sim's taken desks and seats).
+        SceneCast.on(floor: floor, room: built, building: state.building, agents: state.office?.agents ?? [],
+                     mirror: state.mirror, seatings: state.seatings)
     }
     private var floor: Floor { state.building.floor(id: floorId) ?? Building.fallback.floors[0] }
     private var floorCats: [OfficeAgent] { FloorPlan.cats(on: floorId, agents: state.office?.agents ?? [], in: state.building, mirror: state.mirror) }

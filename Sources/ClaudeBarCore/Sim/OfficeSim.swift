@@ -739,7 +739,9 @@ public final class OfficeSim {
         var minutesLeft: Double?
         switch rt.phase {
         case let .elevatorOut(_, to), let .elevatorRide(_, to): ridingTo = to
-        case let .using(t, _): minutesLeft = t.rounded(.up)
+        // Whole minutes, rounded up; steps of 1/30 leave a trace of float error (9 − 60 steps is 7.000000000000007),
+        // which isn't another minute.
+        case let .using(t, _): minutesLeft = (t - 1e-9).rounded(.up)
         default: break
         }
         return MirrorPlace(

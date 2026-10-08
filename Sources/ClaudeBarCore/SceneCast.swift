@@ -25,6 +25,21 @@ public struct SceneCast: Equatable, Sendable {
     }
 }
 
+extension SceneCast {
+    /// A built floor's cast as both office views draw it: the cats on it with `mirror` (what the office draws), seated
+    /// by `seatings` (SimHost.seatings, the one seating the sim's taken desks and seats come from; the floor seated
+    /// afresh if it has none yet), the mirror's places and spares on it.
+    public static func on(floor: Floor, room: BuiltRoom, building: Building, agents: [OfficeAgent], mirror: OfficeMirror,
+                          seatings: [Int: FloorSeating]) -> SceneCast {
+        let f = SimHost.seatFloor(floor, room)
+        let here = FloorPlan.cats(on: floor.id, agents: agents, in: building, mirror: mirror)
+        let seating = seatings[floor.id] ?? FloorPlan.seating(on: f, agents: here, previous: nil, seats: room.seats.count)
+        return SceneCast(seating: seating, agents: here, deskIds: f.desks.map(\.id), lounge: floor.isLounge,
+                         mirrored: mirror.places(on: floor.id, agents: agents, in: building),
+                         spares: mirror.spares(on: floor.id, in: building))
+    }
+}
+
 /// One cat placed on a built floor, in world terms.
 public struct SceneCat: Equatable, Sendable {
     /// `mirrored`: where the browser has it (its own spot, pose and facing). `spare`: a spare cat of the browser's
