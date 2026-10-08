@@ -1,6 +1,6 @@
 --- a/server/agent-bridge/cat-assignments.ts
 +++ b/server/agent-bridge/cat-assignments.ts
-@@ -0,0 +1,262 @@
+@@ -0,0 +1,290 @@
 +/**
 + * The cat the page shows for each agent, and the desk that cat works at (POST /__agents/cats), kept in
 + * <stateDir>/cat-assignments.json by agent id, so other local apps (ClaudeBar's menu bar office) show the same
@@ -36,6 +36,12 @@
 +/** Places kept at most (the oldest go first), and for at most this long. */
 +const PLACES_MAX = 500;
 +const PLACE_MAX_AGE_MS = 60_000;
++/** Snapshots show only the latest round of places: within this of the newest (pages post every 2 s). */
++const PLACE_ROUND_MS = 5000;
++/** A post further ahead of the server's clock than this is refused (it would pin the mirror live). */
++const PLACE_AHEAD_MS = 5000;
++/** Unchanged places still go out to the stream this often while posts keep coming (ClaudeBar's 10 s liveness). */
++const PLACE_HEARTBEAT_MS = 5000;
 +
 +type ChangeListener = () => void;
 +
@@ -102,6 +108,8 @@
 +  private desks = new Map<string, AgentDesk>();
 +  /** Place key (agent id, or `spare:<sim id>`) → its newest place; in memory only. */
 +  private places = new Map<string, KeptPlace>();
++  /** When places last went out to the stream (server clock). */
++  private placesSent = -Infinity;
 +  private listeners = new Set<ChangeListener>();
 +  readonly file: string;
 +
@@ -121,8 +129,9 @@
 +
 +  /**
 +   * Takes the page's `{ assignments?: { [agentId]: catId }, desks?: { [agentId]: { desk, flip, rear } },
-+   * places?: { [agentId | "spare:<sim id>"]: place }, at? }` (`at`, epoch ms, required with places). False for a bad
-+   * body (nothing kept) or a failed save. A malformed place is skipped; per cat the newest `at` wins.
++   * places?: { [agentId | "spare:<sim id>"]: place }, at? }` (`at`, epoch ms, required with places, at most 5 s
++   * ahead of `now`). False for a bad body (nothing kept) or a failed save. A malformed place is skipped; per cat the
++   * newest `at` wins. Places go out to the stream when they changed (`at` aside), and at least every 5 s.
 +   */
 +  merge(body: unknown, now: number = Date.now()): boolean {
 +    const b = body as { assignments?: unknown; desks?: unknown; places?: unknown; at?: unknown } | null;
@@ -130,7 +139,7 @@
 +    const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 +    if (b.assignments !== undefined && !isMap(b.assignments)) return false;
 +    if (b.desks !== undefined && !isMap(b.desks)) return false;
-+    if (b.places !== undefined && (!isMap(b.places) || !finite(b.at))) return false;
++    if (b.places !== undefined && (!isMap(b.places) || !finite(b.at) || b.at > now + PLACE_AHEAD_MS)) return false;
 +    const cats = Object.entries((b.assignments ?? {}) as Record<string, unknown>);
 +    if (!cats.every(([id, cat]) => ID.test(id) && typeof cat === 'string' && CAT.test(cat))) return false;
 +    const desks = Object.entries((b.desks ?? {}) as Record<string, unknown>).map(([id, v]) => [id, readDesk(v)] as const);
@@ -150,8 +159,10 @@
 +    }
 +    while (this.cats.size > KEEP_MAX) this.cats.delete(this.cats.keys().next().value as string);
 +    while (this.desks.size > KEEP_MAX) this.desks.delete(this.desks.keys().next().value as string);
-+    const moved = b.places !== undefined && this.mergePlaces(b.places as Record<string, unknown>, b.at as number, now);
++    const placed = b.places === undefined ? 'none' : this.mergePlaces(b.places as Record<string, unknown>, b.at as number, now);
++    const moved = placed === 'changed' || (placed === 'same' && now - this.placesSent >= PLACE_HEARTBEAT_MS);
 +    if (!changed && !moved) return true;
++    if (moved) this.placesSent = now;
 +    if (changed) {
 +      try {
 +        this.save();
@@ -169,39 +180,49 @@
 +    return true;
 +  }
 +
-+  /** Keeps the places newer than what is kept for each cat; true when any was kept. */
-+  private mergePlaces(places: Record<string, unknown>, at: number, now: number): boolean {
++  /**
++   * Keeps the places newer than what is kept for each cat: 'changed' when a kept one differs (`at` aside) or one
++   * was dropped, 'same' when only times moved on, 'none' when nothing was kept.
++   */
++  private mergePlaces(places: Record<string, unknown>, at: number, now: number): 'changed' | 'same' | 'none' {
 +    let kept = false;
++    let differs = false;
 +    if (now - at <= PLACE_MAX_AGE_MS) {
 +      for (const [key, v] of Object.entries(places)) {
 +        if (!ID.test(key) && !SPARE.test(key)) continue;
 +        const place = readPlace(v, at);
 +        const had = this.places.get(key);
 +        if (!place || (had && had.at > at)) continue;
++        if (!had || !samePlace(had, place)) differs = true;
 +        this.places.delete(key); // re-inserted last: the newest
 +        this.places.set(key, place);
 +        kept = true;
 +      }
 +    }
-+    for (const [key, p] of this.places) if (now - p.at > PLACE_MAX_AGE_MS) this.places.delete(key);
-+    while (this.places.size > PLACES_MAX) this.places.delete(this.places.keys().next().value as string);
-+    return kept;
++    for (const [key, p] of this.places) {
++      if (now - p.at <= PLACE_MAX_AGE_MS) continue;
++      this.places.delete(key);
++      differs = true;
++    }
++    while (this.places.size > PLACES_MAX) {
++      this.places.delete(this.places.keys().next().value as string);
++      differs = true;
++    }
++    return differs ? 'changed' : kept ? 'same' : 'none';
 +  }
 +
 +  /**
 +   * The snapshot with each agent's cat, desk and place, for the agents the page has reported them for; plus the
-+   * spare cats' places (`spares`) and the newest place's time (`placesAt`, null without any). Places over 60 s
-+   * old are left out.
++   * spare cats' places (`spares`) and the newest place's time (`placesAt`, null without any). Only the latest
++   * round shows (within 5 s of the newest): a spare since claimed, or a session whose cat was taken, leaves no
++   * ghost. Places over 60 s old are left out.
 +   */
 +  apply(snapshot: AgentSnapshot, now: number = Date.now()): AgentSnapshot {
-+    const fresh = (p: KeptPlace | undefined): p is KeptPlace => !!p && now - p.at <= PLACE_MAX_AGE_MS;
 +    let placesAt: number | null = null;
++    for (const p of this.places.values()) if (now - p.at <= PLACE_MAX_AGE_MS) placesAt = Math.max(placesAt ?? p.at, p.at);
++    const fresh = (p: KeptPlace | undefined): p is KeptPlace => !!p && placesAt !== null && now - p.at <= PLACE_MAX_AGE_MS && p.at >= placesAt - PLACE_ROUND_MS;
 +    const spares: SparePlace[] = [];
-+    for (const [key, p] of this.places) {
-+      if (!fresh(p)) continue;
-+      placesAt = Math.max(placesAt ?? p.at, p.at);
-+      if (SPARE.test(key)) spares.push({ ...p, key });
-+    }
++    for (const [key, p] of this.places) if (fresh(p) && SPARE.test(key)) spares.push({ ...p, key });
 +    return {
 +      ...snapshot,
 +      agents: snapshot.agents.map((a) => {
@@ -237,6 +258,13 @@
 +    writeFileSync(tmp, JSON.stringify({ cats: Object.fromEntries(this.cats), desks: Object.fromEntries(this.desks) }, null, 2) + '\n');
 +    renameSync(tmp, this.file);
 +  }
++}
++
++/** The same place, whenever it was posted. */
++function samePlace(a: KeptPlace, b: KeptPlace): boolean {
++  const { at: _a, ...x } = a;
++  const { at: _b, ...y } = b;
++  return JSON.stringify(x) === JSON.stringify(y);
 +}
 +
 +function withoutName(p: KeptPlace): CatPlace {
@@ -587,7 +615,7 @@
 +}
 --- a/src/agents/live/places-share.ts
 +++ b/src/agents/live/places-share.ts
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,129 @@
 +import { useEffect, useRef } from 'react';
 +import { activityFor, type ActivityKind } from '../../simulation/activities';
 +import type { SimulationEngine } from '../../simulation/simulation-engine';
@@ -597,9 +625,9 @@
 +
 +/*
 + * Where each cat is and what it's doing, shared with other local apps (ClaudeBar's menu bar office mirrors it):
-+ * every 2 s the page posts every cat's place to the bridge (POST /__agents/cats `{ places, at }`), keyed by the
-+ * live session its cat stands for, or `spare:<sim id>` for a spare cat. The bridge keeps them in memory only
-+ * (server/agent-bridge/cat-assignments.ts) and every snapshot carries them.
++ * every 2 s while it is shown, the page posts every cat's place to the bridge (POST /__agents/cats
++ * `{ places, at }`), keyed by the live session its cat stands for, or `spare:<sim id>` for a spare cat. The bridge
++ * keeps them in memory only (server/agent-bridge/cat-assignments.ts) and every snapshot carries them.
 + */
 +
 +/** What the other apps draw from: the engine's snapshot (simulation-engine.ts snapshot()), flattened. */
@@ -684,8 +712,14 @@
 +const SHARE_EVERY_MS = 2000;
 +
 +/**
-+ * Posts buildPlaces every 2 s while `on` (live data), whether the page is shown or not (the engine runs either
-+ * way). agentOf is read when posting, so a new map doesn't restart the timer.
++ * Whether the page should share now: only while it is shown. The engine steps on requestAnimationFrame, which
++ * browsers pause in hidden tabs, so a hidden page's office is frozen and must not be posted as live.
++ */
++export const shouldShare = (visibility: string): boolean => visibility === 'visible';
++
++/**
++ * Posts buildPlaces every 2 s while `on` (live data) and the page is shown (shouldShare), and at once when it is
++ * shown again. agentOf is read when posting, so a new map doesn't restart the timer.
 + */
 +export function usePlacesShare(engine: SimulationEngine, agentOf: ReadonlyMap<string, { id: string }>, on: boolean): void {
 +  const latest = useRef(agentOf);
@@ -696,7 +730,7 @@
 +    if (!on) return undefined;
 +    let busy = false;
 +    const share = (): void => {
-+      if (busy) return;
++      if (busy || !shouldShare(document.visibilityState)) return;
 +      busy = true;
 +      const places = buildPlaces(engine.snapshot(), latest.current, engine.building);
 +      void post('/__agents/cats', { places, at: Date.now() }, () => true).finally(() => {
@@ -704,7 +738,11 @@
 +      });
 +    };
 +    const timer = window.setInterval(share, SHARE_EVERY_MS);
-+    return () => window.clearInterval(timer);
++    document.addEventListener('visibilitychange', share);
++    return () => {
++      window.clearInterval(timer);
++      document.removeEventListener('visibilitychange', share);
++    };
 +  }, [engine, on]);
 +}
 --- a/src/agents/live/useAgentCats.ts
@@ -919,7 +957,7 @@
 +});
 --- a/tests/sim/places.test.ts
 +++ b/tests/sim/places.test.ts
-@@ -0,0 +1,234 @@
+@@ -0,0 +1,286 @@
 +// Where each cat is and what it's doing, shared with other local apps (ClaudeBar): the page posts
 +// `{ places: { <live agent id | "spare:<sim id>">: Place }, at }` to POST /__agents/cats every 2 s; the bridge keeps
 +// the newest per cat in memory and every snapshot carries it (agent `place`, top-level `spares` and `placesAt`).
@@ -933,7 +971,7 @@
 +after(() => rmSync(TMP, { recursive: true, force: true }));
 +
 +const { CatAssignmentStore } = await import('../../server/agent-bridge/cat-assignments.ts');
-+const { buildPlaces } = await import('../../src/agents/live/places-share.ts');
++const { buildPlaces, shouldShare } = await import('../../src/agents/live/places-share.ts');
 +
 +const NOW = 1_800_000_000_000;
 +
@@ -1153,6 +1191,58 @@
 +  assert.deepEqual(places['spare:agent-1'].activity, { kind: 'other', label: 'Leading a meeting' });
 +  assert.equal(places['spare:agent-1'].phase, 'idle');
 +  assert.equal('spare:agent-2' in places, false);
++});
++
++test('places: only the latest round is shown (no ghosts of claimed spares or moved-away sessions)', () => {
++  const store = new CatAssignmentStore(join(TMP, 'h', 'cats.json'));
++  store.merge({ places: { s1: place(), 'spare:agent-3': place({ name: 'Bean' }) }, at: NOW - 10_000 }, NOW - 10_000);
++  // The spare is claimed by session s2; s1's cat was taken (s1 has no place in the newest post).
++  store.merge({ places: { s2: place({ name: 'Bean' }) }, at: NOW }, NOW);
++  const out = store.apply(snap('s1', 's2'), NOW) as unknown as Snap;
++  assert.deepEqual(out.spares, [], 'no ghost spare');
++  assert.equal('place' in out.agents[0], false, 'a session missing from the newest post gets no place');
++  assert.ok(out.agents[1].place);
++  assert.equal(out.placesAt, NOW);
++});
++
++test('places: two pages posting every 2 s both stay included', () => {
++  const store = new CatAssignmentStore(join(TMP, 'i', 'cats.json'));
++  for (let t = 0; t <= 10_000; t += 2000) {
++    store.merge({ places: { s1: place() }, at: NOW + t }, NOW + t);
++    store.merge({ places: { s2: place() }, at: NOW + t + 1900 }, NOW + t + 1900);
++  }
++  const out = store.apply(snap('s1', 's2'), NOW + 12_000) as unknown as Snap;
++  assert.ok(out.agents[0].place && out.agents[1].place);
++});
++
++test('places: a post from the future is refused', () => {
++  const store = new CatAssignmentStore(join(TMP, 'j', 'cats.json'));
++  assert.equal(store.merge({ places: { s1: place() }, at: NOW + 5001 }, NOW), false);
++  assert.equal(store.merge({ places: { s1: place() }, at: NOW + 5000 }, NOW), true, 'a little clock skew is fine');
++  const out = store.apply(snap('s1'), NOW) as unknown as Snap;
++  assert.equal(out.agents[0].place?.at, NOW + 5000);
++});
++
++test('places: the stream hears of places only when they change, and a heartbeat every 5 s', () => {
++  const store = new CatAssignmentStore(join(TMP, 'k', 'cats.json'));
++  let changes = 0;
++  store.onChange(() => changes++);
++  store.merge({ places: { s1: place() }, at: NOW }, NOW);
++  store.merge({ places: { s1: place() }, at: NOW + 2000 }, NOW + 2000);
++  assert.equal(changes, 1, 'two identical posts 2 s apart: one broadcast');
++  store.merge({ places: { s1: place({ u: 0.7 }) }, at: NOW + 3000 }, NOW + 3000);
++  assert.equal(changes, 2, 'a moved cat: a broadcast');
++  store.merge({ places: { s1: place({ u: 0.7 }) }, at: NOW + 5000 }, NOW + 5000);
++  store.merge({ places: { s1: place({ u: 0.7 }) }, at: NOW + 7000 }, NOW + 7000);
++  assert.equal(changes, 2, 'unchanged within 5 s of the last broadcast');
++  store.merge({ places: { s1: place({ u: 0.7 }) }, at: NOW + 9000 }, NOW + 9000);
++  assert.equal(changes, 3, 'identical posts for 6 s: a heartbeat');
++});
++
++test('shouldShare: only a visible page shares (a hidden tab pauses the simulation)', () => {
++  assert.equal(shouldShare('visible'), true);
++  assert.equal(shouldShare('hidden'), false);
++  assert.equal(shouldShare('prerender'), false);
 +});
 --- a/tests/sim/plan-usage-workers.test.ts
 +++ b/tests/sim/plan-usage-workers.test.ts
