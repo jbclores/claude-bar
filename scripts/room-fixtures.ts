@@ -113,7 +113,8 @@ async function main(): Promise<void> {
           const sampled = i === 0 || j === 0 || j === (i + 1) % n || j === (i + 3) % n || j === (i + 7) % n;
           if (!sampled) continue;
           const path = nav.findPath(pts[i], pts[j]);
-          routes.push({ from: { u: r6(pts[i].u), v: r6(pts[i].v) }, to: { u: r6(pts[j].u), v: r6(pts[j].v) },
+          // from/to unrounded: approach() breaks exact score ties by float noise, so a rounded endpoint can pick the other side.
+          routes.push({ from: { u: pts[i].u, v: pts[i].v }, to: { u: pts[j].u, v: pts[j].v },
                         path: path ? path.map((p: any) => ({ u: r6(p.u), v: r6(p.v) })) : null });
         }
       }

@@ -89,4 +89,72 @@ struct NavFixture: Decodable {
             #expect(NavGrid(floor: f, room: room) == nil, "\(name)")
         }
     }
+
+    @Test(arguments: ["user", "edge"]) func routesMatchCatOffice(_ b: String) throws {
+        let (building, catalogue, expected) = try load(b)
+        var checked = 0
+        for f in expected.floors {
+            guard let nav = f.nav else { continue }
+            let floor = try #require(building.floors.first { $0.id == f.id })
+            let room = try #require(RoomGeometry.build(floor: floor, catalogue: catalogue))
+            let grid = try #require(NavGrid(floor: floor, room: room))
+            for r in nav.routes {
+                let got = grid.findPath(from: FloorPoint(u: r.from.u, v: r.from.v), to: FloorPoint(u: r.to.u, v: r.to.v))
+                guard let want = r.path else { #expect(got == nil, "floor \(f.id) \(r.from)→\(r.to) should be unreachable"); continue }
+                let path = try #require(got, "floor \(f.id) \(r.from)→\(r.to) should be reachable")
+                #expect(path.count == want.count, "floor \(f.id) \(r.from)→\(r.to): \(path.count) points, want \(want.count)")
+                for (p, w) in zip(path, want) {
+                    let a = room.frame.px(p), e = room.frame.px(FloorPoint(u: w.u, v: w.v))
+                    #expect(hypot(a.x - e.x, a.y - e.y) <= 0.5, "floor \(f.id) \(r.from)→\(r.to)")
+                }
+                checked += 1
+            }
+        }
+        #expect(checked > 20)
+    }
+
+    /// A 10×10 open floor with one blocked 2×6 wall in the middle (cells u 4…5, v 2…7).
+    func walled() throws -> NavGrid {
+        var open = [Bool](repeating: true, count: 100)
+        for u in 4...5 { for v in 2...7 { open[u * 10 + v] = false } }
+        let frame = try #require(FloorFrame(corners: FloorCorners(top: WorldPoint(x: 0, y: 0), left: WorldPoint(x: -200, y: 100),
+                                                                bottom: WorldPoint(x: 0, y: 200), right: WorldPoint(x: 200, y: 100))))
+        return NavGrid(size: 10, open: open, frame: frame)
+    }
+
+    @Test func routeGoesRoundAWallAlongTheAxes() throws {
+        let g = try walled()
+        let from = FloorPoint(u: 0.15, v: 0.45), to = FloorPoint(u: 0.85, v: 0.45)
+        let path = try #require(g.findPath(from: from, to: to))
+        #expect(path.last == to)
+        var prev = from
+        for p in path {
+            // Every leg runs along u or along v.
+            #expect(abs(p.u - prev.u) < 1e-9 || abs(p.v - prev.v) < 1e-9)
+            // No point of any leg is in a blocked cell (sampled every 1/100).
+            for i in 0...100 {
+                let t = Double(i) / 100
+                #expect(g.isOpenAt(FloorPoint(u: prev.u + (p.u - prev.u) * t, v: prev.v + (p.v - prev.v) * t)))
+            }
+            prev = p
+        }
+    }
+
+    @Test func boxedInSpotIsUnreachable() throws {
+        var open = [Bool](repeating: true, count: 100)
+        for u in 3...5 { for v in 3...5 where !(u == 4 && v == 4) { open[u * 10 + v] = false } }   // a ring round (4,4)
+        let frame = try #require(FloorFrame(corners: FloorCorners(top: WorldPoint(x: 0, y: 0), left: WorldPoint(x: -200, y: 100),
+                                                                bottom: WorldPoint(x: 0, y: 200), right: WorldPoint(x: 200, y: 100))))
+        let g = NavGrid(size: 10, open: open, frame: frame)
+        #expect(g.findPath(from: FloorPoint(u: 0.05, v: 0.05), to: FloorPoint(u: 0.45, v: 0.45)) == nil)
+    }
+
+    @Test func aSeatOnFurnitureStepsOffAlongAnAxis() throws {
+        let g = try walled()
+        let seat = FloorPoint(u: 0.45, v: 0.25)          // inside the wall (blocked)
+        let path = try #require(g.findPath(from: seat, to: FloorPoint(u: 0.15, v: 0.85)))
+        let first = path[0]
+        #expect(abs(first.u - seat.u) < 1e-9 || abs(first.v - seat.v) < 1e-9, "the hop off runs along an axis")
+        #expect(g.isOpenAt(first))
+    }
 }
