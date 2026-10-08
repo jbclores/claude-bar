@@ -9,7 +9,7 @@ public struct SimCat: Equatable, Sendable {
     /// Its sprite set.
     public var catId: String?
     /// Its own desk (agent.registry.ts: a spare's desk, SpareRoster), the only desk it works at. A spare without one
-    /// hot-desks on Robin's office floors; a session's cat never takes a desk while idle (see OfficeSim.decide).
+    /// hot-desks on Robin's office floors; a session's cat, idle, takes only the Lounge's lounge spots (OfficeSim.decide).
     public var deskSpotId: String?
     /// Where it joins the simulation (where it stands now); nil: at its desk, else the Lounge's middle.
     public var floor: Int?
@@ -56,6 +56,9 @@ public final class OfficeSim {
     static let elevatorBadge = "Taking the elevator"
     /// Catch-up after the office was closed: at most this many sim minutes (spec section 3).
     public static let catchUpCap = 30.0
+    /// The most one `step` call simulates (the engine caps each frame: tick's min(realSeconds, 0.25) and
+    /// MAX_STEPS_PER_TICK, simulation-engine.ts 874-883); longer gaps are catch-up's.
+    public static let stepCap = 30.0
 
     // MARK: state
 
@@ -151,6 +154,8 @@ public final class OfficeSim {
     private(set) var runtimes: [Runtime] = []
     /// simulation-engine.ts occupancy: spot id → the cat in each slot.
     private(set) var occupancy: [String: [String?]] = [:]
+    /// Spots taken outside the simulation (working and waiting sessions' desks): never free.
+    private(set) var taken: Set<String> = []
     /// How many times a cat has chosen (decide), for tests.
     private(set) var decisions = 0
 
@@ -179,8 +184,11 @@ public final class OfficeSim {
 
     /// Cats to simulate now: idle session agents and, when on, spares. A cat left out (its session started working,
     /// the switch went off) leaves at once and frees its spot; a new one joins (simulation-engine.ts createRuntime).
-    public func setCats(_ cats: [SimCat], building: Building, rooms: [Int: BuiltRoom], grids: [Int: NavGrid]) {
+    /// `takenSpotIds`: spots the simulation's cats can't have (working and waiting sessions' desks); a cat headed for
+    /// or at one of them leaves it and stands a moment before choosing again.
+    public func setCats(_ cats: [SimCat], building: Building, rooms: [Int: BuiltRoom], grids: [Int: NavGrid], takenSpotIds: Set<String> = []) {
         self.building = building
+        self.taken = takenSpotIds
         self.floors = Self.floors(building: building, rooms: rooms)
         self.grids = grids
         elevators = [:]
@@ -199,7 +207,7 @@ public final class OfficeSim {
                 release(rt)
                 place(rt, onFloor: fallbackFloor(), at: nil)
                 idle(rt, badge: nil, 0.2, 1)
-            } else if let t = rt.target, floor(t.floor)?.spots.contains(where: { $0.id == t.spot.id }) != true {
+            } else if let t = rt.target, taken.contains(t.spot.id) || floor(t.floor)?.spots.contains(where: { $0.id == t.spot.id }) != true {
                 release(rt)
                 idle(rt, badge: nil, 0.2, 1)
             }
@@ -302,10 +310,11 @@ public final class OfficeSim {
     // MARK: time
 
     /// Advances sim time by `minutes` (1 sim minute = 1 real second at ×1), in steps of 1/30 minute; a remainder under
-    /// a step waits for the next call.
+    /// a step waits for the next call. At most `stepCap` minutes per call (the rest is dropped); non-finite or
+    /// negative steps nothing.
     public func step(minutes: Double) {
         guard minutes.isFinite, minutes > 0 else { return }
-        pending += minutes
+        pending = min(pending + minutes, Self.stepCap)
         let n = Int((pending * 30 + 1e-9).rounded(.down))
         guard n > 0 else { return }
         pending = max(0, pending - Double(n) / 30)
@@ -372,8 +381,9 @@ public final class OfficeSim {
 
     // MARK: choosing
 
-    /// simulation-engine.ts decide 1167-1203 for a cat with no directive. A session's cat, idle, never takes a desk
-    /// (that would read as working); a spare works only at its own desk, or hot-desks without one (decision-engine.ts).
+    /// simulation-engine.ts decide 1167-1203. A spare has no directive: it chooses freely, working only at its own desk
+    /// (or hot-desking without one, decision-engine.ts). A session's cat is idle: directive `idle` (decideDirected
+    /// 2094-2113) takes only lounge activities on the Lounge floor, no desk.
     private func decide(_ rt: Runtime) {
         decisions += 1
         let choice = SimChoice.choose(
@@ -382,13 +392,16 @@ public final class OfficeSim {
             ownDeskId: rt.cat.isSpare ? rt.cat.deskSpotId : nil, rng: &rng,
             isFree: { [unowned self] in self.isFree($0) },
             canReach: { [unowned self] in self.canReach(rt, $0, $1) },
-            only: rt.cat.isSpare ? nil : { _, spot in spot.kind != "desk" })
+            only: rt.cat.isSpare ? nil : { floor, spot in
+                floor.id == SpareRoster.loungeFloor && SimActivities.activity(for: spot)?.lounge == true
+            })
+        // decideDirected 2094-2113: an idle session's cat with nothing to take stands 2–4 minutes.
         guard let choice else {
-            idle(rt, badge: nil, 3, 6)
+            rt.cat.isSpare ? idle(rt, badge: nil, 3, 6) : idle(rt, badge: nil, 2, 4)
             return
         }
         guard let slot = reserve(choice.spot, rt.cat.id) else {
-            idle(rt, badge: "Waiting", 1, 2)
+            rt.cat.isSpare ? idle(rt, badge: "Waiting", 1, 2) : idle(rt, badge: nil, 2, 4)
             return
         }
         rt.travelled = 0
@@ -428,10 +441,11 @@ public final class OfficeSim {
         occupancy[spot.id] ?? Array(repeating: nil, count: max(1, spot.capacity))
     }
 
-    private func isFree(_ spot: RoomSpot) -> Bool { slotsOf(spot).contains { $0 == nil } }
+    private func isFree(_ spot: RoomSpot) -> Bool { !taken.contains(spot.id) && slotsOf(spot).contains { $0 == nil } }
 
     /// Reserve a slot on a spot; the slot index, or nil when full.
     private func reserve(_ spot: RoomSpot, _ id: String) -> Int? {
+        if taken.contains(spot.id) { return nil }
         var slots = slotsOf(spot)
         guard let i = slots.firstIndex(where: { $0 == nil }) else { return nil }
         slots[i] = id

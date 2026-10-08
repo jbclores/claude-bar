@@ -108,11 +108,12 @@ import Testing
         let sim = OfficeSim(seed: 3)
         // Floor 1 has nothing to use: every choice is on floor 2.
         let rooms = only([1, 2], keep: { floor, s in floor == 2 || s.kind == "elevator" })
-        sim.setCats([SimCat(id: "a1", isSpare: false, floor: 1, at: FloorPoint(u: 0.5, v: 0.5))], building: building, rooms: rooms, grids: grids)
+        // A spare: an idle session's cat stays on the Lounge floor (directive idle).
+        sim.setCats([SimCat(id: "a1", isSpare: true, floor: 1, at: FloorPoint(u: 0.5, v: 0.5))], building: building, rooms: rooms, grids: grids)
         var sawRide = false, sawWalkToLift = false
         for _ in 0..<(30 * 30) {
             sim.step(minutes: 1.0 / 30)
-            let p = try #require(sim.output(showSpares: false).places["a1"])
+            let p = try #require(sim.output(showSpares: true).spares.first)
             if p.phase == "walking" && p.floor == 1 { sawWalkToLift = true }
             if p.phase == "elevator" && p.ridingTo == 2 {
                 #expect(p.floor == 1 && p.activity?.kind == "elevator" && p.activity?.label == "Taking the elevator")
@@ -134,14 +135,14 @@ import Testing
         // One single-cat spot on the floor, three cats.
         let one = try #require(rooms[1]?.spots.first { $0.kind != "elevator" && $0.kind != "desk" && $0.capacity == 1 })
         let sim = OfficeSim(seed: 11)
-        let cats = (1...3).map { SimCat(id: "c\($0)", isSpare: false, floor: 1, at: FloorPoint(u: 0.5, v: 0.5)) }
+        let cats = (1...3).map { SimCat(id: "c\($0)", isSpare: true, floor: 1, at: FloorPoint(u: 0.5, v: 0.5)) }
         sim.setCats(cats, building: building, rooms: only([1], keep: { _, s in s.id == one.id || s.kind == "elevator" }), grids: grids)
         var used = 0
         for _ in 0..<(30 * 90) {
             sim.step(minutes: 1.0 / 30)
             let claims = sim.runtimes.compactMap(\.target?.spot.id)
             #expect(claims.filter { $0 == one.id }.count <= 1)
-            used = max(used, sim.output(showSpares: false).places.values.filter { $0.spotId == one.id }.count)
+            used = max(used, sim.output(showSpares: true).spares.filter { $0.spotId == one.id }.count)
         }
         #expect(used == 1)
 
@@ -168,7 +169,7 @@ import Testing
         let sim = OfficeSim(seed: 2)
         sim.setCats([SimCat(id: "w", isSpare: true, floor: 1, at: FloorPoint(u: 0.5, v: 0.5))], building: building,
                     rooms: only([1], keep: { _, s in s.kind == "elevator" }), grids: grids)
-        sim.step(minutes: 60)
+        for _ in 0..<2 { sim.step(minutes: 30) } // at most 30 per call
         #expect(abs(sim.time - 60) < 1e-9)
         // First decision within 1.5 min, then one per 3–6 min.
         #expect(sim.decisions >= 10 && sim.decisions <= 21)
@@ -272,13 +273,74 @@ import Testing
         if let desk = spare.desk {
             #expect(p.spotId == desk.spotId && p.floor == desk.floor && p.phase == "using" && p.activity?.kind == "desk")
         }
-        // A session cat never sits down to work: idle sessions don't take desks.
+        // An idle session's cat never sits down to work: directive idle takes only Lounge activities on floor 1.
         let many = OfficeSim(seed: 21)
         many.setCats((1...6).map { SimCat(id: "s\($0)", isSpare: false, floor: 2, at: FloorPoint(u: 0.5, v: 0.5)) },
                      building: building, rooms: rooms, grids: grids)
+        var targets = 0
         for _ in 0..<(2 * 120) {
             many.step(minutes: 0.5)
-            #expect(many.runtimes.allSatisfy { $0.target?.spot.kind != "desk" })
+            for rt in many.runtimes {
+                guard let t = rt.target else { continue }
+                targets += 1
+                #expect(t.spot.kind != "desk" && t.floor == 1 && t.def.lounge, "\(t.spot.id) on \(t.floor)")
+            }
         }
+        #expect(targets > 0)
+    }
+
+    /// simulation-engine.ts 2094-2113: an idle session's cat on the Lounge floor stays there.
+    @Test func idleSessionsStayOnTheLoungeFloor() {
+        let sim = OfficeSim(seed: 13)
+        sim.setCats((1...8).map { SimCat(id: "i\($0)", isSpare: false, floor: 1, at: FloorPoint(u: 0.5, v: 0.5)) },
+                    building: building, rooms: rooms, grids: grids)
+        var used = Set<String>()
+        for _ in 0..<(30 * 60) {
+            sim.step(minutes: 1.0 / 30)
+            for (_, p) in sim.output(showSpares: false).places {
+                #expect(p.floor == 1 && p.phase != "elevator")
+                if let k = p.activity?.kind, p.phase == "using" { used.insert(k) }
+            }
+        }
+        #expect(!used.isEmpty && used.allSatisfy { SimActivities.all[$0]?.lounge == true })
+    }
+
+    /// A working or waiting session's desk is taken: a spare there leaves it and doesn't come back while it is.
+    @Test func takenDesksAreLeftAndAvoided() throws {
+        let sim = OfficeSim(seed: 6)
+        let roster = SpareRoster.roster(floors: OfficeSim.floors(building: building, rooms: rooms),
+                                        cats: try JSONDecoder().decode(SpareRoster.Manifest.self, from: fixture("rooms/user/cats.json")).cats)
+        let spare = try #require(roster.first { $0.desk != nil })
+        let desk = try #require(spare.desk?.spotId)
+        sim.setCats([SimCat(spare: spare)], building: building, rooms: rooms, grids: grids)
+        #expect(sim.output(showSpares: true).spares.first?.spotId == desk)
+        sim.setCats([SimCat(spare: spare)], building: building, rooms: rooms, grids: grids, takenSpotIds: [desk])
+        #expect(sim.runtimes.first?.target == nil)
+        #expect(sim.output(showSpares: true).spares.first?.spotId == nil)
+        for _ in 0..<(4 * 180) {
+            sim.step(minutes: 0.25)
+            #expect(sim.runtimes.first?.target?.spot.id != desk)
+        }
+        // A spare joining with its desk taken doesn't start the day at it.
+        let fresh = OfficeSim(seed: 6)
+        fresh.setCats([SimCat(spare: spare)], building: building, rooms: rooms, grids: grids, takenSpotIds: [desk])
+        #expect(fresh.runtimes.first?.target?.spot.id != desk)
+    }
+
+    /// Like the engine's per-frame cap: one call steps at most 30 minutes; nonsense steps nothing.
+    @Test func stepIsCapped() {
+        let sim = OfficeSim(seed: 1)
+        sim.setCats([SimCat(id: "x", isSpare: true, floor: 1, at: FloorPoint(u: 0.5, v: 0.5))], building: building, rooms: rooms, grids: grids)
+        let start = Date()
+        sim.step(minutes: 1e9)
+        #expect(Date().timeIntervalSince(start) < 5)
+        #expect(sim.time > 0 && sim.time <= 30 + 1e-9)
+        let t = sim.time
+        sim.step(minutes: .nan)
+        sim.step(minutes: -5)
+        sim.step(minutes: .infinity)
+        #expect(sim.time == t)
+        sim.step(minutes: 1.0 / 30)
+        #expect(abs(sim.time - (t + 1.0 / 30)) < 1e-9) // the excess was dropped, not kept
     }
 }
