@@ -280,64 +280,120 @@ struct SettingsTabView: View {
     @EnvironmentObject var state: AppState
     /// What "Restore my old status line" did (its error, or that it worked).
     @State private var restoreMessage: String?
+    /// The two folded sections: the four separate sounds, and Advanced (Edit Config, Open Log).
+    @State private var soundsOpen = SettingsTabView.startOpen
+    @State private var advancedOpen = SettingsTabView.startOpen
+    /// Renders only: draw both folded sections open (`CLAUDEBAR_RENDER_SETTINGS_OPEN=1`).
+    static var startOpen = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
+            heading("General")
             setting("Launch at Login", state.launchAtLogin) { state.setLaunchAtLogin($0) }
             setting("Notify when a cat finishes", state.settings.notifications) { state.setNotifications($0) }
             setting("Start Cat Office with ClaudeBar", state.settings.catOffice.autoStart) { state.setAutoStart($0) }
             setting("Show the office on hover", state.settings.hoverPeek) { state.setHoverPeek($0) }
             Divider()
-            HStack {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Setup").font(.callout)
-                    Text(state.settings.setup.line(catOfficeDir: state.settings.catOffice.dir,
-                                                   runningDir: UserDefaults.standard.string(forKey: AppState.rememberedDirKey),
-                                                   home: NSHomeDirectory()))
-                        .font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                }
-                Spacer()
-                Button("Set up ClaudeBar…") { SetupWindow.shared.open(state: state) }.buttonStyle(.link).font(.caption)
-            }
-            if SetupActions.statusLine(env: .real).canRestore {
-                Button("Restore my old status line") {
-                    do {
-                        restoreMessage = try SetupActions.statusLine(env: .real).restore().message
-                        // Usage is off now: a full setup is reduced (the Settings line and Office card tell the truth).
-                        state.setSetup(state.settings.setup.afterStatusLineRestore())
-                    } catch {
-                        restoreMessage = (error as? StatusLineError)?.message ?? error.localizedDescription
-                    }
-                }
-                .buttonStyle(.link).font(.caption)
-            }
-            if let restoreMessage {
-                Text(restoreMessage).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            }
-            Button("Undo ClaudeBar's changes…") { UndoWindow.shared.open(state: state) }
-                .buttonStyle(.link).font(.caption)
+            sounds
             Divider()
-            Text("Sounds").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            setting("Meow when a cat needs you", state.settings.sounds.needsYou) { state.setSound("needsYou", $0) }
-            setting("Purr when a cat finishes", state.settings.sounds.finished) { state.setSound("finished", $0) }
-            setting("Meow when I click a cat", state.settings.sounds.click) { state.setSound("click", $0) }
-            setting("Ding when a cat rides the elevator", state.settings.sounds.elevator) { state.setSound("elevator", $0) }
+            setup
+            Divider()
+            fold("Advanced", open: $advancedOpen)
+            if advancedOpen {
+                HStack(spacing: 14) {
+                    Button("Edit Config") { state.editConfig() }
+                    Button("Open Log") { state.openLauncherLog() }
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+                .padding(.leading, 16)
+            }
+        }
+        .font(.callout)
+    }
+
+    /// One "Cat sounds" switch; with it on, the volume and the four separate sounds (folded).
+    @ViewBuilder private var sounds: some View {
+        let s = state.settings.sounds
+        heading("Sounds")
+        setting("Cat sounds", s.on) { state.setSound("on", $0) }
+        if s.on {
             HStack(spacing: 8) {
+                Text("Volume")
                 Image(systemName: "speaker.fill").font(.caption).foregroundStyle(.secondary)
                 Slider(value: Binding(get: { state.settings.sounds.volume }, set: { state.setSoundVolume($0) }),
                        in: 0...1) { editing in if !editing { state.previewSound() } }
                     .controlSize(.small)
                 Image(systemName: "speaker.wave.3.fill").font(.caption).foregroundStyle(.secondary)
             }
-            Divider()
-            HStack(spacing: 14) {
-                Button("Edit Config") { state.editConfig() }
-                Button("Open Log") { state.openLauncherLog() }
+            fold("Choose sounds", note: "\(s.chosenCount) of \(SoundSettings.chosenTotal) on", open: $soundsOpen)
+            if soundsOpen {
+                VStack(alignment: .leading, spacing: 9) {
+                    setting("Meow when a cat needs you", s.needsYou) { state.setSound("needsYou", $0) }
+                    setting("Purr when a cat finishes", s.finished) { state.setSound("finished", $0) }
+                    setting("Meow when I click a cat", s.click) { state.setSound("click", $0) }
+                    setting("Ding when a cat rides the elevator", s.elevator) { state.setSound("elevator", $0) }
+                }
+                .padding(.leading, 16)
             }
-            .buttonStyle(.link)
-            .font(.caption)
         }
-        .font(.callout)
+    }
+
+    /// "✓ Set up · Cat Office: <name>" (full path on hover), then "Set up ClaudeBar…" and "Undo ClaudeBar's changes…".
+    @ViewBuilder private var setup: some View {
+        let setup = state.settings.setup
+        let running = UserDefaults.standard.string(forKey: AppState.rememberedDirKey)
+        heading("Setup")
+        HStack(spacing: 4) {
+            if setup.state == .full {
+                Image(systemName: "checkmark").font(.caption.weight(.bold)).foregroundStyle(Theme.working)
+            }
+            Text(setup.line(catOfficeDir: state.settings.catOffice.dir, runningDir: running, home: NSHomeDirectory()))
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+        }
+        .help(SetupSettings.folderPath(catOfficeDir: state.settings.catOffice.dir, runningDir: running,
+                                       home: NSHomeDirectory()) ?? "")
+        HStack(spacing: 14) {
+            Button("Set up ClaudeBar…") { SetupWindow.shared.open(state: state) }
+            Button("Undo ClaudeBar's changes…") { UndoWindow.shared.open(state: state) }
+        }
+        .buttonStyle(.link).font(.caption)
+        if SetupActions.statusLine(env: .real).canRestore {
+            Button("Restore my old status line") {
+                do {
+                    restoreMessage = try SetupActions.statusLine(env: .real).restore().message
+                    // Usage is off now: a full setup is reduced (the Settings line and Office card tell the truth).
+                    state.setSetup(state.settings.setup.afterStatusLineRestore())
+                } catch {
+                    restoreMessage = (error as? StatusLineError)?.message ?? error.localizedDescription
+                }
+            }
+            .buttonStyle(.link).font(.caption)
+        }
+        if let restoreMessage {
+            Text(restoreMessage).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func heading(_ title: String) -> some View {
+        Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+    }
+
+    /// A folded section's header: a chevron, the title and an optional note ("3 of 4 on").
+    private func fold(_ title: String, note: String? = nil, open: Binding<Bool>) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.15)) { open.wrappedValue.toggle() }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: open.wrappedValue ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary).frame(width: 10)
+                Text(title)
+                if let note { Text("· \(note)").font(.caption).foregroundStyle(.secondary) }
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private func setting(_ title: String, _ value: Bool, _ change: @escaping (Bool) -> Void) -> some View {

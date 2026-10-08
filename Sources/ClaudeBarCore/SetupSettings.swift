@@ -77,17 +77,23 @@ public struct SetupSettings: Equatable, Sendable {
         }
     }
 
-    /// Settings' setup line: "Full · Cat Office at ~/…", "Some extras are off · Cat Office at ~/…", or
+    /// Settings' setup line: "Set up · Cat Office: <folder name>", "Some extras are off · Cat Office: <name>", or
     /// "Cat Office isn't set up". The folder is the configured one, else the running (or remembered) one; a full or
-    /// reduced setup without either still reads "Full" / "Some extras are off", never "isn't set up".
+    /// reduced setup without either still reads "Set up" / "Some extras are off", never "isn't set up". The full path
+    /// shows on hover (folderPath).
     public func line(catOfficeDir: String?, runningDir: String? = nil, home: String) -> String {
-        let shown = (catOfficeDir ?? runningDir).map { dir in dir.hasPrefix(home + "/") ? "~" + dir.dropFirst(home.count) : dir }
-        let at = shown.map { " · Cat Office at \($0)" } ?? ""
+        let name = (catOfficeDir ?? runningDir).map { URL(fileURLWithPath: $0).lastPathComponent }
+        let at = name.map { " · Cat Office: \($0)" } ?? ""
         switch state {
-        case .full: return "Full" + at
+        case .full: return "Set up" + at
         case .reduced: return "Some extras are off" + at
         case .noCatOffice: return "Cat Office isn't set up"
-        case nil: return shown.map { "Cat Office at \($0)" } ?? "Cat Office isn't set up"
+        case nil: return name.map { "Cat Office: \($0)" } ?? "Cat Office isn't set up"
         }
+    }
+
+    /// The Cat Office folder the setup line names, in full (~ for the home folder), for its hover text.
+    public static func folderPath(catOfficeDir: String?, runningDir: String?, home: String) -> String? {
+        (catOfficeDir ?? runningDir).map { dir in dir.hasPrefix(home + "/") ? "~" + dir.dropFirst(home.count) : dir }
     }
 }

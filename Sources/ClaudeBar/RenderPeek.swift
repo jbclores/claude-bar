@@ -18,6 +18,7 @@ enum RenderPeek {
             return true
         }
         if let tab = flag("--render-dropdown").flatMap({ DropdownTab(rawValue: $0.1 ?? "") }), let out = flag("--render-dropdown")?.0 {
+            SettingsTabView.startOpen = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_SETTINGS_OPEN"] == "1"
             renderWindow(DropdownView(forcedTab: tab).environmentObject(state).environmentObject(PeekPointer()), width: 500, to: out)
             return true
         }

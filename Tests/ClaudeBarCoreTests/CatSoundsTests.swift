@@ -43,11 +43,31 @@ import Testing
         #expect(g.sound(for: .clicked, settings: all, now: t0 + 0.5) == .meow)
     }
 
+    @Test func catSoundsOffSilencesEverySound() {
+        var off = SoundSettings(); off.on = false
+        var g = SoundGate()
+        #expect(g.sound(for: .needsYou("a"), settings: off, now: t0) == nil)
+        #expect(g.sound(for: .finished("a"), settings: off, now: t0 + 10) == nil)
+        #expect(g.sound(for: .clicked, settings: off, now: t0 + 20) == nil)
+        #expect(g.sound(for: .elevator, settings: SoundSettings(elevator: true, on: false), now: t0 + 30) == nil)
+        // Back on: the separate switches still apply.
+        #expect(g.sound(for: .clicked, settings: SoundSettings(), now: t0 + 40) == .meow)
+    }
+
+    @Test func countsTheSoundsThatAreOn() {
+        #expect(SoundSettings().chosenCount == 3, "elevator is off at first")
+        #expect(SoundSettings(needsYou: false, click: false).chosenCount == 1)
+        #expect(SoundSettings(elevator: true).chosenCount == 4)
+        #expect(SoundSettings.chosenTotal == 4)
+    }
+
     @Test func settingsDefaultAndParse() throws {
         #expect(SoundSettings() == SoundSettings(needsYou: true, finished: true, click: true, elevator: false, volume: 0.6))
         let c = try Config.parse(Data(#"{"projects":[],"sounds":{"elevator":true,"click":false,"volume":0.3}}"#.utf8))
         #expect(c.sounds == SoundSettings(needsYou: true, finished: true, click: false, elevator: true, volume: 0.3))
         #expect(try Config.parse(Data(#"{"projects":[]}"#.utf8)).sounds == SoundSettings())
+        #expect(try Config.parse(Data(#"{"projects":[],"sounds":{"on":false}}"#.utf8)).sounds.on == false)
+        #expect(SoundSettings().on, "on at first")
     }
 
     @Test func soundSettingsAreSavedInTheConfigFile() throws {

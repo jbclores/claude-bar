@@ -105,7 +105,7 @@ with the same zoom, hover cards and 🎵 button. It closes when you move away. Y
 
 <h2 id="projects">Projects</h2>
 <p>The Projects tab lists the projects you've added, each with its branch, model, how full its context is, and its
-status. Add folders from the tab, or edit the list with <b>Settings → Edit Config</b>.</p>
+status. Add folders from the tab, or edit the list with <b>Settings → Advanced → Edit Config</b>.</p>
 
 <h2 id="settings">Settings &amp; sounds</h2>
 <figure>
@@ -118,11 +118,9 @@ status. Add folders from the tab, or edit the list with <b>Settings → Edit Con
   <tr><td>Notify when a cat finishes</td><td>A notification when a working cat finishes its task.</td></tr>
   <tr><td>Start Cat Office with ClaudeBar</td><td>Start Cat Office in the background if it isn't running.</td></tr>
   <tr><td>Show the office on hover</td><td>The hover popup.</td></tr>
-  <tr><td>Meow when a cat needs you</td><td>A meow when a session starts waiting for you.</td></tr>
-  <tr><td>Purr when a cat finishes</td><td>A purr with the "finished" notification (Focus / Do Not Disturb mutes it).</td></tr>
-  <tr><td>Meow when I click a cat</td><td>The click meow.</td></tr>
-  <tr><td>Ding when a cat rides the elevator</td><td>A soft ding when a cat arrives on the floor you're watching (off at first).</td></tr>
-  <tr><td>Volume</td><td>For all the sounds; the music plays at half of it. Letting go of the slider plays a meow at the new level.</td></tr>
+  <tr><td>Cat sounds</td><td>All the cat sounds on or off (the 🎵 music has its own button). With it on, you see the volume and <b>Choose sounds</b>.</td></tr>
+  <tr><td>Choose sounds</td><td>Opens the four sounds: a meow when a cat needs you, a purr when a cat finishes (with the "finished" notification; Focus / Do Not Disturb mutes it), a meow when you click a cat, and a soft ding when a cat arrives on the floor you're watching (off at first).</td></tr>
+  <tr><td>Volume</td><td>Shown while Cat sounds is on. For all the sounds; the music plays at half of it. Letting go of the slider plays a meow at the new level.</td></tr>
 </table>
 <p class="tip">Sounds never pile up: at most one every 3 seconds, and the same cat won't repeat an alert within a minute.</p>
 
@@ -141,7 +139,7 @@ your usage in the menu bar, and start it. Nothing changes until you click <b>Con
 yours back.</p>
 <h3>"Cat Office isn't running"</h3>
 <p>Click <b>Start</b> in the office. If it doesn't start, open your Cat Office folder in Terminal and run
-<code>npm run dev</code>; ClaudeBar finds it on its own. <b>Settings → Open Log</b> shows what happened when ClaudeBar
+<code>npm run dev</code>; ClaudeBar finds it on its own. <b>Settings → Advanced → Open Log</b> shows what happened when ClaudeBar
 tried to start it.</p>
 <h3>No usage numbers in the menu bar</h3>
 <p>The numbers come from Claude Code's status line. Turn on <b>Usage in the menu bar</b> in
@@ -154,7 +152,7 @@ If you edited a room in Cat Office, save it there first.</p>
 <p>Those need ClaudeBar's small patch to Cat Office. Tick <b>Patch Cat Office</b> in
 <b>Settings → Set up ClaudeBar…</b>, then restart Cat Office when it asks.</p>
 <h3>No sound</h3>
-<p>Check <b>Settings → Sounds</b> and the volume slider, and your Mac's volume. The finished purr is muted while Focus
+<p>Check that <b>Settings → Cat sounds</b> is on, then <b>Choose sounds</b> and the volume slider, and your Mac's volume. The finished purr is muted while Focus
 or Do Not Disturb is on.</p>
 <h3>No music</h3>
 <p>Check the 🎵 button (🔇 means off) and the volume slider. The music only plays while the Office tab or the hover

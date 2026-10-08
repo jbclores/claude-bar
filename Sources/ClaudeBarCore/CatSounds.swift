@@ -20,16 +20,23 @@ public struct SoundSettings: Equatable, Sendable {
     public var volume: Double
     /// The office's lofi loop (the 🎵 button).
     public var music: Bool
+    /// Settings' "Cat sounds" switch: off silences every cat sound (not the music), keeping each sound's own switch.
+    public var on: Bool
 
     public init(needsYou: Bool = true, finished: Bool = true, click: Bool = true, elevator: Bool = false, volume: Double = 0.6,
-                music: Bool = true) {
+                music: Bool = true, on: Bool = true) {
         self.needsYou = needsYou
         self.finished = finished
         self.click = click
         self.elevator = elevator
         self.volume = volume
         self.music = music
+        self.on = on
     }
+
+    /// How many of the four cat sounds are switched on ("Choose sounds · 3 of 4 on").
+    public var chosenCount: Int { [needsYou, finished, click, elevator].filter { $0 }.count }
+    public static let chosenTotal = 4
 }
 
 /// Decides whether an event makes a sound: its switch is on, nothing played in the last 3 s, and (for the alerts)
@@ -49,7 +56,7 @@ public struct SoundGate: Sendable {
         case .clicked: (.meow, settings.click, nil)
         case .elevator: (.ding, settings.elevator, nil)
         }
-        guard on else { return nil }
+        guard on, settings.on else { return nil }
         if let last, now.timeIntervalSince(last) < Self.spacing { return nil }
         if let alertKey, let before = lastAlert[alertKey], now.timeIntervalSince(before) < Self.repeatAfter { return nil }
         last = now
