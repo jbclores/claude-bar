@@ -348,16 +348,21 @@ import Testing
     }
 
     /// No two cats are drawn on one seat: at every tick, no two cats' drawn points (forDrawing: a walker at its walk's
-    /// end) sit on the same spot's point. The whole building with every spare, and one floor with a single seat two
-    /// cats take turns at (one leaves it, the other comes).
+    /// end) sit on the same slot point of a spot (its own slots, else the spot's point and its offset slot points),
+    /// unless both hold slots of that spot (a closed offset cell puts a slot on the spot's point, shared as in Cat
+    /// Office; one that just left it stands there a moment, as it would have alone). The whole building with every spare; one floor with a single seat two cats take turns at (one leaves
+    /// it, the other comes); and a capacity-2 spot with a closed slot-1 cell among three cats.
     @Test func noTwoCatsDrawnOnOneSeat() throws {
         let cats = try JSONDecoder().decode(SpareRoster.Manifest.self, from: fixture("rooms/user/cats.json")).cats
         let roster = SpareRoster.roster(floors: OfficeSim.floors(building: building, rooms: rooms), cats: cats)
         let seat = try #require(rooms[1]?.spots.first { $0.capacity == 1 && $0.kind != "desk" && $0.kind != "elevator" && SimActivities.activity(for: $0) != nil })
         let pair = (0..<2).map { SimCat(id: "p\($0)", isSpare: true, floor: 1, at: FloorPoint(u: 0.5, v: 0.5)) }
+        let blocked = try blockedPair()
+        let trio = (0..<3).map { SimCat(id: "t\($0)", isSpare: false, floor: 1, at: FloorPoint(u: 0.5, v: 0.5)) }
         let runs: [(cats: [SimCat], rooms: [Int: BuiltRoom], minutes: Int)] = [
             ((0..<4).map { SimCat(id: "s\($0)", isSpare: false, floor: 1, at: FloorPoint(u: 0.5, v: 0.5)) } + roster.map(SimCat.init(spare:)), rooms, 120),
             (pair, only([1]) { _, s in s.id == seat.id || s.kind == "elevator" }, 240),
+            (trio, blocked.rooms, 240),
         ]
         for (i, run) in runs.enumerated() {
             for seed in [UInt32(1), 2, 3] {
@@ -366,19 +371,59 @@ import Testing
                 for _ in 0..<(4 * run.minutes) { // the app's ticks
                     sim.step(minutes: 0.25)
                     let out = sim.output(showSpares: true, forDrawing: true)
-                    let drawn = (Array(out.places.values) + out.spares).filter { $0.phase != "elevator" }
+                    let drawn: [(id: String, p: MirrorPlace)] = out.places.map { ($0.key, $0.value) }
+                        + out.spares.map { (String(($0.key ?? "").dropFirst("spare:".count)), $0) }
                     for (fid, room) in run.rooms {
                         let f = try #require(sim.floor(fid))
                         for spot in room.spots where spot.kind != "elevator" {
-                            for p in spot.slots.isEmpty ? [spot.standAt] : spot.slots {
-                                let on = drawn.filter { $0.floor == fid && f.pxDistance(FloorPoint(u: $0.u, v: $0.v), p) < 1 }
-                                #expect(on.count <= 1, "run \(i) seed \(seed) t \(sim.time): \(on.map { $0.key ?? "session" }) on \(spot.id)")
+                            let holders = Set((sim.occupancy[spot.id] ?? []).compactMap { $0 })
+                            let points = spot.slots.isEmpty ? (0..<max(1, spot.capacity)).map { sim.slotPoint(fid, spot, $0) } : spot.slots
+                            for p in points {
+                                let on = drawn.filter { $0.p.floor == fid && $0.p.phase != "elevator" && f.pxDistance(FloorPoint(u: $0.p.u, v: $0.p.v), p) < 1 }
+                                                                // A cat that just finished here still stands on its point while it decides or waits (as in Cat Office).
+                                let strangers = on.filter { c in
+                                    let rt = sim.runtimes.first { $0.cat.id == c.id }
+                                    let justLeft = rt?.lastSpotId == spot.id && ["waiting", "deciding"].contains(rt?.phase.label ?? "")
+                                    return !holders.contains(c.id) && !justLeft
+                                }
+                                #expect(on.count <= 1 || strangers.isEmpty, "run \(i) seed \(seed) t \(sim.time): \(on.map(\.id)) on \(spot.id)")
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    /// The Lounge with only its elevator and one lounge spot made capacity 2 without own slots, its slot-1 offset cell
+    /// closed (so slot 1 is the spot's own point).
+    func blockedPair() throws -> (spot: RoomSpot, rooms: [Int: BuiltRoom]) {
+        let nav = try #require(grids[1])
+        var spot = try #require(rooms[1]?.spots.first { s in
+            s.kind != "elevator" && s.lift == 0 && SimActivities.activity(for: s)?.lounge == true
+                && !nav.isOpenAt(FloorPoint(u: s.standAt.u + OfficeSim.slotOffsets[1].u, v: s.standAt.v + OfficeSim.slotOffsets[1].v))
+        })
+        spot.capacity = 2
+        spot.slots = []
+        var r = only([1]) { _, s in s.kind == "elevator" }
+        r[1]?.spots.append(spot)
+        return (spot, r)
+    }
+
+    /// A capacity-2 spot without own slots whose second slot's offset cell is closed: Cat Office (simulation-engine.ts
+    /// slotPoint) puts slot 1 on the spot's own point, and reserve takes any empty slot, so two cats share it there.
+    @Test func aBlockedSecondSlotStillHoldsTwo() throws {
+        let (spot, r) = try blockedPair()
+        let sim = OfficeSim(seed: 3)
+        sim.setCats((0..<2).map { SimCat(id: "c\($0)", isSpare: false, floor: 1, at: FloorPoint(u: 0.5, v: 0.5)) },
+                    building: building, rooms: r, grids: grids)
+        #expect(sim.slotPoint(1, spot, 1) == spot.standAt)
+        var both = false
+        for _ in 0..<(30 * 60) {
+            sim.step(minutes: 1.0 / 30)
+            if sim.occupancy[spot.id]?.allSatisfy({ $0 != nil }) == true { both = true; break }
+        }
+        #expect(both, "the second slot was never taken")
     }
 
     /// A spare riding the elevator to its desk when the desk becomes taken finishes the ride (it doesn't pop back to

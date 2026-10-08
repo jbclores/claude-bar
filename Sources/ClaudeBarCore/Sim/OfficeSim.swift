@@ -455,15 +455,17 @@ public final class OfficeSim {
         let slots = slotsOf(spot)
         let floorId = floors.first { $0.spots.contains { $0.id == spot.id } }?.id
         return slots.indices.first { i in
-            slots[i] == nil && !(floorId.map { standsOn($0, slotPoint($0, spot, i), except: id) } ?? false)
+            slots[i] == nil && !(floorId.map { standsOn($0, slotPoint($0, spot, i), except: id, sharing: spot.id) } ?? false)
         }
     }
 
-    /// Another cat is drawn on `p` (OfficeSim.output forDrawing: a walker at its walk's end).
-    private func standsOn(_ floorId: Int, _ p: FloorPoint, except id: String) -> Bool {
+    /// Another cat is drawn on `p` (OfficeSim.output forDrawing: a walker at its walk's end). A cat holding another slot
+    /// of the same spot doesn't count: a slot whose offset cell is closed is the spot's own point (slotPoint), and Cat
+    /// Office lets its holders share it (simulation-engine.ts slotPoint, reserve).
+    private func standsOn(_ floorId: Int, _ p: FloorPoint, except id: String, sharing spotId: String) -> Bool {
         guard let f = floor(floorId) else { return false }
         return runtimes.contains { rt in
-            guard rt.cat.id != id, rt.floor == floorId else { return false }
+            guard rt.cat.id != id, rt.floor == floorId, rt.target?.spot.id != spotId else { return false }
             let walking = rt.phase == .walking || rt.phase == .hoppingDown
             return f.pxDistance((walking ? rt.path.last : nil) ?? rt.position, p) < 1
         }
@@ -488,7 +490,7 @@ public final class OfficeSim {
     }
 
     /// simulation-engine.ts slotPoint.
-    private func slotPoint(_ floorId: Int, _ spot: RoomSpot, _ slot: Int) -> FloorPoint {
+    func slotPoint(_ floorId: Int, _ spot: RoomSpot, _ slot: Int) -> FloorPoint {
         if spot.slots.indices.contains(slot) { return spot.slots[slot] }
         let off = Self.slotOffsets[slot % Self.slotOffsets.count]
         let p = FloorPoint(u: spot.standAt.u + off.u, v: spot.standAt.v + off.v)
