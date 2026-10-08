@@ -23,19 +23,24 @@ public struct NavGrid: Sendable {
     public init?(floor: Floor, room: BuiltRoom) {
         guard let rows = floor.walkable else { return nil }
         let n = rows.count
+        let spots = (room.elevator.map { [RoomSpot(id: $0.id, kind: "elevator", pose: nil, standAt: $0.standAt, facing: $0.facing, lift: 0, owner: $0.id)] } ?? [])
+            + room.rugSpots + room.props.flatMap(\.spots)
+        self.init(size: n, open: Self.carved(Self.roomCells(size: n, props: room.props, spots: spots), desks: room.desks, size: n), frame: room.frame)
+    }
+
+    /// room.ts buildRoomFloor's `open` grid (the room's floor before desks), as cells `open[ui * size + vi]`.
+    static func roomCells(size n: Int, props: [PlacedProp], spots: [RoomSpot]) -> [Bool] {
         // room.ts buildRoomFloor 930-934: every cell open except a band along the floor's edges. (building.json's own
         // walkable grid only gives the size and says the floor has one: Cat Office walks the built floor, not it.)
         let inside = { (ui: Int, vi: Int) in min(ui, vi, n - 1 - ui, n - 1 - vi) >= Self.edgeBandCells }
         var cells = (0..<(n * n)).map { inside($0 / n, $0 % n) }
         // room.ts 962-963: table bits stand on their tables and take no floor; every other prop (companions too) does.
-        let onFloor = room.props.filter { !$0.tableBit }
+        let onFloor = props.filter { !$0.tableBit }
         for p in onFloor {
             for idx in Self.footprintCells(p.footprint, size: n) { cells[idx] = false }
         }
         // room.ts 991-1001: spots on the floor get their cell back unless another prop covers the point; a lifted spot
         // is on its prop (a sofa seat), so its cell stays blocked.
-        let spots = (room.elevator.map { [RoomSpot(id: $0.id, kind: "elevator", pose: nil, standAt: $0.standAt, facing: $0.facing, lift: 0, owner: $0.id)] } ?? [])
-            + room.rugSpots + room.props.flatMap(\.spots)
         for s in spots where s.lift <= 0 {
             for at in [s.standAt] + s.slots {
                 if onFloor.contains(where: { $0.id != s.owner && Self.contains($0.footprint, at) }) { continue }
@@ -43,16 +48,20 @@ public struct NavGrid: Sendable {
                 if inside(idx / n, idx % n) { cells[idx] = true }
             }
         }
-        // desks.ts carveGrid: block every desk's footprint, then reopen each work cell the grid had open.
-        let base = cells
-        for d in room.desks {
+        return cells
+    }
+
+    /// desks.ts carveGrid: block every desk's footprint, then reopen each work cell the grid had open.
+    static func carved(_ base: [Bool], desks: [PlacedDesk], size n: Int) -> [Bool] {
+        var cells = base
+        for d in desks {
             for idx in Self.footprintCells(d.footprint, size: n) { cells[idx] = false }
         }
-        for d in room.desks {
+        for d in desks {
             let idx = Self.cellIndex(d.standAt, size: n)
             if base[idx] { cells[idx] = true }
         }
-        self.init(size: n, open: cells, frame: room.frame)
+        return cells
     }
 
     /// Already-carved cells (`open[ui * size + vi]`), for tests.

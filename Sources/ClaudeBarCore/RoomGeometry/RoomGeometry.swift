@@ -14,7 +14,7 @@ public struct BuiltRoom: Equatable, Sendable {
     public var fixtures: [PlacedFixture]
     public var desks: [PlacedDesk]
     public var props: [PlacedProp]
-    /// Lounge seat spots: `sleep` first, then `sit`, each in placement order.
+    /// Lounge seat spots among `spots`: `sleep` first, then `sit`, each in placement order.
     public var seats: [RoomSpot]
     /// The floor parallelogram and both walls' boxes, in world px.
     public var bounds: CGRect
@@ -23,6 +23,10 @@ public struct BuiltRoom: Equatable, Sendable {
     /// The room's paint (RoomTint.normal): walls, floor; nil leaves the material as drawn.
     public var wallTint: String? = nil
     public var floorTint: String? = nil
+    /// The floor's spots as Cat Office's simulation walks them (buildRoomOffice's floor.spots), in its order: the
+    /// elevator's, the rugs', the props' (in buildRoomFloor's order), then the desks'; optional spots on closed floor
+    /// dropped, and closeSpots applied. (`rugSpots` and the props' `spots` keep every spot, as the walking grid needs.)
+    public var spots: [RoomSpot] = []
 }
 
 /// A desk, prop or fixture in the room's drawing order (BuiltRoom.standing).
@@ -113,11 +117,16 @@ public enum RoomGeometry {
         let fixtures = room.wallItems.compactMap { WallItems.fixture($0, frame: frame, catalogue: catalogue, wallHeight: wallHeight) }
         let elevator = room.wallItems.lazy.compactMap { WallItems.elevatorSpot($0, frame: frame, catalogue: catalogue) }.first
         let desks = room.desks.compactMap { DeskPlacer.place($0, frame: frame, catalogue: catalogue) }
-        let props = PropPlacer.place(room: room, frame: frame, catalogue: catalogue, desks: desks, gridSize: grid)
+        let inOrder = PropPlacer.placeInOrder(room: room, frame: frame, catalogue: catalogue, gridSize: grid)
+        let props = PropPlacer.settled(inOrder, desks: desks)
         let rugs = PropPlacer.rugs(room: room, frame: frame, catalogue: catalogue, gridSize: grid)
         let rugSpots = PropPlacer.rugSpots(room: room, frame: frame, catalogue: catalogue, gridSize: grid)
 
-        let all = props.flatMap(\.spots) + rugSpots
+        let spots = WalkSpots.spots(room: room, frame: frame, catalogue: catalogue, gridSize: grid, inOrder: inOrder, desks: desks)
+        // Seats only where the browser keeps a spot, and where it keeps it (closeSpots moves spots off trash bins).
+        var walked: [String: RoomSpot] = [:]
+        for s in spots where walked[s.id] == nil { walked[s.id] = s }
+        let all = (props.flatMap(\.spots) + rugSpots).compactMap { walked[$0.id] }
         let isSeat = { (s: RoomSpot) in (s.pose == "sleep" || s.pose == "sit") && s.kind != "meeting" }
         let seats = all.filter { isSeat($0) && $0.pose == "sleep" } + all.filter { isSeat($0) && $0.pose != "sleep" }
 
@@ -137,6 +146,7 @@ public enum RoomGeometry {
               desks.allSatisfy({ finite($0.rect) && finite($0.box) && finite($0.footprint) && finite($0.standAt) }),
               props.allSatisfy({ finite($0.rect) && finite($0.box) && finite($0.footprint) && $0.spots.allSatisfy(finite) }),
               rugSpots.allSatisfy(finite),
+              spots.allSatisfy(finite),
               elevator.map({ finite($0.standAt) }) ?? true else { return nil }
 
         return BuiltRoom(
@@ -144,7 +154,7 @@ public enum RoomGeometry {
             floorTexture: catalogue.floors[room.floor], wallTexture: catalogue.walls[room.wall],
             rugs: rugs, wallItems: wallItems, elevator: elevator, fixtures: fixtures,
             desks: desks, props: props, seats: seats, bounds: bounds,
-            rugSpots: rugSpots, wallTint: RoomTint.normal(room.wallTint), floorTint: RoomTint.normal(room.floorTint))
+            rugSpots: rugSpots, wallTint: RoomTint.normal(room.wallTint), floorTint: RoomTint.normal(room.floorTint), spots: spots)
     }
 
     /// Office.tsx 209: a rough figure box (body, ears, tail, shadow) for finding the furniture it overlaps.

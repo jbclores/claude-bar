@@ -220,6 +220,8 @@ public struct PropDef: Codable, Equatable, Sendable {
     public var emissive: String?
     public var emissiveImage: String?
     public var glowModes: [String]?
+    /// Its group in props.json (trash bins are "trash-bin", room.ts BIN_GROUP).
+    public var group: String?
 }
 
 public struct DeskDef: Codable, Equatable, Sendable {

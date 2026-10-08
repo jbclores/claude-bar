@@ -385,6 +385,16 @@ public enum PropPlacer {
     /// settled in depth as room-office.ts 40 does.
     public static func place(room: FloorRoom, frame: FloorFrame, catalogue: RoomCatalogue, desks: [PlacedDesk],
                              gridSize: Double) -> [PlacedProp] {
+        settled(placeInOrder(room: room, frame: frame, catalogue: catalogue, gridSize: gridSize), desks: desks)
+    }
+
+    /// room-office.ts 40: the props settled in depth (panel rows, then footprint order).
+    static func settled(_ props: [Placed], desks: [PlacedDesk]) -> [PlacedProp] {
+        settleFootprintOrder(settlePanelRows(props, desks), desks).map(\.prop)
+    }
+
+    /// buildRoomFloor's props in its own order (room.ts 944-960), before settling: the order its spots take.
+    static func placeInOrder(room: FloorRoom, frame: FloorFrame, catalogue: RoomCatalogue, gridSize: Double) -> [Placed] {
         let grid = gridSize
         let seats = wallSeats(frame, room.wallItems, catalogue)
         let tables = tableTops(frame, room.props, catalogue, grid: grid)
@@ -405,7 +415,7 @@ public enum PropPlacer {
                 props.append(p)
             }
         }
-        return settleFootprintOrder(settlePanelRows(props, desks), desks).map(\.prop)
+        return props
     }
 
     /// The rugs a room shows (room.ts roomRugs), boxed as RoomShell.tsx Rug draws them in the floor plane.

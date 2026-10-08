@@ -135,9 +135,54 @@ async function main(): Promise<void> {
   const roster = createRoster(walk, cats).map((s: any) => ({ id: s.id, name: s.name, role: s.role, catId: s.catId,
     deskFloor: s.desk?.floor ?? null, deskSpotId: s.desk?.spot.id ?? null, floor: s.floor }));
 
-  const out = { activities, poseVariants, rng, decay: decayOut, choices, roster };
+  // spots: every walked floor's spots exactly as the browser has them (buildRoomFloor's optional-spot filter, resolveOffice's
+  // desk spots, closeSpots), in order.
+  const spotOut = (s: any) => ({ id: s.id, kind: s.kind, pose: s.pose ?? null, u: s.standAt.u, v: s.standAt.v,
+    slots: (s.slots ?? []).map((q: any) => ({ u: q.u, v: q.v })) });
+  const floorSpots = (b: any) => b.floors.map((f: any) => ({ floor: f.id, spots: f.spots.map(spotOut) }));
+  const spots = floorSpots(walk);
+
+  // spotCases: the user building with pieces added that make closeSpots act (it acts on nothing in the stored building):
+  // a trash bin on the water cooler's stand point (the spot moves to a free cell beside it) and a desk on an optional
+  // plant spot (the spot closes). Each piece is placed so its footprint's middle is on the spot.
+  const walkWith = (add: { floor: number; props: any[]; desks: any[] }) => {
+    const b = JSON.parse(JSON.stringify(building));
+    const f = b.floors.find((x: any) => x.id === add.floor);
+    f.room.props.push(...add.props);
+    f.room.desks.push(...add.desks);
+    const rs: Record<number, unknown> = {};
+    for (const x of b.floors) if (isBuiltRoom(x.room)) rs[x.id] = x.room;
+    return buildRoomOffice(b, rs, parts, desks);
+  };
+  const spotOf = (floorId: number, id: string) => byId.get(floorId).spots.find((s: any) => s.id === id);
+  const r6p = (p: { u: number; v: number }) => ({ u: r6(p.u), v: r6(p.v) });
+  const water = spotOf(2, 'water-2').standAt;
+  const trial = walkWith({ floor: 2, props: [{ id: 'test-bin', prop: 'trash-bin-pedal', u: 0.5, v: 0.5, facing: 0 }], desks: [] });
+  const binFp = trial.rooms[2].props.find((p: any) => p.placement.id === 'test-bin').footprint;
+  const bin = { id: 'test-bin', prop: 'trash-bin-pedal', ...r6p({ u: water.u + (binFp.u1 - binFp.u0) / 2, v: water.v + (binFp.v1 - binFp.v0) / 2 }), facing: 0 };
+  const plant = spotOf(2, 'plant-2-3').standAt;
+  const trialDesk = walkWith({ floor: 2, props: [], desks: [{ id: 'test-desk', desk: 's1-walnut', u: 0.5, v: 0.5, flip: false }] });
+  const deskFp = trialDesk.desks[2].find((d: any) => d.placement.id === 'test-desk').footprint;
+  const desk = { id: 'test-desk', desk: 's1-walnut', ...r6p({ u: plant.u + (deskFp.u1 - deskFp.u0) / 2, v: plant.v + (deskFp.v1 - deskFp.v0) / 2 }), flip: false };
+  const spotCases = [
+    { name: 'bin on the water cooler', add: { floor: 2, props: [bin], desks: [] } },
+    { name: 'desk on a plant spot', add: { floor: 2, props: [], desks: [desk] } },
+  ].map((c) => {
+    const f = walkWith(c.add).building.floors.find((x: any) => x.id === 2);
+    return { ...c, spots: f.spots.map(spotOut) };
+  });
+  const before = JSON.stringify(spots.find((f: any) => f.floor === 2).spots);
+  for (const c of spotCases) {
+    const ids = c.spots.map((s: any) => s.id);
+    const moved = c.spots.find((s: any) => s.id === 'water-2');
+    const ok = c.name.startsWith('bin') ? moved && (moved.u !== water.u || moved.v !== water.v) : !ids.includes('plant-2-3');
+    if (!ok || JSON.stringify(c.spots) === before) { console.error(`sim-fixtures: spot case "${c.name}" did not make closeSpots act`); process.exit(2); }
+  }
+
+  const out = { activities, poseVariants, rng, decay: decayOut, choices, roster, spots, spotCases };
   writeFileSync(outFile, JSON.stringify(out, null, 1));
   const nulls = (choices as any[]).filter((c) => c.choice === null).length;
-  console.log(`sim-fixtures: ${activities.length} activities, ${rng.length} rng seeds, ${decayOut.length} decay, ${choices.length} choices (${nulls} null), ${roster.length} cats → ${outFile}`);
+  const nSpots = spots.reduce((a: number, f: any) => a + f.spots.length, 0);
+  console.log(`sim-fixtures: ${activities.length} activities, ${rng.length} rng seeds, ${decayOut.length} decay, ${choices.length} choices (${nulls} null), ${roster.length} cats, ${nSpots} spots, ${spotCases.length} spot cases → ${outFile}`);
 }
 main();
