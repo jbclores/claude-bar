@@ -261,4 +261,16 @@ func mirrorPlace(floor: Int, u: Double, v: Double, direction: String = "front-le
             #expect(live.places(on: id, agents: agents, in: building).count == 3)
         }
     }
+
+    @Test func aSpareIsDrawnAtItsPlaceWithNoRing() throws {
+        let room = try built(1)
+        let a = agent("a", .idle)
+        var c = cast(room, lounge: true, agents: [a], mirrored: [:])
+        c.spares = [sparePlace("s1", name: "Mochi", floor: 1, u: 0.42, v: 0.37, catId: "calico")]
+        let cats = c.layout(in: room).cats
+        let s = try #require(cats.first { $0.agent.id == "spare:s1" })
+        #expect(s.kind == .spare && s.at == FloorPoint(u: 0.42, v: 0.37) && s.agent.label == "Mochi" && s.agent.cat == "calico")
+        #expect(!s.showsRing, "no status ring")
+        #expect(cats.first { $0.agent.id == "a" }?.kind == .seat, "the session cat keeps its seat")
+    }
 }

@@ -60,7 +60,9 @@ final class AppState: ObservableObject {
 
     private func updateMirror() {
         let now = Date()
-        let next = OfficeMirror(office, now: now)
+        // Renders only: CLAUDEBAR_RENDER_SPARES=1 shows spare cats without touching the config.
+        let spares = settings.showSpareCats || (!sideEffects && ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_SPARES"] == "1")
+        let next = OfficeMirror(office, now: now, showSpares: spares)
         if next != mirror { mirror = next }
         mirrorExpiry?.cancel()
         mirrorExpiry = nil
@@ -213,6 +215,7 @@ final class AppState: ObservableObject {
         if settings != config.config {
             settings = config.config
             applyLighting()
+            updateMirror()
         }
         officeSettings.set(config.config.catOffice)
         let projects = config.config.projects
@@ -304,13 +307,22 @@ final class AppState: ObservableObject {
 
     /// Renders only: a JSON object of agent (its id, session id, name, project name or label; a main agent before its
     /// helpers) → place (the bridge's shape; `at` may be left out), put on those agents with a fresh `placesAt`.
+    /// The key "_spares" holds a list of spare cats' places (with "name" and "key").
     private static func renderPlaces(file: String, into snapshot: inout OfficeSnapshot) {
         guard let data = FileManager.default.contents(atPath: file),
-              let places = (try? JSONSerialization.jsonObject(with: data)) as? [String: [String: Any]] else {
+              var all = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
             print("CLAUDEBAR_RENDER_PLACES: can't read \(file)")
             return
         }
         let now = Date().timeIntervalSince1970 * 1000
+        let spares = (all.removeValue(forKey: "_spares") as? [[String: Any]]) ?? []
+        snapshot.spares = spares.compactMap { raw in
+            var raw = raw
+            if raw["at"] == nil { raw["at"] = now }
+            guard let json = try? JSONSerialization.data(withJSONObject: raw) else { return nil }
+            return try? JSONDecoder().decode(MirrorPlace.self, from: json)
+        }
+        let places = all.compactMapValues { $0 as? [String: Any] }
         for (who, raw) in places {
             var raw = raw
             if raw["at"] == nil { raw["at"] = now }
@@ -418,6 +430,7 @@ final class AppState: ObservableObject {
     func setNotifications(_ on: Bool) { setSetting(on, at: ["notifications"]) }
     func setAutoStart(_ on: Bool) { setSetting(on, at: ["catOffice", "autoStart"]) }
     func setHoverPeek(_ on: Bool) { setSetting(on, at: ["hoverPeek"]) }
+    func setShowSpareCats(_ on: Bool) { setSetting(on, at: ["office", "spareCats"]) }
 
     /// A cat sound for `event`, if its switch is on and the spacing allows (SoundGate).
     func playSound(_ event: SoundEvent) {
@@ -510,6 +523,7 @@ final class AppState: ObservableObject {
     private func setSetting(_ value: Bool, at path: [String]) {
         do { try config.set(value, at: path) } catch let e as ConfigError { configError = e.message } catch {}
         settings = config.config
+        updateMirror()
     }
 
     func editConfig() {

@@ -11,8 +11,12 @@ public struct SceneCast: Equatable, Sendable {
     public var lounge: Bool
     /// Agent id → its mirrored place on this floor; empty while the mirror isn't live.
     public var mirrored: [String: MirrorPlace]
+    /// The browser's spare cats on this floor (OfficeMirror.spares(on:)): drawn, never counted.
+    public var spares: [MirrorPlace]
 
-    public init(seating: FloorSeating, agents: [OfficeAgent], deskIds: [String], lounge: Bool, mirrored: [String: MirrorPlace] = [:]) {
+    public init(seating: FloorSeating, agents: [OfficeAgent], deskIds: [String], lounge: Bool, mirrored: [String: MirrorPlace] = [:],
+                spares: [MirrorPlace] = []) {
+        self.spares = spares
         self.seating = seating
         self.agents = agents
         self.deskIds = deskIds
@@ -23,8 +27,9 @@ public struct SceneCast: Equatable, Sendable {
 
 /// One cat placed on a built floor, in world terms.
 public struct SceneCat: Equatable, Sendable {
-    /// `mirrored`: where the browser has it (its own spot, pose and facing).
-    public enum Kind: Sendable { case desk, seat, helper, queue, mirrored }
+    /// `mirrored`: where the browser has it (its own spot, pose and facing). `spare`: a spare cat of the browser's
+    /// office, there too (no status ring).
+    public enum Kind: Sendable { case desk, seat, helper, queue, mirrored, spare }
     public let agent: OfficeAgent
     public let kind: Kind
     public let at: FloorPoint
@@ -39,7 +44,7 @@ public struct SceneCat: Equatable, Sendable {
     public let desk: CGRect?
 
     /// Status ring and waiting glow: not for a cat asleep on a seat (the Lounge's, or a mirrored nap).
-    public var showsRing: Bool { kind != .seat && !(kind == .mirrored && pose == .sleeping) }
+    public var showsRing: Bool { kind != .seat && kind != .spare && !(kind == .mirrored && pose == .sleeping) }
 }
 
 extension SceneCast {
@@ -64,8 +69,13 @@ extension SceneCast {
             cats.append(cat)
             anchor[agent.id] = cat.at
         }
+        var spareKeys = Set<String>()
+        for place in spares {
+            guard let key = place.key, spareKeys.insert(key).inserted else { continue }
+            cats.append(Self.mirroredCat(OfficeMirror.spareAgent(place), place, in: room, kind: .spare))
+        }
         // The desks and seats mirrored cats use: a rule-placed cat there moves to another (Self.clear).
-        let busy = Set(mirrored.values.compactMap(\.spotId))
+        let busy = Set(mirrored.values.compactMap(\.spotId)).union(spares.compactMap(\.spotId))
         var displaced: [String] = []
 
         if lounge {
@@ -163,7 +173,7 @@ extension SceneCast {
     /// room with a lift, as the Lounge seats it: simulation-engine.ts perches), facing `direction`, in its pose
     /// (CatPose(place)). Riding the elevator to this floor, it waits at the elevator. At its desk it gets the
     /// desk's glow.
-    static func mirroredCat(_ agent: OfficeAgent, _ place: MirrorPlace, in room: BuiltRoom) -> SceneCat {
+    static func mirroredCat(_ agent: OfficeAgent, _ place: MirrorPlace, in room: BuiltRoom, kind: SceneCat.Kind = .mirrored) -> SceneCat {
         let riding = place.phase == "elevator" && place.floor != room.floorId
         let at = riding ? room.elevator?.standAt ?? FloorPoint(u: place.u, v: place.v) : FloorPoint(u: place.u, v: place.v)
         let spot = riding ? nil : place.spotId.flatMap { id in
@@ -171,7 +181,7 @@ extension SceneCast {
         }
         let lift = spot.map { max(0, $0.lift) } ?? 0
         let desk = riding ? nil : place.spotId.flatMap { id in room.desks.first { $0.id == id }?.rect }
-        return SceneCat(agent: agent, kind: .mirrored, at: at, lift: lift, size: 1, pose: CatPose(place),
+        return SceneCat(agent: agent, kind: kind, at: at, lift: lift, size: 1, pose: CatPose(place),
                         direction: place.direction, perch: lift > 0 ? spot?.owner : nil, desk: desk)
     }
 }

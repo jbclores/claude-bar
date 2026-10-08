@@ -53,6 +53,8 @@ public struct Config: Equatable, Sendable {
     /// Show the office peek when the pointer rests on the menu bar icon.
     public var hoverPeek: Bool
     public var officeLighting: OfficeLighting = .auto
+    /// Show the browser's spare cats (office cats with no session) while a Cat Office page is open ("office.spareCats").
+    public var showSpareCats = false
     public var sounds = SoundSettings()
     public var setup = SetupSettings()
 
@@ -90,6 +92,7 @@ public struct Config: Equatable, Sendable {
         if let n = root["notifications"] as? Bool { config.notifications = n }
         if let h = root["hoverPeek"] as? Bool { config.hoverPeek = h }
         if let l = (root["officeLighting"] as? String).flatMap(OfficeLighting.init(rawValue:)) { config.officeLighting = l }
+        if let o = root["office"] as? [String: Any], let v = o["spareCats"] as? Bool { config.showSpareCats = v }
         if let s = root["sounds"] as? [String: Any] {
             if let v = s["needsYou"] as? Bool { config.sounds.needsYou = v }
             if let v = s["finished"] as? Bool { config.sounds.finished = v }

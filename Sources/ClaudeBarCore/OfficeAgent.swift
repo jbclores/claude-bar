@@ -61,6 +61,8 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
     }
 
     public var isOffice: Bool { owner == "office" }
+    /// A spare cat of the browser's office (OfficeMirror.spareAgent), not a session.
+    public var isSpare: Bool { owner == OfficeMirror.spareOwner }
     /// The key this agent shares with snapshots and Claude Code's session files.
     public var key: String { sessionId ?? id }
 

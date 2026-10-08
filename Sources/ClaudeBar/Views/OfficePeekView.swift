@@ -161,7 +161,7 @@ struct OfficeRoomView: View {
         let room = zoom.view.unzoom(CGPoint(x: point.x - zoom.roomRect.minX, y: point.y - zoom.roomRect.minY))
         // The frontmost cat under the pointer (CatHit.frontmost), not whichever the dictionary lists first.
         guard let id = CatHit.frontmost(catFrames, at: room) else { return nil }
-        return office.agents.first { $0.id == id }
+        return office.agents.first { $0.id == id } ?? state.mirror.spares.first { $0.key == id }.map(OfficeMirror.spareAgent)
     }
 
     /// The app's appearance already follows the ☀️/🌙 setting (AppState.applyLighting).
@@ -345,7 +345,8 @@ struct OfficeRoomView: View {
         let f = seatFloor(built)
         let seating = seatings[floorId] ?? FloorPlan.seating(on: f, agents: floorCats, previous: nil, seats: built.seats.count)
         return SceneCast(seating: seating, agents: floorCats, deskIds: f.desks.map(\.id), lounge: floor.isLounge,
-                         mirrored: state.mirror.places(on: floorId, agents: state.office?.agents ?? [], in: state.building))
+                         mirrored: state.mirror.places(on: floorId, agents: state.office?.agents ?? [], in: state.building),
+                         spares: state.mirror.spares(on: floorId, in: state.building))
     }
     private var floor: Floor { state.building.floor(id: floorId) ?? Building.fallback.floors[0] }
     private var floorCats: [OfficeAgent] { FloorPlan.cats(on: floorId, agents: state.office?.agents ?? [], in: state.building, mirror: state.mirror) }
@@ -763,15 +764,17 @@ struct RoomPill: View {
     let text: String
     var detail: String?
     var detailColor: Color = .secondary
+    /// A spare cat's tag: lighter than a session's.
+    var light = false
 
     var body: some View {
         VStack(spacing: 0) {
             Text(text).font(.system(size: 9, weight: .semibold)).lineLimit(1).truncationMode(.tail)
             if let detail { Text(detail).font(.system(size: 8)).foregroundStyle(detailColor).lineLimit(1) }
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(.white.opacity(light ? 0.8 : 1))
         .padding(.horizontal, 6).padding(.vertical, 2)
-        .background(Capsule().fill(.black.opacity(0.55)))
+        .background(Capsule().fill(.black.opacity(light ? 0.3 : 0.55)))
     }
 }
 
@@ -1161,8 +1164,23 @@ struct CatCard: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
-        let needsYou = agent.status == .waiting || state.attention.contains(agent.key)
+        if agent.isSpare { spareCard } else { sessionCard }
+    }
+
+    /// A spare cat: its name and what it's doing.
+    private var spareCard: some View {
         VStack(alignment: .leading, spacing: 3) {
+            Text(agent.name).font(.callout.weight(.semibold)).lineLimit(1)
+            if let line = agent.place?.activityLine { Text(line).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+        }
+        .padding(8)
+        .frame(maxWidth: 340, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var sessionCard: some View {
+        let needsYou = agent.status == .waiting || state.attention.contains(agent.key)
+        return VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Circle().fill(needsYou ? Theme.waiting : Theme.color(agent.status)).frame(width: 7, height: 7)
                 Text(agent.label).font(.callout.weight(.semibold)).lineLimit(1)
@@ -1173,6 +1191,8 @@ struct CatCard: View {
             let place = [agent.name, agent.repoName, agent.branch, agent.model.map(Format.modelName)]
                 .compactMap { $0 }.filter { !$0.isEmpty }
             Text(place.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            // What the browser has the cat doing, while the mirror is live.
+            if let line = state.mirror.places[agent.id]?.activityLine { Text(line).font(.caption).lineLimit(1) }
             if let reason = agent.waitReason { Text(reason).font(.caption).foregroundStyle(Theme.waiting) }
             if let task = agent.task, !task.isEmpty { Text(task).font(.caption).lineLimit(3) }
             if let last = agent.lastAction, !last.isEmpty {

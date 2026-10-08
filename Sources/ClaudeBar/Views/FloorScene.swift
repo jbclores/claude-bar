@@ -179,7 +179,7 @@ struct SceneCats: View {
                 // Moved to the nearest free spot (in view points after zoom) so no two tags overlap.
                 let placed = tags[d.cat.agent.id] ?? pill.rect
                 let dx = placed.minX - pill.rect.minX, dy = placed.minY - pill.rect.minY
-                nameTag(d.cat.agent)
+                nameTag(d.cat.agent, light: d.cat.kind == .spare)
                     .frame(width: pill.size.width, height: pill.size.height)
                     .scaleEffect(1 / scale, anchor: .top)
                     .offset(x: d.feet.x - pill.size.width / 2 + dx / scale, y: d.feet.y + (3 + dy) / scale)
@@ -247,8 +247,8 @@ struct SceneCats: View {
     }
 
     /// One line, the readable name cut to 14 characters: the ring under the cat already shows its status.
-    private func nameTag(_ a: OfficeAgent) -> some View {
-        RoomPill(text: NameTags.text(a.label))
+    private func nameTag(_ a: OfficeAgent, light: Bool = false) -> some View {
+        RoomPill(text: NameTags.text(a.label), light: light)
     }
 
     @ViewBuilder
@@ -293,7 +293,7 @@ struct SceneCats: View {
                 await state.art.catImage(cat: cat, pose: pose, direction: direction)
             }
             .frame(width: r.width, height: r.height)
-            .colorMultiply(!night ? .white : agent.status == .idle ? Night.asleep : Night.furniture)
+            .colorMultiply(!night ? .white : agent.status == .idle && !agent.isSpare ? Night.asleep : Night.furniture)
             .scaleEffect(motion.scale, anchor: .bottom)
             .offset(x: r.minX, y: r.minY + motion.offsetY * d.rel)
         }

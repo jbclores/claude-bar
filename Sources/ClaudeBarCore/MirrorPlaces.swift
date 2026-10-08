@@ -51,6 +51,14 @@ public struct MirrorPlace: Equatable, Sendable, Decodable {
         return .standing
     }
 
+    /// What the cat is doing, for its hover card: "Coffee break · 4 min left" (minutes rounded up), just the label with
+    /// no time left, nil with no activity.
+    public var activityLine: String? {
+        guard let label = activity?.label, !label.isEmpty else { return nil }
+        guard let left = minutesLeft, left > 0 else { return label }
+        return "\(label) · \(Int(left.rounded(.up))) min left"
+    }
+
     private enum CodingKeys: String, CodingKey {
         case floor, u, v, direction, state, gesture, expression, asleep, activity, spotId, minutesLeft, phase, ridingTo, catId, at, name, key
     }
@@ -104,6 +112,9 @@ public enum MirrorPlaces {
 /// none otherwise. Built from the agents' own places only: spare cats never count here (floors, the busy strip, Follow).
 public struct OfficeMirror: Equatable, Sendable {
     public var places: [String: MirrorPlace]
+    /// The browser's spare cats (no session) while the switch is on and the mirror is live. Drawn only: they are in no
+    /// count, Follow, menu bar cat, "N working", sound or notification (those read the agents).
+    public var spares: [MirrorPlace] = []
 
     public static let off = OfficeMirror(places: [:])
 
@@ -111,10 +122,12 @@ public struct OfficeMirror: Equatable, Sendable {
         self.places = places
     }
 
-    /// The agents' places when the snapshot's places are live at `now` (MirrorPlaces.isLive), else `.off`.
-    public init(_ snapshot: OfficeSnapshot?, now: Date) {
+    /// The agents' places when the snapshot's places are live at `now` (MirrorPlaces.isLive), else `.off`; with
+    /// `showSpares`, also the spare cats that carry a key.
+    public init(_ snapshot: OfficeSnapshot?, now: Date, showSpares: Bool = false) {
         guard let snapshot, MirrorPlaces.isLive(placesAt: snapshot.placesAt, now: now) else { self = .off; return }
         places = Dictionary(snapshot.agents.compactMap { a in a.place.map { (a.id, $0) } }, uniquingKeysWith: { a, _ in a })
+        if showSpares { spares = snapshot.spares.filter { $0.key != nil } }
     }
 
     /// How far past the floor's edges (0…1) a mirrored point may be: spots against a wall stand just outside it (the
@@ -125,10 +138,31 @@ public struct OfficeMirror: Equatable, Sendable {
     /// building has. A cat riding the elevator (phase "elevator") counts on the floor it rides to, if the building has
     /// it. Nil (the rules place the cat) for an ended agent, no place, an unknown floor or a point off the floor.
     public func floor(of agent: OfficeAgent, in building: Building) -> (id: Int, place: MirrorPlace)? {
-        let onFloor = (-Self.edge...(1 + Self.edge))
-        guard agent.status != .ended, let p = places[agent.id], onFloor.contains(p.u), onFloor.contains(p.v) else { return nil }
-        if p.phase == "elevator", let to = p.ridingTo, building.floor(id: to) != nil { return (to, p) }
-        return building.floor(id: p.floor) != nil ? (p.floor, p) : nil
+        guard agent.status != .ended, let p = places[agent.id], let id = Self.floorId(of: p, in: building) else { return nil }
+        return (id, p)
+    }
+
+    /// The floor a place is drawn on (see `floor(of:in:)`), nil when it can't be drawn.
+    static func floorId(of p: MirrorPlace, in building: Building) -> Int? {
+        let onFloor = (-edge...(1 + edge))
+        guard onFloor.contains(p.u), onFloor.contains(p.v) else { return nil }
+        if p.phase == "elevator", let to = p.ridingTo, building.floor(id: to) != nil { return to }
+        return building.floor(id: p.floor) != nil ? p.floor : nil
+    }
+
+    /// The spare cats drawn on `floorId`.
+    public func spares(on floorId: Int, in building: Building) -> [MirrorPlace] {
+        spares.filter { Self.floorId(of: $0, in: building) == floorId }
+    }
+
+    /// The `owner` of a spare cat's stand-in agent.
+    public static let spareOwner = "spare"
+
+    /// A spare cat as an agent to draw and hover: its key as id, its own name, its own cat, never working or waiting.
+    public static func spareAgent(_ p: MirrorPlace) -> OfficeAgent {
+        var a = OfficeAgent(id: p.key ?? "spare", name: p.name ?? "Cat", owner: spareOwner, status: .idle, cwd: "", cat: p.catId)
+        a.place = p
+        return a
     }
 
     /// The places of `agents` the mirror has on `floorId` (agent id → place), for SceneCast.
