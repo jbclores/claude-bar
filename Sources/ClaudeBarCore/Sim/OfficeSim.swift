@@ -390,7 +390,7 @@ public final class OfficeSim {
             floors: floors, floorId: rt.floor, position: rt.position, needs: rt.needs,
             minutesSinceWork: time - rt.lastWorkMinute, lastSpotId: rt.lastSpotId,
             ownDeskId: rt.cat.isSpare ? rt.cat.deskSpotId : nil, rng: &rng,
-            isFree: { [unowned self] in self.isFree($0) },
+            isFree: { [unowned self] in self.isFree($0, for: rt.cat.id) },
             canReach: { [unowned self] in self.canReach(rt, $0, $1) },
             only: rt.cat.isSpare ? nil : { floor, spot in
                 floor.id == SpareRoster.loungeFloor && SimActivities.activity(for: spot)?.lounge == true
@@ -441,13 +441,33 @@ public final class OfficeSim {
         occupancy[spot.id] ?? Array(repeating: nil, count: max(1, spot.capacity))
     }
 
-    private func isFree(_ spot: RoomSpot) -> Bool { !taken.contains(spot.id) && slotsOf(spot).contains { $0 == nil } }
+    private func isFree(_ spot: RoomSpot, for id: String) -> Bool { !taken.contains(spot.id) && freeSlot(spot, for: id) != nil }
+
+    /// The first slot of a spot unclaimed with nobody else drawn on its point: a cat that just left the spot stands
+    /// there until it walks off, so the spot isn't free to the others till then (two cats are never drawn on one seat).
+    private func freeSlot(_ spot: RoomSpot, for id: String) -> Int? {
+        let slots = slotsOf(spot)
+        let floorId = floors.first { $0.spots.contains { $0.id == spot.id } }?.id
+        return slots.indices.first { i in
+            slots[i] == nil && !(floorId.map { standsOn($0, slotPoint($0, spot, i), except: id) } ?? false)
+        }
+    }
+
+    /// Another cat is drawn on `p` (OfficeSim.output forDrawing: a walker at its walk's end).
+    private func standsOn(_ floorId: Int, _ p: FloorPoint, except id: String) -> Bool {
+        guard let f = floor(floorId) else { return false }
+        return runtimes.contains { rt in
+            guard rt.cat.id != id, rt.floor == floorId else { return false }
+            let walking = rt.phase == .walking || rt.phase == .hoppingDown
+            return f.pxDistance((walking ? rt.path.last : nil) ?? rt.position, p) < 1
+        }
+    }
 
     /// Reserve a slot on a spot; the slot index, or nil when full.
     private func reserve(_ spot: RoomSpot, _ id: String) -> Int? {
         if taken.contains(spot.id) { return nil }
         var slots = slotsOf(spot)
-        guard let i = slots.firstIndex(where: { $0 == nil }) else { return nil }
+        guard let i = freeSlot(spot, for: id) else { return nil }
         slots[i] = id
         occupancy[spot.id] = slots
         return i

@@ -347,6 +347,40 @@ import Testing
         }
     }
 
+    /// No two cats are drawn on one seat: at every tick, no two cats' drawn points (forDrawing: a walker at its walk's
+    /// end) sit on the same spot's point. The whole building with every spare, and one floor with a single seat two
+    /// cats take turns at (one leaves it, the other comes).
+    @Test func noTwoCatsDrawnOnOneSeat() throws {
+        let cats = try JSONDecoder().decode(SpareRoster.Manifest.self, from: fixture("rooms/user/cats.json")).cats
+        let roster = SpareRoster.roster(floors: OfficeSim.floors(building: building, rooms: rooms), cats: cats)
+        let seat = try #require(rooms[1]?.spots.first { $0.capacity == 1 && $0.kind != "desk" && $0.kind != "elevator" && SimActivities.activity(for: $0) != nil })
+        let pair = (0..<2).map { SimCat(id: "p\($0)", isSpare: true, floor: 1, at: FloorPoint(u: 0.5, v: 0.5)) }
+        let runs: [(cats: [SimCat], rooms: [Int: BuiltRoom], minutes: Int)] = [
+            ((0..<4).map { SimCat(id: "s\($0)", isSpare: false, floor: 1, at: FloorPoint(u: 0.5, v: 0.5)) } + roster.map(SimCat.init(spare:)), rooms, 120),
+            (pair, only([1]) { _, s in s.id == seat.id || s.kind == "elevator" }, 240),
+        ]
+        for (i, run) in runs.enumerated() {
+            for seed in [UInt32(1), 2, 3] {
+                let sim = OfficeSim(seed: seed)
+                sim.setCats(run.cats, building: building, rooms: run.rooms, grids: grids)
+                for _ in 0..<(4 * run.minutes) { // the app's ticks
+                    sim.step(minutes: 0.25)
+                    let out = sim.output(showSpares: true, forDrawing: true)
+                    let drawn = (Array(out.places.values) + out.spares).filter { $0.phase != "elevator" }
+                    for (fid, room) in run.rooms {
+                        let f = try #require(sim.floor(fid))
+                        for spot in room.spots where spot.kind != "elevator" {
+                            for p in spot.slots.isEmpty ? [spot.standAt] : spot.slots {
+                                let on = drawn.filter { $0.floor == fid && f.pxDistance(FloorPoint(u: $0.u, v: $0.v), p) < 1 }
+                                #expect(on.count <= 1, "run \(i) seed \(seed) t \(sim.time): \(on.map { $0.key ?? "session" }) on \(spot.id)")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Like the engine's per-frame cap: one call steps at most 30 minutes; nonsense steps nothing.
     @Test func stepIsCapped() {
         let sim = OfficeSim(seed: 1)
