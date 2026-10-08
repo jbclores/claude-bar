@@ -46,7 +46,7 @@ struct FloorScene: View {
                     RoomBackdrop(floor: floor)
                 }
                 if let cast {
-                    SceneCats(room: room, fit: fit, origin: origin, catHeight: catHeight, cast: cast)
+                    SceneCats(room: room, fit: fit, origin: origin, catHeight: catHeight, cast: cast, viewSize: proxy.size)
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
@@ -190,6 +190,8 @@ struct SceneCats: View {
     let origin: CGPoint
     let catHeight: Double
     let cast: SceneCast
+    /// The scene's own size: name tags stay inside it (and inside the room).
+    var viewSize: CGSize = .zero
     @EnvironmentObject var state: AppState
     @EnvironmentObject var zoom: RoomZoom
     @Environment(\.officeNight) private var night
@@ -249,13 +251,13 @@ struct SceneCats: View {
         let sorted = items.sorted { ($0.z, $0.order, $0.id) < ($1.z, $1.order, $1.id) }
         let scale = zoom.view.scale
         let pills = Dictionary(drawn.map { ($0.cat.agent.id, pillRect($0, scale: scale)) }, uniquingKeysWith: { a, _ in a })
-        // "+N" notes are always shown: they go first (their keys sort before any agent id), names fit round them.
+        // "+N" notes are always shown; every cat's name tag fits round them and round each other (NameTags).
         let noteRects = Dictionary(notes.enumerated().map { i, note -> (String, CGRect) in
             let p = fit.point(room.frame.px(note.1)), size = Self.pillSize(note.0, detail: nil)
             return ("\u{0}note\(i)", CGRect(x: p.x * scale, y: p.y * scale, width: size.width, height: size.height))
         }, uniquingKeysWith: { a, _ in a })
-        let needy = Set(drawn.map(\.cat.agent).filter(needsYou).map(\.id)).union(noteRects.keys)
-        let shownPills = PillLayout.visible(pills.mapValues(\.rect).merging(noteRects) { a, _ in a }, priority: needy)
+        let needy = Set(drawn.map(\.cat.agent).filter(needsYou).map(\.id))
+        let tags = NameTags.layout(pills.mapValues(\.rect), avoid: Array(noteRects.values), priority: needy, in: tagArea(scale: scale))
 
         ZStack(alignment: .topLeading) {
             ForEach(sorted) { entry in
@@ -275,12 +277,15 @@ struct SceneCats: View {
                     .scaleEffect(1 / scale, anchor: .topLeading)
                     .offset(x: p.x, y: p.y)
             }
-            ForEach(drawn.filter { shownPills.contains($0.cat.agent.id) }, id: \.cat.agent.id) { d in
+            ForEach(drawn, id: \.cat.agent.id) { d in
                 let pill = pills[d.cat.agent.id]!
-                namePill(d.cat.agent)
+                // Moved to the nearest free spot (in view points after zoom) so no two tags overlap.
+                let placed = tags[d.cat.agent.id] ?? pill.rect
+                let dx = placed.minX - pill.rect.minX, dy = placed.minY - pill.rect.minY
+                nameTag(d.cat.agent)
                     .frame(width: pill.size.width, height: pill.size.height)
                     .scaleEffect(1 / scale, anchor: .top)
-                    .offset(x: d.feet.x - pill.size.width / 2, y: d.feet.y + 3 / scale)
+                    .offset(x: d.feet.x - pill.size.width / 2 + dx / scale, y: d.feet.y + (3 + dy) / scale)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -288,6 +293,14 @@ struct SceneCats: View {
         .preference(key: CatFramesKey.self, value: Dictionary(drawn.map {
             ($0.cat.agent.id, CatHit(frame: fit.rect($0.figure).offsetBy(dx: origin.x, dy: origin.y), z: $0.z, feet: shift($0.feet)))
         }, uniquingKeysWith: { a, _ in a }))
+    }
+
+    /// Where name tags may go, in view points after zoom: the room, within the scene's own frame.
+    private func tagArea(scale: CGFloat) -> CGRect {
+        let r = fit.rect(room.bounds)
+        let area = CGRect(x: r.minX * scale, y: r.minY * scale, width: r.width * scale, height: r.height * scale)
+        guard viewSize.width > 0, viewSize.height > 0 else { return area }
+        return area.intersection(CGRect(x: 0, y: 0, width: viewSize.width * scale, height: viewSize.height * scale))
     }
 
     private func shift(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x + origin.x, y: p.y + origin.y) }
@@ -320,14 +333,10 @@ struct SceneCats: View {
         return Drawn(cat: cat, feet: feet, k: CGFloat(h / 210) * fit.scale, z: z, figure: figure)
     }
 
-    /// Where a cat's name pill would go, in view points after zoom: centred under its feet, the pill's own size.
+    /// Where a cat's name tag wants to go, in view points after zoom: centred under its feet, the tag's own size.
     private func pillRect(_ d: Drawn, scale: CGFloat) -> (rect: CGRect, size: CGSize) {
-        let size = Self.pillSize(d.cat.agent.label, detail: detail(d.cat.agent))
+        let size = Self.pillSize(NameTags.text(d.cat.agent.label), detail: nil)
         return (CGRect(x: d.feet.x * scale - size.width / 2, y: d.feet.y * scale + 3, width: size.width, height: size.height), size)
-    }
-
-    private func detail(_ a: OfficeAgent) -> String {
-        Format.statusText(a.status, needsYou: needsYou(a), since: a.waitingSince ?? state.statusSince[a.key])
     }
 
     /// RoomPill's size: a 9pt semibold line and an 8pt detail line, padded 6 × 2; a name pill is at most 84 wide.
@@ -340,9 +349,9 @@ struct SceneCats: View {
         return CGSize(width: min(84, w + 12), height: line(a) + line(b) + 4)
     }
 
-    private func namePill(_ a: OfficeAgent) -> some View {
-        let needy = needsYou(a)
-        return RoomPill(text: a.label, detail: detail(a), detailColor: needy ? Theme.waiting : Theme.color(a.status))
+    /// One line, the readable name cut to 14 characters: the ring under the cat already shows its status.
+    private func nameTag(_ a: OfficeAgent) -> some View {
+        RoomPill(text: NameTags.text(a.label))
     }
 
     @ViewBuilder
