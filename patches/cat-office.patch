@@ -1,6 +1,6 @@
 --- a/server/agent-bridge/cat-assignments.ts
 +++ b/server/agent-bridge/cat-assignments.ts
-@@ -0,0 +1,308 @@
+@@ -0,0 +1,312 @@
 +/**
 + * The cat the page shows for each agent, and the desk that cat works at (POST /__agents/cats), kept in
 + * <stateDir>/cat-assignments.json by agent id, so other local apps (ClaudeBar's menu bar office) show the same
@@ -140,7 +140,7 @@
 +   * ahead of `now`; `page`, the posting page's id, made once per page load). False for a bad body (nothing kept) or
 +   * a failed save. A malformed place is skipped; per cat the newest `at` wins. Only the followed page's places are
 +   * kept (the first page that posted, until it is silent 5 s). Places go out to the stream when they changed (`at`
-+   * aside), and at least every 5 s.
++   * and `minutesLeft` aside), and at least every 5 s.
 +   */
 +  merge(body: unknown, now: number = Date.now()): boolean {
 +    const b = body as { assignments?: unknown; desks?: unknown; places?: unknown; at?: unknown; page?: unknown } | null;
@@ -199,7 +199,8 @@
 +  }
 +
 +  /**
-+   * Keeps the places newer than what is kept for each cat: 'changed' when a kept one differs (`at` aside) or one
++   * Keeps the places newer than what is kept for each cat: 'changed' when a kept one differs (`at` and
++   * `minutesLeft` aside) or one
 +   * was dropped, 'same' when only times moved on, 'none' when nothing was kept.
 +   */
 +  private mergePlaces(places: Record<string, unknown>, at: number, now: number): 'changed' | 'same' | 'none' {
@@ -278,10 +279,13 @@
 +  }
 +}
 +
-+/** The same place, whenever it was posted. */
++/**
++ * The same place, whenever it was posted and however long is left at the spot: minutesLeft ticks down every sim
++ * minute (a real second), so a cat busy at a spot would broadcast every post; the 5 s heartbeat carries it.
++ */
 +function samePlace(a: KeptPlace, b: KeptPlace): boolean {
-+  const { at: _a, ...x } = a;
-+  const { at: _b, ...y } = b;
++  const { at: _a, minutesLeft: _ma, ...x } = a;
++  const { at: _b, minutesLeft: _mb, ...y } = b;
 +  return JSON.stringify(x) === JSON.stringify(y);
 +}
 +
@@ -981,7 +985,7 @@
 +});
 --- a/tests/sim/places.test.ts
 +++ b/tests/sim/places.test.ts
-@@ -0,0 +1,332 @@
+@@ -0,0 +1,350 @@
 +// Where each cat is and what it's doing, shared with other local apps (ClaudeBar): the page posts
 +// `{ places: { <live agent id | "spare:<sim id>">: Place }, at }` to POST /__agents/cats every 2 s; the bridge keeps
 +// the newest per cat in memory and every snapshot carries it (agent `place`, top-level `spares` and `placesAt`).
@@ -1313,6 +1317,24 @@
 +  assert.equal(changes, 1, 'only the 5 s heartbeat');
 +  store.merge({ places: later, at: NOW + 6000 }, NOW + 6000);
 +  assert.equal(changes, 2, 'the heartbeat');
++});
++
++test('places: minutes left alone ticking down is no change; the heartbeat carries it', () => {
++  const store = new CatAssignmentStore(join(TMP, 'o', 'cats.json'));
++  let changes = 0;
++  store.onChange(() => changes++);
++  store.merge({ places: { s1: place({ minutesLeft: 12 }) }, at: NOW }, NOW);
++  store.merge({ places: { s1: place({ minutesLeft: 10 }) }, at: NOW + 2000 }, NOW + 2000);
++  store.merge({ places: { s1: place({ minutesLeft: 8 }) }, at: NOW + 4000 }, NOW + 4000);
++  assert.equal(changes, 1, 'only minutesLeft differs: no broadcast');
++  assert.equal((store.apply(snap('s1'), NOW + 4000) as unknown as Snap).agents[0].place?.minutesLeft, 8, 'the newest is kept');
++  store.merge({ places: { s1: place({ minutesLeft: 6 }) }, at: NOW + 6000 }, NOW + 6000);
++  assert.equal(changes, 2, 'the 5 s heartbeat');
++  assert.equal((store.apply(snap('s1'), NOW + 6000) as unknown as Snap).agents[0].place?.minutesLeft, 6, 'with the newer minutes left');
++  store.merge({ places: { s1: place({ minutesLeft: 4, u: 0.7 }) }, at: NOW + 7000 }, NOW + 7000);
++  assert.equal(changes, 3, 'a moved cat: a broadcast');
++  store.merge({ places: { s1: place({ minutesLeft: 3, u: 0.7, activity: { kind: 'water', label: 'Drinking' } }) }, at: NOW + 8000 }, NOW + 8000);
++  assert.equal(changes, 4, 'a changed activity: a broadcast');
 +});
 --- a/tests/sim/plan-usage-workers.test.ts
 +++ b/tests/sim/plan-usage-workers.test.ts
