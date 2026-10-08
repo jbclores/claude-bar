@@ -381,6 +381,39 @@ import Testing
         }
     }
 
+    /// A spare riding the elevator to its desk when the desk becomes taken finishes the ride (it doesn't pop back to
+    /// the floor it left) and chooses again on arrival.
+    @Test func aRideToADeskTakenMidRideFinishes() throws {
+        let roster = SpareRoster.roster(floors: OfficeSim.floors(building: building, rooms: rooms),
+                                        cats: try JSONDecoder().decode(SpareRoster.Manifest.self, from: fixture("rooms/user/cats.json")).cats)
+        let spare = try #require(roster.first { s in s.desk.map { d in rooms.contains { $0.key != 1 && $0.value.spots.contains { $0.id == d.spotId } } } == true })
+        let desk = try #require(spare.desk?.spotId)
+        let deskFloor = try #require(rooms.first { $0.value.spots.contains { $0.id == desk } }?.key)
+        // The Lounge with only its elevator; the desk's floor with only the elevator and the desk: the desk is its one choice.
+        let r = only([1, deskFloor]) { f, s in s.kind == "elevator" || (f == deskFloor && s.id == desk) }
+        var cat = SimCat(spare: spare)
+        cat.floor = 1; cat.at = FloorPoint(u: 0.5, v: 0.5)
+        let sim = OfficeSim(seed: 4)
+        sim.setCats([cat], building: building, rooms: r, grids: grids)
+        var n = 0
+        while true {
+            sim.step(minutes: 1.0 / 30); n += 1
+            try #require(n < 30 * 120, "never rode to its desk")
+            if case .elevatorRide = runtime(sim, spare.id)!.phase { break }
+        }
+        let rt = try #require(runtime(sim, spare.id))
+        #expect(rt.target?.spot.id == desk && rt.floor == 1)
+        sim.setCats([cat], building: building, rooms: r, grids: grids, takenSpotIds: [desk])
+        let p = try #require(sim.output(showSpares: true).spares.first)
+        #expect(p.phase == "elevator" && p.ridingTo == deskFloor, "popped back: \(p.phase) on \(p.floor)")
+        #expect(rt.target == nil && sim.occupancy[desk]?.contains(spare.id) != true)
+        // It rides on, comes out on the desk's floor and stands there, choosing again.
+        while rt.phase.label == "elevator" { sim.step(minutes: 1.0 / 30); n += 1; try #require(n < 30 * 240) }
+        #expect(rt.floor == deskFloor && rt.target?.spot.id != desk)
+        let after = try #require(sim.output(showSpares: true).spares.first)
+        #expect(after.floor == deskFloor)
+    }
+
     /// Like the engine's per-frame cap: one call steps at most 30 minutes; nonsense steps nothing.
     @Test func stepIsCapped() {
         let sim = OfficeSim(seed: 1)

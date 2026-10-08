@@ -185,7 +185,8 @@ public final class OfficeSim {
     /// Cats to simulate now: idle session agents and, when on, spares. A cat left out (its session started working,
     /// the switch went off) leaves at once and frees its spot; a new one joins (simulation-engine.ts createRuntime).
     /// `takenSpotIds`: spots the simulation's cats can't have (working and waiting sessions' desks); a cat headed for
-    /// or at one of them leaves it and stands a moment before choosing again.
+    /// or at one of them leaves it and stands a moment before choosing again (one riding the elevator there rides on and
+    /// chooses on arrival).
     public func setCats(_ cats: [SimCat], building: Building, rooms: [Int: BuiltRoom], grids: [Int: NavGrid], takenSpotIds: Set<String> = []) {
         self.building = building
         self.taken = takenSpotIds
@@ -209,7 +210,12 @@ public final class OfficeSim {
                 idle(rt, badge: nil, 0.2, 1)
             } else if let t = rt.target, taken.contains(t.spot.id) || floor(t.floor)?.spots.contains(where: { $0.id == t.spot.id }) != true {
                 release(rt)
-                idle(rt, badge: nil, 0.2, 1)
+                switch rt.phase {
+                // Mid-ride: it rides on and chooses again when it steps out (routeToTarget with no target), rather
+                // than popping back to the floor it left.
+                case .elevatorOut, .elevatorRide: break
+                default: idle(rt, badge: nil, 0.2, 1)
+                }
             }
         }
         let have = Set(runtimes.map(\.cat.id))
