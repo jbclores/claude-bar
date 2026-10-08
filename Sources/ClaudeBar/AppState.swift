@@ -90,9 +90,10 @@ final class AppState: ObservableObject {
     static let simTick: TimeInterval = 0.25
     private var renderAdvanced = false
 
-    /// A new seed each launch; renders may fix it (CLAUDEBAR_SIM_SEED).
+    /// A new seed each launch; renders use a fixed one.
     private static func simSeed(sideEffects: Bool) -> UInt32 {
-        if !sideEffects, let seed = ProcessInfo.processInfo.environment["CLAUDEBAR_SIM_SEED"].flatMap(UInt32.init) { return seed }
+        // Renders: CLAUDEBAR_SIM_SEED, else 42, so a render is the same each time.
+        if !sideEffects { return ProcessInfo.processInfo.environment["CLAUDEBAR_SIM_SEED"].flatMap(UInt32.init) ?? 42 }
         return UInt32.random(in: .min ... .max)
     }
 
@@ -126,12 +127,19 @@ final class AppState: ObservableObject {
     private func simTicked() {
         let now = Date()
         simHost.tick(now: now)
+        // A long stall (the Mac slept with the office open) was a catch-up: placed, not walked.
+        if simHost.placement != simPlacement { simPlacement = simHost.placement }
         let live = MirrorPlaces.isLive(placesAt: office?.placesAt, now: now)
         guard !live else { return }
         publish(simHost.mirror(.off, live: false, now: now))
     }
 
+    /// Who sits where on each floor (SimHost.seatings): the one seating both office views draw rule-placed cats with,
+    /// so the desks the sim keeps its cats off are the ones drawn.
+    @Published private(set) var seatings: [Int: FloorSeating] = [:]
+
     private func publish(_ next: OfficeMirror) {
+        if simHost.seatings != seatings { seatings = simHost.seatings }
         if next != mirror { mirror = next }
     }
 

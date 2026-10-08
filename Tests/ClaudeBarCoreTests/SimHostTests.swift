@@ -122,4 +122,46 @@ import Testing
         host.advance(minutes: 75, now: t0)
         #expect(abs(host.sim.time - 75) < 1e-9 && host.placement == 1)
     }
+    /// One seating for everyone: the desk the views draw a working cat at (SimHost.seatings) is the one taken, and no
+    /// spare takes it, even when it is a spare's own desk (no pool floor: the desk pool is the Office, an own-office floor).
+    @Test func aWorkingCatsDeskIsTheOneDrawnAndNoSpareTakesIt() throws {
+        var b = building
+        b.floors.removeAll { $0.pool }
+        var r = rooms, g = grids
+        for id in rooms.keys where b.floor(id: id) == nil { r[id] = nil; g[id] = nil }
+        let pool = try #require(b.deskPool)
+        #expect(pool.isOwnOffice)
+        let cats = try JSONDecoder().decode(SpareRoster.Manifest.self, from: fixture("rooms/user/cats.json")).cats
+        let host = SimHost(seed: 11, now: t0)
+        host.update(agents: [agent("w", .working)], building: b, rooms: r, grids: g, spares: cats, showSpares: true)
+        let seating = try #require(host.seatings[pool.id])
+        let ids = SimHost.seatFloor(pool, try #require(r[pool.id])).desks.map(\.id)
+        let i = try #require(seating.desks.firstIndex(of: "w"))
+        let desk = ids[i]
+        #expect(host.takenSpotIds == [desk])
+        let roster = SpareRoster.roster(floors: OfficeSim.floors(building: b, rooms: r), cats: cats)
+        try #require(roster.contains { $0.desk?.spotId == desk }, "the working cat's desk is a spare's own desk")
+        host.setVisible(true, now: t0)
+        for k in 1...240 {
+            let now = t0.addingTimeInterval(Double(k) * 0.25)
+            host.tick(now: now)
+            let out = host.mirror(.off, live: false, now: now)
+            #expect(!out.spares.contains { $0.spotId == desk })
+            #expect(!host.sim.runtimes.contains { $0.target?.spot.id == desk })
+            #expect(host.seatings[pool.id]?.desks.firstIndex(of: "w") == i && host.takenSpotIds == [desk])
+        }
+    }
+
+    /// A long stall with the office open (the Mac slept): the gap is a catch-up and a placement, not walks.
+    @Test func aLongStallWhileOpenIsAPlacement() {
+        let host = SimHost(seed: 3, now: t0)
+        update(host, [agent("a", .idle)])
+        host.setVisible(true, now: t0)
+        host.tick(now: t0.addingTimeInterval(0.5))
+        #expect(host.placement == 1 && abs(host.sim.time - 0.5) < 1e-9)
+        host.tick(now: t0.addingTimeInterval(0.5 + 600))
+        #expect(host.placement == 2 && abs(host.sim.time - 30.5) < 1e-9)
+        host.tick(now: t0.addingTimeInterval(601))
+        #expect(host.placement == 2 && abs(host.sim.time - 31) < 1e-9)
+    }
 }

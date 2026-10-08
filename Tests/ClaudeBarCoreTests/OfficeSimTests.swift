@@ -359,9 +359,12 @@ import Testing
         let drawn = try #require(sim.output(showSpares: true, forDrawing: true).spares.first)
         #expect(plain.u != end.u || plain.v != end.v)
         #expect(drawn.u == end.u && drawn.v == end.v && drawn.phase == "walking" && drawn.at == 0)
+        // Far enough from the end that two more steps leave it walking (each step walks at most speed × dt).
+        try #require(routeLength(sim, floor: 1, from: rt.position, path: rt.path) > rt.speedPx * 3 / 30)
         let mid = sim.output(showSpares: true, forDrawing: true)
         sim.step(minutes: 2.0 / 30)
-        if runtime(sim, "s1")!.phase.label == "walking" { #expect(sim.output(showSpares: true, forDrawing: true) == mid) }
+        try #require(runtime(sim, "s1")!.phase.label == "walking")
+        #expect(sim.output(showSpares: true, forDrawing: true) == mid)
         // Not walking: the same place as the plain output but for `at`.
         while runtime(sim, "s1")!.phase.label == "walking" { sim.step(minutes: 1.0 / 30); n += 1; try #require(n < 3000) }
         var p = try #require(sim.output(showSpares: true).spares.first)

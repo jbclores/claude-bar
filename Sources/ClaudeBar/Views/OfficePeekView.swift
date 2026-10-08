@@ -90,8 +90,6 @@ struct OfficeRoomView: View {
     @State private var catFrames: [String: CatHit] = [:]
     @State private var lastFeet: [String: CatFeet] = [:]
     @EnvironmentObject var floors: FloorSelection
-    /// Who sits where, per floor, kept between updates so cats keep their desks and seats.
-    @State private var seatings: [Int: FloorSeating] = [:]
     @State private var walks: [String: CatWalk] = [:]
     /// Each agent's floor at the last update, to notice floor changes.
     @State private var floorOf: [String: Int] = [:]
@@ -261,7 +259,6 @@ struct OfficeRoomView: View {
             shownFeet = feet
             startWalks(to: feet)
         }
-        .onChange(of: seatKey, initial: true) { _, _ in updateSeating() }
         .onChange(of: floorKey, initial: true) { _, _ in noticeFloorChanges() }
         // A new building can leave every cat's floor id as it was (all in the Lounge): note it anyway, or the next
         // real move would be taken for a building swap and nobody would ride.
@@ -374,39 +371,18 @@ struct OfficeRoomView: View {
         return ElevatorTrip.waitingPlace(built.elevator?.standAt ?? FloorPoint(u: 0.5, v: 0.5), index: index)
     }
 
-    /// The floor as seated on a built room: only the desks the room could place (unknown designs are skipped).
-    private func seatFloor(_ built: BuiltRoom) -> Floor {
-        let ids = Set(built.desks.map(\.id))
-        var f = floor
-        f.desks = floor.desks.filter { ids.contains($0.id) }
-        return f
-    }
-
     private func cast(_ built: BuiltRoom) -> SceneCast {
-        let f = seatFloor(built)
-        let seating = seatings[floorId] ?? FloorPlan.seating(on: f, agents: floorCats, previous: nil, seats: built.seats.count)
+        let f = SimHost.seatFloor(floor, built)
+        // Everyone's seating (AppState.seatings, the same in both views and for the sim's taken desks).
+        let seating = state.seatings[floorId] ?? FloorPlan.seating(on: f, agents: floorCats, previous: nil, seats: built.seats.count)
         return SceneCast(seating: seating, agents: floorCats, deskIds: f.desks.map(\.id), lounge: floor.isLounge,
                          mirrored: state.mirror.places(on: floorId, agents: state.office?.agents ?? [], in: state.building),
                          spares: state.mirror.spares(on: floorId, in: state.building))
     }
     private var floor: Floor { state.building.floor(id: floorId) ?? Building.fallback.floors[0] }
     private var floorCats: [OfficeAgent] { FloorPlan.cats(on: floorId, agents: state.office?.agents ?? [], in: state.building, mirror: state.mirror) }
-    /// Changes when who's on the shown floor, or their status or desk, changes.
-    private var seatKey: String {
-        let built = state.rooms[floorId].map { "built:\($0.seats.count):\($0.desks.map(\.id).joined(separator: "+"))" } ?? ""
-        return "\(floorId)|\(built)|" + floorCats.map { "\($0.id):\($0.status.rawValue):\($0.desk?.id ?? "")" }.sorted().joined(separator: ",")
-    }
-
-    private func updateSeating() {
-        if let built = state.rooms[floorId] {
-            seatings[floorId] = FloorPlan.seating(on: seatFloor(built), agents: floorCats, previous: seatings[floorId], seats: built.seats.count)
-        } else {
-            seatings[floorId] = FloorPlan.seating(on: floor, agents: floorCats, previous: seatings[floorId])
-        }
-    }
-
     private func room() -> some View {
-        let seating = seatings[floorId] ?? FloorPlan.seating(on: floor, agents: floorCats, previous: nil)
+        let seating = state.seatings[floorId] ?? FloorPlan.seating(on: floor, agents: floorCats, previous: nil)
         let byId = Dictionary(floorCats.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         return Group {
             if floor.isLounge {

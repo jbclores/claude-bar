@@ -20,8 +20,16 @@ public final class SimHost {
     public private(set) var takenSpotIds: Set<String> = []
     /// The browser's places while live, to start the sim from when they stop.
     private var lastLive: OfficeMirror?
-    /// Who sits where on each built floor (FloorPlan.seating, kept between updates as the office views keep it).
-    private var seatings: [Int: FloorSeating] = [:]
+    /// What the office draws now (the last `mirror` result): seatings count each cat on the floor it's drawn on.
+    private var drawn = OfficeMirror.off
+    private var agents: [OfficeAgent] = []
+    private var building = Building.fallback
+    private var rooms: [Int: BuiltRoom] = [:]
+    private var grids: [Int: NavGrid] = [:]
+    /// A tick this long after the last one (the Mac slept with the office open) is a catch-up and a placement.
+    public static let stall: TimeInterval = 2
+    /// Who sits where on each floor: the one seating both office views draw rule-placed cats with (see `reseat`).
+    public private(set) var seatings: [Int: FloorSeating] = [:]
 
     public init(seed: UInt32, now: Date) {
         sim = OfficeSim(seed: seed)
@@ -40,25 +48,17 @@ public final class SimHost {
             let desks = Dictionary(room.desks.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
             for (i, id) in seatedDesks(floorId, seating, building, room) { if let d = desks[id] { deskOf[i] = (floorId, d.standAt) } }
         }
-        // Who sits where now (the rules alone: the sim's cats never sit at a desk to work).
-        var next: [Int: FloorSeating] = [:]
-        var taken = Set<String>()
-        for f in building.floors where !f.isLounge {
-            guard let room = rooms[f.id] else { continue }
-            let here = FloorPlan.cats(on: f.id, agents: agents, in: building)
-            guard !here.isEmpty else { continue }
-            let seating = FloorPlan.seating(on: Self.seatFloor(f, room), agents: here, previous: seatings[f.id], seats: room.seats.count)
-            next[f.id] = seating
-            for (_, desk) in seatedDesks(f.id, seating, building, room) { taken.insert(desk) }
-        }
-        seatings = next
-        takenSpotIds = taken
+        self.agents = agents
+        self.building = building
+        self.rooms = rooms
+        self.grids = grids
+        reseat()
 
         let running = Dictionary(cats.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         // No built floor yet (the catalogue is still loading): nobody to run; they join once the rooms are in.
         guard !OfficeSim.floors(building: building, rooms: rooms).isEmpty else {
             cats = []
-            sim.setCats([], building: building, rooms: rooms, grids: grids, takenSpotIds: taken)
+            sim.setCats([], building: building, rooms: rooms, grids: grids, takenSpotIds: takenSpotIds)
             return
         }
         var wanted: [SimCat] = agents.filter { $0.status == .idle && !$0.isSubagent }.map { a in
@@ -70,7 +70,31 @@ public final class SimHost {
             wanted += SpareRoster.roster(floors: OfficeSim.floors(building: building, rooms: rooms), cats: spares).map(SimCat.init(spare:))
         }
         cats = wanted
-        sim.setCats(wanted, building: building, rooms: rooms, grids: grids, takenSpotIds: taken)
+        sim.setCats(wanted, building: building, rooms: rooms, grids: grids, takenSpotIds: takenSpotIds)
+    }
+
+    /// Who sits where on every floor, as both office views draw it (FloorPlan.seating over the cats on the floor with
+    /// what the office draws now, each floor kept from last time; a built floor over its built desks and seats), and
+    /// the desks the rule-placed cats there use: taken for the sim. True when the taken desks changed.
+    @discardableResult
+    private func reseat() -> Bool {
+        var next: [Int: FloorSeating] = [:]
+        var taken = Set<String>()
+        for f in building.floors {
+            let here = FloorPlan.cats(on: f.id, agents: agents, in: building, mirror: drawn)
+            guard let room = rooms[f.id] else {
+                next[f.id] = FloorPlan.seating(on: f, agents: here, previous: seatings[f.id])
+                continue
+            }
+            let seating = FloorPlan.seating(on: Self.seatFloor(f, room), agents: here, previous: seatings[f.id], seats: room.seats.count)
+            next[f.id] = seating
+            guard !f.isLounge else { continue }
+            // A cat drawn where the office has it (mirrored) isn't at its rule desk.
+            for (agent, desk) in seatedDesks(f.id, seating, building, room) where drawn.places[agent] == nil { taken.insert(desk) }
+        }
+        seatings = next
+        defer { takenSpotIds = taken }
+        return taken != takenSpotIds
     }
 
     /// (agent id, desk id) for each cat seated at one of the floor's built desks.
@@ -80,8 +104,8 @@ public final class SimHost {
         return seating.desks.enumerated().compactMap { i, id in id.flatMap { a in ids.indices.contains(i) ? (a, ids[i]) : nil } }
     }
 
-    /// The floor as seated on its built room: only the desks the room could place (OfficeRoomView.seatFloor).
-    static func seatFloor(_ floor: Floor, _ room: BuiltRoom) -> Floor {
+    /// The floor as seated on its built room: only the desks the room could place (unknown designs are skipped).
+    public static func seatFloor(_ floor: Floor, _ room: BuiltRoom) -> Floor {
         let ids = Set(room.desks.map(\.id))
         var f = floor
         f.desks = floor.desks.filter { ids.contains($0.id) }
@@ -104,7 +128,13 @@ public final class SimHost {
     /// The step timer: the time since the last step, while the office is open and the mirror isn't live.
     public func tick(now: Date) {
         guard visible, !live else { return }
-        sim.step(minutes: now.timeIntervalSince(lastStep))
+        let gap = now.timeIntervalSince(lastStep)
+        if gap > Self.stall {
+            sim.catchUp(minutes: gap)
+            placement += 1
+        } else {
+            sim.step(minutes: gap)
+        }
         lastStep = now
     }
 
@@ -114,6 +144,7 @@ public final class SimHost {
         if isLive {
             live = true
             lastLive = browser
+            drawing(browser)
             return browser
         }
         if live {
@@ -122,7 +153,24 @@ public final class SimHost {
             lastLive = nil
             lastStep = now
         }
-        return sim.output(showSpares: true, forDrawing: true)
+        var out = sim.output(showSpares: true, forDrawing: true)
+        if drawing(out) {
+            // Desks were freed or taken: a sim cat headed for one now taken leaves it.
+            out = sim.output(showSpares: true, forDrawing: true)
+            drawing(out)
+        }
+        return out
+    }
+
+    /// Notes what the office draws now and seats the floors with it; true when that changed the taken desks (passed on
+    /// to the sim).
+    @discardableResult
+    private func drawing(_ out: OfficeMirror) -> Bool {
+        guard out != drawn else { return false }
+        drawn = out
+        guard reseat() else { return false }
+        sim.setCats(cats, building: building, rooms: rooms, grids: grids, takenSpotIds: takenSpotIds)
+        return true
     }
 
     /// Renders only (CLAUDEBAR_SIM_ADVANCE): `minutes` simulated at once, past catch-up's cap, as a placement.
