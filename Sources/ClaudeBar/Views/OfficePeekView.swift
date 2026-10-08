@@ -109,14 +109,14 @@ struct OfficeRoomView: View {
     /// Changes when any agent's floor changes.
     private var floorKey: String {
         let agents = state.office?.agents ?? []
-        return agents.compactMap { a in FloorPlan.floorId(for: a, among: agents, in: state.building).map { "\(a.id)@\($0)" } }
+        return agents.compactMap { a in FloorPlan.floorId(for: a, among: agents, in: state.building, mirror: state.mirror).map { "\(a.id)@\($0)" } }
             .sorted().joined(separator: ",")
     }
 
     private func noticeFloorChanges() {
         let agents = state.office?.agents ?? []
         var next: [String: Int] = [:]
-        for a in agents { if let f = FloorPlan.floorId(for: a, among: agents, in: state.building) { next[a.id] = f } }
+        for a in agents { if let f = FloorPlan.floorId(for: a, among: agents, in: state.building, mirror: state.mirror) { next[a.id] = f } }
         // A different building (Cat Office's floors replacing the fallback Lounge) moves cats without anyone riding.
         let floorIds = state.building.floors.map(\.id)
         defer { buildingFloors = floorIds }
@@ -344,10 +344,11 @@ struct OfficeRoomView: View {
     private func cast(_ built: BuiltRoom) -> SceneCast {
         let f = seatFloor(built)
         let seating = seatings[floorId] ?? FloorPlan.seating(on: f, agents: floorCats, previous: nil, seats: built.seats.count)
-        return SceneCast(seating: seating, agents: floorCats, deskIds: f.desks.map(\.id), lounge: floor.isLounge)
+        return SceneCast(seating: seating, agents: floorCats, deskIds: f.desks.map(\.id), lounge: floor.isLounge,
+                         mirrored: state.mirror.places(on: floorId, agents: state.office?.agents ?? [], in: state.building))
     }
     private var floor: Floor { state.building.floor(id: floorId) ?? Building.fallback.floors[0] }
-    private var floorCats: [OfficeAgent] { FloorPlan.cats(on: floorId, agents: state.office?.agents ?? [], in: state.building) }
+    private var floorCats: [OfficeAgent] { FloorPlan.cats(on: floorId, agents: state.office?.agents ?? [], in: state.building, mirror: state.mirror) }
     /// Changes when who's on the shown floor, or their status or desk, changes.
     private var seatKey: String {
         let built = state.rooms[floorId].map { "built:\($0.seats.count):\($0.desks.map(\.id).joined(separator: "+"))" } ?? ""
@@ -787,7 +788,7 @@ struct OfficePeekView: View {
                 let f = state.building.floor(id: state.followFloor)
                 Text("· \(f?.id ?? 1) \(f?.name ?? "Lounge")").font(.callout.weight(.semibold))
                 if let office = state.office {
-                    OfficeSummary(office: office, count: FloorPlan.cats(on: f?.id ?? 1, agents: office.agents, in: state.building).count)
+                    OfficeSummary(office: office, count: FloorPlan.cats(on: f?.id ?? 1, agents: office.agents, in: state.building, mirror: state.mirror).count)
                         .font(.callout)
                 }
                 Spacer(minLength: 6)

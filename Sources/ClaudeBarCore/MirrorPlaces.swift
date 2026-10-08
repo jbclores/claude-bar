@@ -99,3 +99,58 @@ public enum MirrorPlaces {
         return age <= liveFor && age >= -skew
     }
 }
+
+/// The browser's office as ClaudeBar draws it: each session cat's place (agent id → place) while the mirror is live,
+/// none otherwise. Built from the agents' own places only: spare cats never count here (floors, the busy strip, Follow).
+public struct OfficeMirror: Equatable, Sendable {
+    public var places: [String: MirrorPlace]
+
+    public static let off = OfficeMirror(places: [:])
+
+    public init(places: [String: MirrorPlace]) {
+        self.places = places
+    }
+
+    /// The agents' places when the snapshot's places are live at `now` (MirrorPlaces.isLive), else `.off`.
+    public init(_ snapshot: OfficeSnapshot?, now: Date) {
+        guard let snapshot, MirrorPlaces.isLive(placesAt: snapshot.placesAt, now: now) else { self = .off; return }
+        places = Dictionary(snapshot.agents.compactMap { a in a.place.map { (a.id, $0) } }, uniquingKeysWith: { a, _ in a })
+    }
+
+    /// How far past the floor's edges (0…1) a mirrored point may be: spots against a wall stand just outside it (the
+    /// Lounge's window seat is at u −0.015, room.ts spots on wall props).
+    public static let edge = 0.1
+
+    /// Where the browser has this agent's cat, if it can be drawn there: on the floor (u, v within 0…1, give or take `edge`) of a floor the
+    /// building has. A cat riding the elevator (phase "elevator") counts on the floor it rides to, if the building has
+    /// it. Nil (the rules place the cat) for an ended agent, no place, an unknown floor or a point off the floor.
+    public func floor(of agent: OfficeAgent, in building: Building) -> (id: Int, place: MirrorPlace)? {
+        let onFloor = (-Self.edge...(1 + Self.edge))
+        guard agent.status != .ended, let p = places[agent.id], onFloor.contains(p.u), onFloor.contains(p.v) else { return nil }
+        if p.phase == "elevator", let to = p.ridingTo, building.floor(id: to) != nil { return (to, p) }
+        return building.floor(id: p.floor) != nil ? (p.floor, p) : nil
+    }
+
+    /// The places of `agents` the mirror has on `floorId` (agent id → place), for SceneCast.
+    public func places(on floorId: Int, agents: [OfficeAgent], in building: Building) -> [String: MirrorPlace] {
+        guard !places.isEmpty else { return [:] }
+        var out: [String: MirrorPlace] = [:]
+        for a in agents { if let f = floor(of: a, in: building), f.id == floorId { out[a.id] = f.place } }
+        return out
+    }
+}
+
+extension CatPose {
+    /// The sprite for a mirrored pose, as Cat Office's cat.sprite.ts catSpriteFor picks it: asleep sleeps; typing
+    /// facing away types (no front-facing typing sprite: it stands, as at a turned desk); sitting facing us sits (a
+    /// back-facing sit stands); standing with a paw up waves.
+    public init(_ place: MirrorPlace) {
+        let back = place.direction.hasPrefix("back")
+        switch place.pose {
+        case .asleep: self = .sleeping
+        case .typing: self = back ? .typing : .standing
+        case .sitting: self = back ? .standing : .sitting
+        case .standing: self = place.gesture == "right-up" ? .waving : .standing
+        }
+    }
+}

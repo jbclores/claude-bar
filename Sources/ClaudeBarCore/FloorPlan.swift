@@ -4,13 +4,15 @@ import Foundation
 
 /// Where cats go in Cat Office's building (src/world/floors.ts, MissionControl.tsx): idle → Lounge; working or
 /// waiting → their project's floor (the most specific matching repo root), else the Desk pool; helpers → their
-/// parent's floor.
+/// parent's floor. While the mirror is live, a cat the browser has on a floor is on that floor (OfficeMirror.floor).
 public enum FloorPlan {
-    public static func floorId(for agent: OfficeAgent, among agents: [OfficeAgent], in building: Building) -> Int? {
+    public static func floorId(for agent: OfficeAgent, among agents: [OfficeAgent], in building: Building,
+                               mirror: OfficeMirror = .off) -> Int? {
         guard agent.status != .ended else { return nil }
+        if let mirrored = mirror.floor(of: agent, in: building) { return mirrored.id }
         if agent.isSubagent {
             if let parent = agents.first(where: { $0.name == agent.parentName && !$0.isSubagent && $0.status != .ended }) {
-                return floorId(for: parent, among: agents, in: building)
+                return floorId(for: parent, among: agents, in: building, mirror: mirror)
             }
             return building.deskPool?.id ?? building.lounge?.id
         }
@@ -125,14 +127,15 @@ extension FloorPlan {
     /// A start or finish this recent makes Follow go to its floor.
     static let recentChange: TimeInterval = 60
 
-    public static func cats(on floorId: Int, agents: [OfficeAgent], in building: Building) -> [OfficeAgent] {
-        agents.filter { floorId == self.floorId(for: $0, among: agents, in: building) }
+    public static func cats(on floorId: Int, agents: [OfficeAgent], in building: Building, mirror: OfficeMirror = .off) -> [OfficeAgent] {
+        agents.filter { floorId == self.floorId(for: $0, among: agents, in: building, mirror: mirror) }
     }
 
-    public static func activity(of building: Building, agents: [OfficeAgent], attention: Set<String>) -> [Int: FloorActivity] {
+    public static func activity(of building: Building, agents: [OfficeAgent], attention: Set<String>,
+                                mirror: OfficeMirror = .off) -> [Int: FloorActivity] {
         var out: [Int: FloorActivity] = [:]
         for f in building.floors {
-            let here = cats(on: f.id, agents: agents, in: building)
+            let here = cats(on: f.id, agents: agents, in: building, mirror: mirror)
             if here.contains(where: { $0.status == .waiting || attention.contains($0.key) }) { out[f.id] = .needsYou }
             else if here.contains(where: { $0.status == .working }) { out[f.id] = .working }
             else { out[f.id] = here.isEmpty ? .empty : .idle }
@@ -142,9 +145,10 @@ extension FloorPlan {
 
     /// Follow: a cat that needs you (newest first), else the most recent start or finish (within a minute), else
     /// the busiest floor, else the Lounge.
-    public static func followTarget(building: Building, agents: [OfficeAgent], attention: Set<String>, since: [String: Date], now: Date) -> Int {
+    public static func followTarget(building: Building, agents: [OfficeAgent], attention: Set<String>, since: [String: Date], now: Date,
+                                    mirror: OfficeMirror = .off) -> Int {
         let alive = agents.filter { $0.status != .ended }
-        let floorOf = { (a: OfficeAgent) in floorId(for: a, among: agents, in: building) }
+        let floorOf = { (a: OfficeAgent) in floorId(for: a, among: agents, in: building, mirror: mirror) }
         let needy = alive.filter { $0.status == .waiting || attention.contains($0.key) }
             .max { ($0.waitingSince ?? since[$0.key] ?? .distantPast) < ($1.waitingSince ?? since[$1.key] ?? .distantPast) }
         if let needy, let f = floorOf(needy) { return f }

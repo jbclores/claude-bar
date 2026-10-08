@@ -13,13 +13,13 @@ struct FloorPicker: View {
     var body: some View {
         let shown = floors.shown(state)
         let agents = state.office?.agents ?? []
-        let activity = FloorPlan.activity(of: state.building, agents: agents, attention: state.attention)
+        let activity = FloorPlan.activity(of: state.building, agents: agents, attention: state.attention, mirror: state.mirror)
         let ids = state.building.floors.map(\.id)
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
                 Menu {
                     ForEach(state.building.floors) { f in
-                        let count = FloorPlan.cats(on: f.id, agents: agents, in: state.building).count
+                        let count = FloorPlan.cats(on: f.id, agents: agents, in: state.building, mirror: state.mirror).count
                         Button { floors.choice.pick(f.id) } label: {
                             Text("\(activity[f.id] == .needsYou ? "● " : "")\(f.id) \(f.name)\(count > 0 ? " · \(count)" : "")")
                         }
@@ -27,7 +27,7 @@ struct FloorPicker: View {
                 } label: {
                     // One Text: a borderless menu draws only the first view of its label. A long floor name is cut
                     // with "…", keeping the floor number and the cat count.
-                    let count = FloorPlan.cats(on: shown, agents: agents, in: state.building).count
+                    let count = FloorPlan.cats(on: shown, agents: agents, in: state.building, mirror: state.mirror).count
                     Text(FitText.label(prefix: "\(shown) ", name: state.building.floor(id: shown)?.name ?? "Lounge",
                                        suffix: " · \(count) cat\(count == 1 ? "" : "s")",
                                        width: Double(max(60, DropdownLayout.contentWidth - 8 - controlsWidth - Self.menuChrome)), measure: Self.measure))

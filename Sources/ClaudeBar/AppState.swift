@@ -49,7 +49,27 @@ final class AppState: ObservableObject {
 
     /// Where Follow points now (FloorPlan.followTarget).
     var followFloor: Int {
-        FloorPlan.followTarget(building: building, agents: office?.agents ?? [], attention: attention, since: statusSince, now: Date())
+        FloorPlan.followTarget(building: building, agents: office?.agents ?? [], attention: attention, since: statusSince, now: Date(),
+                               mirror: mirror)
+    }
+
+    /// The browser's office while a Cat Office page shares its cats' places (OfficeMirror), else `.off`: the office
+    /// views place cats with it. Re-checked on every feed update and when the places go stale.
+    @Published private(set) var mirror = OfficeMirror.off
+    private var mirrorExpiry: DispatchWorkItem?
+
+    private func updateMirror() {
+        let now = Date()
+        let next = OfficeMirror(office, now: now)
+        if next != mirror { mirror = next }
+        mirrorExpiry?.cancel()
+        mirrorExpiry = nil
+        // No new post within MirrorPlaces.liveFor: the rules take over then.
+        guard let at = office?.placesAt, MirrorPlaces.isLive(placesAt: at, now: now) else { return }
+        let item = DispatchWorkItem { [weak self] in self?.updateMirror() }
+        mirrorExpiry = item
+        let left = at / 1000 + MirrorPlaces.liveFor - now.timeIntervalSince1970
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, left) + 0.05, execute: item)
     }
 
     private func loadBuilding() {
@@ -264,12 +284,47 @@ final class AppState: ObservableObject {
             if ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_PARENT_IDLE"] == "1",
                let i = snapshot!.agents.firstIndex(where: { $0.id == parent.id }) { snapshot!.agents[i].status = .idle }
         }
-        guard snapshot != office else { return }
+        // Renders only (CLAUDEBAR_RENDER_PLACES=<json file>): the browser's places for some cats, posted just now.
+        // CLAUDEBAR_RENDER_PLACES="a.json,b.json" with CLAUDEBAR_RENDER_FLIP_TO=places: b.json after CLAUDEBAR_RENDER_FLIP_AT.
+        if !sideEffects, let spec = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_PLACES"], snapshot != nil {
+            let files = spec.split(separator: ",").map(String.init)
+            let after = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLIP_AT"].flatMap(Double.init)
+            let later = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLIP_TO"] == "places" && files.count > 1
+                && after.map { Date().timeIntervalSince(launched) > $0 } == true
+            if let file = later ? files.last : files.first { Self.renderPlaces(file: file, into: &snapshot!) }
+        }
+        guard snapshot != office else { updateMirror(); return }
         let cameOnline = office == nil && snapshot != nil
         office = snapshot
+        updateMirror()
         if snapshot != nil { officeLaunch = .none }
         if cameOnline { loadCatalog() }
         recompute()
+    }
+
+    /// Renders only: a JSON object of agent (its id, session id, name, project name or label; a main agent before its
+    /// helpers) → place (the bridge's shape; `at` may be left out), put on those agents with a fresh `placesAt`.
+    private static func renderPlaces(file: String, into snapshot: inout OfficeSnapshot) {
+        guard let data = FileManager.default.contents(atPath: file),
+              let places = (try? JSONSerialization.jsonObject(with: data)) as? [String: [String: Any]] else {
+            print("CLAUDEBAR_RENDER_PLACES: can't read \(file)")
+            return
+        }
+        let now = Date().timeIntervalSince1970 * 1000
+        for (who, raw) in places {
+            var raw = raw
+            if raw["at"] == nil { raw["at"] = now }
+            guard let json = try? JSONSerialization.data(withJSONObject: raw),
+                  let place = try? JSONDecoder().decode(MirrorPlace.self, from: json),
+                  let i = snapshot.agents.indices.filter({ [snapshot.agents[$0].id, snapshot.agents[$0].sessionId, snapshot.agents[$0].name,
+                                                             snapshot.agents[$0].repoName, snapshot.agents[$0].label].contains(who) })
+                      .min(by: { (snapshot.agents[$0].isSubagent ? 1 : 0, $0) < (snapshot.agents[$1].isSubagent ? 1 : 0, $1) }) else {
+                print("CLAUDEBAR_RENDER_PLACES: no agent or bad place for \(who)")
+                continue
+            }
+            snapshot.agents[i].place = place
+        }
+        snapshot.placesAt = now
     }
 
     private func recompute() {

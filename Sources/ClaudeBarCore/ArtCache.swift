@@ -5,6 +5,8 @@ public enum CatPose: String, Sendable {
     case typing, waving, sleeping
     /// Standing, paws down: working at a turned desk (Cat Office has no front-facing typing sprite).
     case standing
+    /// Sitting, facing us (cats.json sitPath): a mirrored cat on a window seat or reading.
+    case sitting
 
     public init(status: AgentStatus) {
         switch status {
@@ -21,6 +23,7 @@ public struct CatCatalog: Equatable, Sendable {
     var standingPath: String
     var typePath: String
     var sleepPath: String
+    var sitPath = "assets/cats/{cat}/{direction}/sit.png"
 
     public static func parse(_ data: Data) -> CatCatalog? {
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -29,7 +32,8 @@ public struct CatCatalog: Equatable, Sendable {
             catIds: cats.compactMap { $0["id"] as? String },
             standingPath: obj["path"] as? String ?? "assets/cats/{cat}/{direction}/{gesture}.png",
             typePath: obj["typePath"] as? String ?? "assets/cats/{cat}/{direction}/type.png",
-            sleepPath: obj["sleepPath"] as? String ?? "assets/cats/{cat}/sleep.png")
+            sleepPath: obj["sleepPath"] as? String ?? "assets/cats/{cat}/sleep.png",
+            sitPath: obj["sitPath"] as? String ?? "assets/cats/{cat}/{direction}/sit.png")
     }
 
     /// The sprite for a pose; `direction` defaults to back-left for typing and front-left otherwise.
@@ -43,6 +47,7 @@ public struct CatCatalog: Equatable, Sendable {
             template = standingPath
             gesture = "both-down"
         case .sleeping: template = sleepPath
+        case .sitting: template = sitPath
         }
         return template
             .replacingOccurrences(of: "{cat}", with: cat)
@@ -217,7 +222,9 @@ public final class ArtCache: @unchecked Sendable {
 
     public func catImage(cat: String, pose: CatPose, direction: String? = nil) async -> Data? {
         guard let catalog = await catalog() else { return nil }
-        return await image(path: catalog.path(cat: cat, pose: pose, direction: direction))
+        if let data = await image(path: catalog.path(cat: cat, pose: pose, direction: direction)) { return data }
+        // cat.sprite.ts: a cat without a sit sprite stands.
+        return pose == .sitting ? await image(path: catalog.path(cat: cat, pose: .standing, direction: direction)) : nil
     }
 
     /// A walk frame (1–4) facing `direction`; frame 0 is the still, paws-down stand.
