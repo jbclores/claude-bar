@@ -47,4 +47,19 @@ import Testing
         let w = WalkRouter.path(from: nan, to: to, grid: g, frame: frame, fit: fit)
         #expect(w.points.last == to, "the L, not a route")
     }
+
+    @Test func aBlockedTargetKeepsTheHopFromTheOpenFloorInFront() {
+        let g = grid(wall: true)
+        let from = view(0.15, 0.45), to = view(0.45, 0.25)   // a seat inside the wall
+        let w = WalkRouter.path(from: from, to: to, grid: g, frame: frame, fit: fit)
+        #expect(w.points.first == from && w.points.last == to)
+        let before = w.points[w.points.count - 2]
+        #expect(g.isOpenAt(frame.uv(fit.world(before))), "the hop starts on open floor")
+        let hop = CGPoint(x: to.x - before.x, y: to.y - before.y)
+        let o = frame.px(FloorPoint(u: 0, v: 0))
+        let uAxis = frame.px(FloorPoint(u: 1, v: 0)), vAxis = frame.px(FloorPoint(u: 0, v: 1))
+        func cross(_ a: CGPoint, _ b: CGPoint) -> CGFloat { a.x * b.y - a.y * b.x }
+        let u = CGPoint(x: uAxis.x - o.x, y: uAxis.y - o.y), v = CGPoint(x: vAxis.x - o.x, y: vAxis.y - o.y)
+        #expect(abs(cross(hop, u)) < 1e-6 || abs(cross(hop, v)) < 1e-6, "the last leg runs along u or v")
+    }
 }

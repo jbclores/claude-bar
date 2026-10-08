@@ -15,7 +15,13 @@ public enum WalkRouter {
             guard isFinite(q) else { return fallback }
             points.append(q)
         }
-        points[points.count - 1] = to
+        // The route ends on `to` when it is open floor; when it is blocked (a seat, a bed) it ends on the open floor in
+        // front of it, and the last hop onto `to` is kept (it runs along an axis).
+        if let end = route.last, abs(end.u - goal.u) < 1e-9, abs(end.v - goal.v) < 1e-9 {
+            points[points.count - 1] = to
+        } else {
+            points.append(to)
+        }
         return WalkPath(points: points)
     }
 
