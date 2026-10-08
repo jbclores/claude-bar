@@ -136,10 +136,11 @@ extension SceneCast {
         }
         // The queue at the elevator's waiting places.
         let door = room.elevator?.standAt ?? FloorPoint(u: 0.5, v: 0.5)
-        // Cats left without a desk by mirrored cats queue after the rest (FloorPlan.seating's overflow).
-        let queue = seating.queue + displaced
-        let queueOverflow = seating.queueOverflow + max(0, queue.count - max(seating.queue.count, FloorSeating.queueShown))
-        for (i, id) in queue.prefix(max(seating.queue.count, FloorSeating.queueShown)).enumerated() {
+        // Mirrored cats the rules queued are drawn where the browser has them: they leave no gap and don't count. Cats
+        // left without a desk by mirrored cats queue after the rest (FloorPlan.seating's overflow).
+        let queue = seating.queue.filter { byId[$0] != nil } + displaced
+        let queueOverflow = seating.queueOverflow + max(0, queue.count - FloorSeating.queueShown)
+        for (i, id) in queue.prefix(FloorSeating.queueShown).enumerated() {
             guard let agent = byId[id] else { continue }
             cats.append(SceneCat(agent: agent, kind: .queue, at: ElevatorTrip.waitingPlace(door, index: i), lift: 0,
                                  size: agent.isSubagent ? Self.helperSize : 1, pose: .standing,

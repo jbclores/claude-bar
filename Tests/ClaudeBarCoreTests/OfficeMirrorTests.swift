@@ -273,4 +273,24 @@ func mirrorPlace(floor: Int, u: Double, v: Double, direction: String = "front-le
         #expect(!s.showsRing, "no status ring")
         #expect(cats.first { $0.agent.id == "a" }?.kind == .seat, "the session cat keeps its seat")
     }
+
+    @Test func mirroredCatsLeaveNoGapInTheQueueAndAreNotCounted() throws {
+        let room = try built(2)
+        // Every desk goes to a rule cat (a00…); b0 and b1 (mirrored) and c0 queue. b0 stands at a00's desk, so a00
+        // queues after the rest.
+        var agents = room.desks.indices.map { agent(String(format: "a%02d", $0), .working) }
+        let b0 = agent("b0", .working), b1 = agent("b1", .working), c0 = agent("c0", .working)
+        agents += [b0, b1, c0]
+        let d = room.desks[0]
+        let mirrored = ["b0": mirrorPlace(floor: 2, u: d.standAt.u, v: d.standAt.v, state: "working", kind: "desk", spotId: d.id),
+                        "b1": mirrorPlace(floor: 2, u: 0.4, v: 0.4, phase: "idle")]
+        let c = cast(room, lounge: false, agents: agents, mirrored: mirrored)
+        #expect(c.seating.queue == ["b0", "b1", "c0"], "the rules queue the mirrored cats too")
+        let (cats, notes) = c.layout(in: room)
+        let door = room.elevator?.standAt ?? FloorPoint(u: 0.5, v: 0.5)
+        #expect(cats.first { $0.agent.id == "c0" }?.at == ElevatorTrip.waitingPlace(door, index: 0), "no gap before c0")
+        #expect(cats.first { $0.agent.id == "a00" }?.at == ElevatorTrip.waitingPlace(door, index: 1))
+        #expect(cats.filter { $0.kind == .queue }.count == 2)
+        #expect(!notes.contains { $0.0.hasPrefix("+") }, "no +N: only two rule cats queue")
+    }
 }
