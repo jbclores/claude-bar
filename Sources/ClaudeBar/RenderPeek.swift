@@ -12,6 +12,7 @@ enum RenderPeek {
         if TestZoom.runIfRequested(state: state) { return true }
         if TestSetup.runIfRequested() { return true }
         if TestUndo.runIfRequested() { return true }
+        if RenderRoutes.runIfRequested(state: state) { return true }
         // `--render-help <out.png>`: the ? help panel.
         if let out = flag("--render-help")?.0 {
             renderWindow(HelpPanel().environmentObject(state), width: 340, to: out)
@@ -675,5 +676,141 @@ enum TestUndo {
             }
         }
         return true
+    }
+}
+
+/// `ClaudeBar --render-routes <floorId> <out.png>` (debug only): the floor's built room at the dropdown's room size,
+/// with the WalkRouter routes of real walks drawn over it: from the elevator door spot to every desk and every Lounge
+/// seat, in the view points the walking cats use (state.navs / state.rooms and the SceneFit FloorScene reports).
+/// Routes are cyan polylines with a dot per waypoint; a walk that fell back to the L (no grid, no route) is orange.
+/// Blocked grid cells are tinted red. Prints each walk's waypoints and any samples of its legs on blocked cells.
+@MainActor
+enum RenderRoutes {
+    static func runIfRequested(state: AppState) -> Bool {
+        let args = CommandLine.arguments
+        guard let i = args.firstIndex(of: "--render-routes"), i + 2 < args.count else { return false }
+        guard let floorId = Int(args[i + 1]) else { print("--render-routes: floor id \(args[i + 1]) isn't a number"); exit(1) }
+        let out = URL(fileURLWithPath: args[i + 2])
+        // Wait for the live data and the built rooms, like the other renders.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+            guard let room = state.rooms[floorId], let floor = state.building.floor(id: floorId) else {
+                print("--render-routes: floor \(floorId) has no built room (floors: \(state.rooms.keys.sorted()))"); exit(1)
+            }
+            let catHeight = state.building.catHeight ?? BuiltRoom.defaultCatHeight
+            // The dropdown's room size; CLAUDEBAR_ROUTES_SIZE=WxH draws it bigger for a closer look.
+            let wh = (ProcessInfo.processInfo.environment["CLAUDEBAR_ROUTES_SIZE"] ?? "").split(separator: "x").compactMap { Double($0) }
+            let size = wh.count == 2 ? CGSize(width: wh[0], height: wh[1]) : CGSize(width: DropdownLayout.contentWidth, height: OfficeRoomView.height)
+            let view = RoutesView(room: room, floor: floor, grid: state.navs[floorId], catHeight: catHeight,
+                                  k: size.width / DropdownLayout.contentWidth)
+                .environmentObject(state).environmentObject(RoomZoom())
+            let host = NSHostingView(rootView: view.frame(width: size.width, height: size.height))
+            host.frame = NSRect(origin: .zero, size: size)
+            let window = NSWindow(contentRect: NSRect(x: -10_000, y: -10_000, width: size.width, height: size.height),
+                                  styleMask: .borderless, backing: .buffered, defer: false)
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.contentView = host
+            window.orderFrontRegardless()
+            // Let the room's picture load (FloorScene's task) and the fit arrive before capturing.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { exit(1) }
+                host.cacheDisplay(in: host.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: out)
+                exit(0)
+            }
+        }
+        return true
+    }
+}
+
+/// The room with its routes over it (RenderRoutes).
+private struct RoutesView: View {
+    let room: BuiltRoom
+    let floor: Floor
+    let grid: NavGrid?
+    let catHeight: Double
+    /// Line and dot size factor (1 at the dropdown's room size).
+    let k: CGFloat
+    @State private var fit: SceneFit?
+
+    struct Walk { let name: String; let path: WalkPath; let routed: Bool }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            FloorScene(room: room, floor: floor, catHeight: catHeight, cast: nil)
+            if let fit {
+                let walks = Self.walks(room: room, grid: grid, fit: fit)
+                Canvas { ctx, _ in draw(&ctx, fit: fit, walks: walks) }
+                .allowsHitTesting(false)
+                .task { Self.log(room: room, grid: grid, fit: fit, walks: walks) }
+            }
+        }
+        .coordinateSpace(name: "roomContent")
+        .onPreferenceChange(SceneFitKey.self) { fit = $0[room.floorId] ?? fit }
+    }
+
+    private func draw(_ ctx: inout GraphicsContext, fit: SceneFit, walks: [Walk]) {
+        if let grid {
+            let n = Double(grid.size)
+            for ui in 0..<grid.size { for vi in 0..<grid.size where !grid.isOpen(ui, vi) {
+                let c = [(ui, vi), (ui + 1, vi), (ui + 1, vi + 1), (ui, vi + 1)].map {
+                    fit.point(room.frame.px(FloorPoint(u: Double($0.0) / n, v: Double($0.1) / n)))
+                }
+                var cell = Path(); cell.addLines(c); cell.closeSubpath()
+                ctx.fill(cell, with: .color(.red.opacity(0.4)))
+            } }
+        }
+        for walk in walks {
+            let color: Color = walk.routed ? .cyan : .orange
+            var line = Path(); line.addLines(walk.path.points)
+            ctx.stroke(line, with: .color(color), lineWidth: 1.2 * k)
+            for p in walk.path.points {
+                ctx.fill(Path(ellipseIn: CGRect(x: p.x - 1.6 * k, y: p.y - 1.6 * k, width: 3.2 * k, height: 3.2 * k)), with: .color(color))
+            }
+            if let end = walk.path.points.last {
+                ctx.stroke(Path(ellipseIn: CGRect(x: end.x - 3 * k, y: end.y - 3 * k, width: 6 * k, height: 6 * k)), with: .color(.yellow), lineWidth: k)
+            }
+        }
+        if let start = walks.first?.path.points.first {
+            ctx.fill(Path(ellipseIn: CGRect(x: start.x - 3.5 * k, y: start.y - 3.5 * k, width: 7 * k, height: 7 * k)), with: .color(.green))
+        }
+    }
+
+    /// The walks a cat would take out of the elevator: to every desk's stand-at, and to every Lounge seat (its feet
+    /// lifted the way SceneCats draws them, since that is the point the peek walks a cat to).
+    static func walks(room: BuiltRoom, grid: NavGrid?, fit: SceneFit) -> [Walk] {
+        let door = room.elevator?.standAt ?? FloorPoint(u: 0.5, v: 0.5)
+        let from = fit.point(room.frame.px(ElevatorTrip.waitingPlace(door, index: 0)))
+        var targets: [(String, CGPoint)] = room.desks.map { ("desk \($0.id)", fit.point(room.frame.px($0.standAt))) }
+        for s in room.seats {
+            let g = fit.point(room.frame.px(s.standAt))
+            targets.append(("seat \(s.id) (lift \(s.lift))", CGPoint(x: g.x, y: g.y - CGFloat(s.lift) * fit.scale)))
+        }
+        return targets.map { name, to in
+            let path = WalkRouter.path(from: from, to: to, grid: grid, frame: room.frame, fit: fit)
+            return Walk(name: name, path: path, routed: grid != nil && path != WalkPath(from: from, to: to))
+        }
+    }
+
+    static func log(room: BuiltRoom, grid: NavGrid?, fit: SceneFit, walks: [Walk]) {
+        let blockedCells = grid.map { g in (0..<(g.size * g.size)).filter { !g.isOpen($0 / g.size, $0 % g.size) }.count } ?? 0
+        print("floor \(room.floorId): \(grid.map { "grid \($0.size)×\($0.size), \(blockedCells) blocked cells" } ?? "NO GRID: every walk is the L (orange)"), fit scale \(fit.scale)")
+        for w in walks {
+            let uv = w.path.points.map { room.frame.uv(fit.world($0)) }
+            var blocked: [String] = []
+            if let grid {
+                for (k, (a, b)) in zip(uv, uv.dropFirst()).enumerated() {
+                    let hits = (1..<20).filter { t in
+                        let f = Double(t) / 20
+                        return !grid.isOpenAt(FloorPoint(u: a.u + (b.u - a.u) * f, v: a.v + (b.v - a.v) * f))
+                    }.count
+                    if hits > 0 { blocked.append("leg \(k + 1)/\(uv.count - 1): \(hits)/19") }
+                }
+            }
+            let diagonal = zip(uv, uv.dropFirst()).contains { a, b in abs(b.u - a.u) > 1e-6 && abs(b.v - a.v) > 1e-6 }
+            let end = uv.last.map { String(format: "(%.3f, %.3f) %@", $0.u, $0.v, grid?.isOpenAt($0) == true ? "open" : "blocked") } ?? "-"
+            print("  \(w.name): \(w.routed ? "route" : "L fallback"), \(w.path.points.count) points, ends \(end)"
+                  + (diagonal ? ", HAS A DIAGONAL LEG" : "") + (blocked.isEmpty ? "" : ", samples on blocked cells: " + blocked.joined(separator: "; ")))
+        }
+        fflush(stdout)
     }
 }
