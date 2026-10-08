@@ -123,7 +123,7 @@ struct SetupView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 340)
-            Text("Setup takes about a minute. Nothing on your Mac changes until you click Continue.")
+            Text("Setup takes about a minute, and you're in control.")
                 .font(.caption).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 340)
@@ -159,14 +159,15 @@ struct SetupView: View {
             if model.searching {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("Looking for Cat Office…")
+                    Text("Looking for your Cat Office… this only takes a moment.")
                 }
                 Text("macOS may ask to let ClaudeBar look in your Documents, Desktop or Downloads folders — that's for finding Cat Office.")
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else if model.candidates.isEmpty {
-                Text("ClaudeBar couldn't find Cat Office.")
-                Text("If you have it, choose its folder (the one with package.json and server/agent-bridge).")
+                Text("ClaudeBar couldn't find Cat Office on its own. No problem: you can point to its folder, or carry on without it.")
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Its folder is the one with package.json and server/agent-bridge.")
                     .font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 10) {
@@ -198,7 +199,7 @@ struct SetupView: View {
 
     private func found(_ candidate: CatOfficeCandidate) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("Found your Cat Office", systemImage: "checkmark.circle.fill")
+            Label("Found your Cat Office!", systemImage: "checkmark.circle.fill")
                 .font(.headline).foregroundStyle(Theme.working)
             HStack(spacing: 6) {
                 Text(name(candidate.path)).font(.callout.weight(.medium))
@@ -338,7 +339,11 @@ struct SetupView: View {
 
     private var done: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(model.summary.allSatisfy(\.ok) ? "You're set up" : "Setup finished").font(.title3.weight(.semibold))
+            let allGood = model.summary.allSatisfy(\.ok)
+            Text(allGood ? "You're all set! 🐈" : "Almost there").font(.title3.weight(.semibold))
+            Text(allGood ? "Welcome aboard. Your cats are ready when you are."
+                         : "Everything that worked is ready to use. The lines below say how to finish the rest, whenever you like.")
+                .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(model.summary.enumerated()), id: \.offset) { _, line in
                     HStack(alignment: .top, spacing: 8) {
@@ -372,6 +377,8 @@ struct SetupView: View {
                 }
             }
             Spacer()
+            Text("Changed your mind? Settings → Undo ClaudeBar's changes… puts everything back.")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button("Full guide ↗") { state.openHelpGuide() }
                     .buttonStyle(.link)

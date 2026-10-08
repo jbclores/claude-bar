@@ -87,7 +87,7 @@ final class SetupModel: ObservableObject {
 
     func choose(_ path: String) -> Bool {
         let real = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
-        guard CatOfficeFinder.isCatOffice(real) else { choiceError = "That folder isn't Cat Office."; return false }
+        guard CatOfficeFinder.isCatOffice(real) else { choiceError = "That folder doesn't look like Cat Office. Try another one; nothing was changed."; return false }
         choiceError = nil
         if chosen == nil { patch = true; start = true }   // re-ticked after "I don't use Cat Office"
         if !candidates.contains(where: { $0.path == real }) {
@@ -121,11 +121,11 @@ final class SetupModel: ObservableObject {
                     results["patch"] = StepResult(ok: true, text: "Patched (a backup of the changed files is in .cat-office/).")
                     patched = true; patchChanged = true
                 case .alreadyPatched: results["patch"] = StepResult(ok: true, text: "Already patched."); patched = true
-                case .notCatOffice: results["patch"] = StepResult(ok: false, text: "That folder isn't Cat Office.")
+                case .notCatOffice: results["patch"] = StepResult(ok: false, text: "That folder doesn't look like Cat Office, so nothing was changed.")
                 case .doesNotFit:
-                    results["patch"] = StepResult(ok: false, text: "Your Cat Office version isn't supported for the extras. Nothing was changed.")
+                    results["patch"] = StepResult(ok: false, text: "Your Cat Office version doesn't support the extras yet. Nothing was changed, and everything else works as usual.")
                     patched = false
-                case .failed(let why): results["patch"] = StepResult(ok: false, text: "The patch didn't run: \(why)")
+                case .failed(let why): results["patch"] = StepResult(ok: false, text: "The patch didn't run, and nothing was changed: \(why)")
                 }
             } else {
                 patched = await SetupActions.isPatched(dir, env: env)
@@ -230,7 +230,8 @@ final class SetupModel: ObservableObject {
         if let dir = chosen {
             lines.append((true, "Cat Office: \(URL(fileURLWithPath: dir).lastPathComponent)"))
         } else {
-            lines.append((false, "No Cat Office: the Office tab stays empty. Set it up any time from Settings."))
+            // Chosen, not missing: a calm check, not a red cross.
+            lines.append((true, "That's fine: ClaudeBar still shows your usage and projects. You can add Cat Office any time from Settings."))
         }
         if let r = results["patch"] { lines.append((r.ok, r.text)) } else if chosen != nil {
             lines.append((false, "Not patched: cats may not match the browser and helpers don't show. Run setup again to patch."))

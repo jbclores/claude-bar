@@ -179,7 +179,7 @@ private func setupModel(step: String, state: AppState) -> SetupModel? {
     case "done", "done-restart":
         model.step = .done
         model.results["usage"] = StepResult(ok: true, text: "Your status line is kept; ClaudeBar reads its data quietly.")
-        model.results["patch"] = StepResult(ok: false, text: "Your Cat Office version isn't supported for the extras. Nothing was changed.")
+        model.results["patch"] = StepResult(ok: false, text: "Your Cat Office version doesn't support the extras yet. Nothing was changed, and everything else works as usual.")
         if step == "done-restart" {
             model.results["patch"] = StepResult(ok: true, text: "Patched (a backup of the changed files is in .cat-office/).")
             model.results["start"] = StepResult(ok: true, text: "Cat Office is running: restart it to load the patch.")
