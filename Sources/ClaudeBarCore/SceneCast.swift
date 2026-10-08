@@ -57,15 +57,23 @@ extension SceneCast {
         let byId = Dictionary(agents.filter { mirrored[$0.id] == nil }.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         var cats: [SceneCat] = [], notes: [(String, FloorPoint)] = []
         var anchor: [String: FloorPoint] = [:]
+        var drawn = Set<String>()
         for agent in agents {
-            guard let place = mirrored[agent.id], cats.allSatisfy({ $0.agent.id != agent.id }) else { continue }
+            guard let place = mirrored[agent.id], drawn.insert(agent.id).inserted else { continue }
             let cat = Self.mirroredCat(agent, place, in: room)
             cats.append(cat)
             anchor[agent.id] = cat.at
         }
+        // The desks and seats mirrored cats use: a rule-placed cat there moves to another (Self.clear).
+        let busy = Set(mirrored.values.compactMap(\.spotId))
+        var displaced: [String] = []
 
         if lounge {
-            for (i, id) in seating.lounge.enumerated() {
+            // A cat left without a seat sleeps in the cluster with the rest.
+            var unseated: [String] = []
+            let loungeSlots = Self.clear(seating.lounge, ids: { room.seats.indices.contains($0) ? room.seats[$0].id : nil },
+                                         busy: busy, ruled: byId, displaced: &unseated)
+            for (i, id) in loungeSlots.enumerated() {
                 guard let id, let agent = byId[id], room.seats.indices.contains(i) else { continue }
                 let spot = room.seats[i]
                 // simulation-engine.ts perches: only a raised spot puts the cat up on its prop (room.ts spotOwner).
@@ -76,7 +84,7 @@ extension SceneCast {
             // The rest cluster on the first rug spot, else the floor's centre.
             let rugs = Set(room.rugs.map(\.id))
             let base = room.seats.first { rugs.contains($0.owner) }?.standAt ?? FloorPoint(u: 0.5, v: 0.5)
-            let seated = Set(seating.lounge.compactMap { $0 })
+            let seated = Set(loungeSlots.compactMap { $0 })
             let extra = agents.filter { !$0.isSubagent && !seated.contains($0.id) && mirrored[$0.id] == nil }
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             for (j, agent) in extra.prefix(Self.clusterShown).enumerated() {
@@ -91,7 +99,9 @@ extension SceneCast {
             }
         } else {
             let desks = Dictionary(room.desks.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            for (i, id) in seating.desks.enumerated() {
+            let deskSlots = Self.clear(seating.desks, ids: { deskIds.indices.contains($0) ? deskIds[$0] : nil },
+                                       busy: busy, ruled: byId, displaced: &displaced)
+            for (i, id) in deskSlots.enumerated() {
                 guard let id, let agent = byId[id], deskIds.indices.contains(i), let desk = desks[deskIds[i]] else { continue }
                 var seated = agent
                 seated.desk = AgentDesk(id: desk.design, flip: desk.flip, rear: desk.rear)
@@ -116,17 +126,37 @@ extension SceneCast {
         }
         // The queue at the elevator's waiting places.
         let door = room.elevator?.standAt ?? FloorPoint(u: 0.5, v: 0.5)
-        for (i, id) in seating.queue.enumerated() {
+        // Cats left without a desk by mirrored cats queue after the rest (FloorPlan.seating's overflow).
+        let queue = seating.queue + displaced
+        let queueOverflow = seating.queueOverflow + max(0, queue.count - max(seating.queue.count, FloorSeating.queueShown))
+        for (i, id) in queue.prefix(max(seating.queue.count, FloorSeating.queueShown)).enumerated() {
             guard let agent = byId[id] else { continue }
             cats.append(SceneCat(agent: agent, kind: .queue, at: ElevatorTrip.waitingPlace(door, index: i), lift: 0,
                                  size: agent.isSubagent ? Self.helperSize : 1, pose: .standing,
                                  direction: "front-left", perch: nil, desk: nil))
         }
-        if seating.queueOverflow > 0 {
+        if queueOverflow > 0 {
             let last = ElevatorTrip.waitingPlace(door, index: 2)
-            notes.append(("+\(seating.queueOverflow)", FloorPoint(u: last.u + ElevatorTrip.waitSpread.u, v: last.v + ElevatorTrip.waitSpread.v)))
+            notes.append(("+\(queueOverflow)", FloorPoint(u: last.u + ElevatorTrip.waitSpread.u, v: last.v + ElevatorTrip.waitSpread.v)))
         }
         return (cats, notes)
+    }
+
+    /// `slots` (agent id per desk or seat) with no rule-placed cat (in `ruled`) on a desk or seat a mirrored cat uses
+    /// (`busy`, by spot id): it moves to the first slot that is neither busy nor holding a rule-placed cat (empty, or
+    /// a mirrored cat's rule slot), else it leaves the slots (`displaced`). Unchanged with nothing busy.
+    static func clear(_ slots: [String?], ids: (Int) -> String?, busy: Set<String>, ruled: [String: OfficeAgent],
+                      displaced: inout [String]) -> [String?] {
+        guard !busy.isEmpty else { return slots }
+        var out = slots
+        func taken(_ i: Int) -> Bool { out[i].map { ruled[$0] != nil } ?? false }
+        func isBusy(_ i: Int) -> Bool { ids(i).map(busy.contains) ?? false }
+        for i in out.indices where taken(i) && isBusy(i) {
+            let id = out[i]!
+            out[i] = nil
+            if let j = out.indices.first(where: { !taken($0) && !isBusy($0) && ids($0) != nil }) { out[j] = id } else { displaced.append(id) }
+        }
+        return out
     }
 
     /// A cat where the browser has it: its point (u, v), lifted on the seat it uses (`spotId` names a spot of this

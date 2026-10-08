@@ -189,6 +189,60 @@ func mirrorPlace(floor: Int, u: Double, v: Double, direction: String = "front-le
         #expect(ca.at == door)
     }
 
+    @Test func aRuleCatDoesNotTakeTheDeskAMirroredCatUses() throws {
+        let room = try built(2)
+        let a = agent("a", .working), b = agent("b", .working)
+        // By the rules "a" (first by name) gets the first desk; "b" is mirrored at that desk in the browser.
+        let today = cast(room, lounge: false, agents: [a, b], mirrored: [:])
+        let deskX = try #require(today.seating.desks.firstIndex(of: "a")).map { today.deskIds[$0] }
+        let x = try #require(room.desks.first { $0.id == deskX })
+        let place = mirrorPlace(floor: 2, u: x.standAt.u, v: x.standAt.v, direction: x.facing, state: "working", kind: "desk", spotId: x.id)
+        let cats = cast(room, lounge: false, agents: [a, b], mirrored: ["b": place]).layout(in: room).cats
+        let ca = try #require(cats.first { $0.agent.id == "a" })
+        #expect(ca.kind == .desk && ca.at != x.standAt, "another desk")
+        #expect(cats.filter { $0.at == x.standAt }.map(\.agent.id) == ["b"])
+        // Mirror off: as today.
+        #expect(today.layout(in: room).cats.first { $0.agent.id == "a" }?.at == x.standAt)
+    }
+
+    @Test func aRuleCatDoesNotTakeTheSeatAMirroredCatUses() throws {
+        let room = try built(1)
+        let a = agent("a", .idle), b = agent("b", .idle)
+        let today = cast(room, lounge: true, agents: [a, b], mirrored: [:])
+        let i = try #require(today.seating.lounge.firstIndex(of: "a"))
+        let seat = room.seats[i]
+        let place = mirrorPlace(floor: 1, u: seat.standAt.u, v: seat.standAt.v, asleep: true, kind: seat.kind, spotId: seat.id)
+        let cats = cast(room, lounge: true, agents: [a, b], mirrored: ["b": place]).layout(in: room).cats
+        let ca = try #require(cats.first { $0.agent.id == "a" })
+        #expect(ca.kind == .seat && ca.at != seat.standAt, "another seat")
+        #expect(today.layout(in: room).cats.first { $0.agent.id == "a" }?.at == seat.standAt)
+        // Every seat busy: the cat sleeps in the cluster, drawn once.
+        var mirrored: [String: MirrorPlace] = [:], agents = [a]
+        for (k, s) in room.seats.enumerated() {
+            let m = agent("m\(k)", .idle)
+            agents.append(m)
+            mirrored[m.id] = mirrorPlace(floor: 1, u: s.standAt.u, v: s.standAt.v, asleep: true, kind: s.kind, spotId: s.id)
+        }
+        let full = cast(room, lounge: true, agents: agents, mirrored: mirrored).layout(in: room).cats
+        #expect(full.filter { $0.agent.id == "a" }.map(\.kind) == [.seat])
+        #expect(full.count == agents.count)
+    }
+
+    @Test func withEveryDeskBusyTheRuleCatQueues() throws {
+        let room = try built(2)
+        let a = agent("a", .working)
+        var mirrored: [String: MirrorPlace] = [:], agents = [a]
+        for (k, d) in room.desks.enumerated() {
+            let m = agent("m\(k)", .working)
+            agents.append(m)
+            mirrored[m.id] = mirrorPlace(floor: 2, u: d.standAt.u, v: d.standAt.v, state: "working", kind: "desk", spotId: d.id)
+        }
+        let cats = cast(room, lounge: false, agents: agents, mirrored: mirrored).layout(in: room).cats
+        let ca = try #require(cats.first { $0.agent.id == "a" })
+        #expect(ca.kind == .queue)
+        #expect(cats.count == agents.count)
+    }
+
     @Test func aStaleMirrorLeavesTodaysLayout() throws {
         for (id, lounge) in [(1, true), (2, false)] {
             let room = try built(id)
