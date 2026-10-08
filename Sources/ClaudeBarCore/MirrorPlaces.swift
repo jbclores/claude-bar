@@ -59,6 +59,17 @@ public struct MirrorPlace: Equatable, Sendable, Decodable {
         return "\(label) · \(Int(left.rounded(.up))) min left"
     }
 
+    /// A place made here rather than decoded (OfficeSim's output).
+    public init(floor: Int, u: Double, v: Double, direction: String, state: String, gesture: String = "none",
+                expression: String = "default", asleep: Bool = false, activity: Activity? = nil, spotId: String? = nil,
+                minutesLeft: Double? = nil, phase: String = "idle", ridingTo: Int? = nil, catId: String? = nil, at: Double,
+                name: String? = nil, key: String? = nil) {
+        self.floor = floor; self.u = u; self.v = v; self.direction = direction; self.state = state; self.gesture = gesture
+        self.expression = expression; self.asleep = asleep; self.activity = activity; self.spotId = spotId
+        self.minutesLeft = minutesLeft; self.phase = phase; self.ridingTo = ridingTo; self.catId = catId; self.at = at
+        self.name = name; self.key = key
+    }
+
     private enum CodingKeys: String, CodingKey {
         case floor, u, v, direction, state, gesture, expression, asleep, activity, spotId, minutesLeft, phase, ridingTo, catId, at, name, key
     }

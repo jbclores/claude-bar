@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// A place a cat goes to on a prop or a rug (Cat Office's Spot, without its label, capacity and slots).
+/// A place a cat goes to on a prop or a rug (Cat Office's Spot).
 public struct RoomSpot: Equatable, Sendable {
     public var id: String
     public var kind: String
@@ -14,6 +14,10 @@ public struct RoomSpot: Equatable, Sendable {
     public var owner: String
     /// Where each further occupant stands (room.ts Spot.slots); empty for a single-cat spot.
     public var slots: [FloorPoint] = []
+    /// The spot's name (world.types.ts Spot.label: "Coffee counter"), for "Heading to the coffee counter".
+    public var label: String = ""
+    /// How many cats it takes at once (world.types.ts Spot.capacity).
+    public var capacity: Int = 1
 }
 
 /// A prop standing on a floor (room.ts PlacedProp).
@@ -225,7 +229,8 @@ public enum PropPlacer {
             let (at, facing) = place(s.stand, s.facing, lift)
             return RoomSpot(id: propSpotId(placement, i, s.id), kind: s.kind, pose: s.pose, standAt: at, facing: facing,
                             lift: lift - drop > 0 ? lift - drop : 0, owner: placement.id,
-                            slots: (s.slots ?? []).map { place($0.stand, $0.facing, lift).at })
+                            slots: (s.slots ?? []).map { place($0.stand, $0.facing, lift).at },
+                            label: s.label ?? "", capacity: s.capacity ?? 1)
         }
     }
 
@@ -237,7 +242,7 @@ public enum PropPlacer {
                 ? FloorPoint(u: rug.u + s.at.v * rug.d, v: rug.v - s.at.u * rug.w)
                 : FloorPoint(u: rug.u + s.at.u * rug.d, v: rug.v + s.at.v * rug.w)
             return RoomSpot(id: i == 0 ? rug.id : "\(rug.id):\(s.id ?? "undefined")", kind: s.kind, pose: s.pose,
-                            standAt: standAt, facing: s.facing, lift: 0, owner: rug.id)
+                            standAt: standAt, facing: s.facing, lift: 0, owner: rug.id, label: s.label ?? "", capacity: s.capacity ?? 1)
         }
     }
 

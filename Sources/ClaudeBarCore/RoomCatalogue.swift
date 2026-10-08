@@ -66,6 +66,7 @@ public struct RugSpotDef: Codable, Equatable, Sendable {
     public var facing: String
     public var capacity: Int?
     public var optional: Bool?
+    public var label: String? = nil
 }
 
 /// A window's decoration over its glass: a strip of lights or a hung lantern (Cat Office's WindowDecorDef).
@@ -186,6 +187,7 @@ public struct PropSpotDef: Codable, Equatable, Sendable {
     public var lift: Double?
     public var optional: Bool?
     public var slots: [SpotSlot]?
+    public var label: String? = nil
 }
 
 public struct PropTop: Codable, Equatable, Sendable {
@@ -234,6 +236,7 @@ public struct DeskDef: Codable, Equatable, Sendable {
     public var depth: Double
     public var stand: SpotOffset
     public var rear: PropSprite?
+    public var label: String? = nil
 }
 
 /// Cat Office's room-parts.json, props.json, desks.json (and wall-item-art.json) indexed by id.

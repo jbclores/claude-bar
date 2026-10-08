@@ -53,7 +53,8 @@ enum WalkSpots {
         }
         // desks.ts resolveOffice 192: the desks' work spots after the room's.
         spots += desks.map {
-            RoomSpot(id: $0.id, kind: "desk", pose: $0.rear ? "stand" : "type", standAt: $0.standAt, facing: $0.facing, lift: 0, owner: $0.id)
+            RoomSpot(id: $0.id, kind: "desk", pose: $0.rear ? "stand" : "type", standAt: $0.standAt, facing: $0.facing, lift: 0, owner: $0.id,
+                     label: catalogue.desks[$0.design]?.label ?? "", capacity: 1)
         }
         return closeSpots(spots, props: placed, catalogue: catalogue, desks: desks, optional: optional, gridSize: gridSize,
                           nav: n.flatMap { n in open.map { NavGrid(size: n, open: NavGrid.carved($0, desks: desks, size: n), frame: frame) } })
