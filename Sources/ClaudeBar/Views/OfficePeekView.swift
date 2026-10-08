@@ -49,14 +49,15 @@ extension CatHit {
     init(frame: CGRect) { self.init(frame: frame, z: 0, feet: CGPoint(x: frame.midX, y: frame.maxY)) }
 }
 
-/// "5 cats · Claude OK" (or hindered), for the peek and the Office tab.
+/// "· 2 cats · Claude OK" (or hindered) after the peek's floor name: the cats on that floor, as the Office tab's floor
+/// menu counts them (not the whole office, which read as if they were all on the floor shown).
 struct OfficeSummary: View {
     let office: OfficeSnapshot
+    let count: Int
 
     var body: some View {
-        let count = office.agents.filter { $0.status != .ended }.count
         HStack(spacing: 4) {
-            Text("\(count) cat\(count == 1 ? "" : "s") ·").foregroundStyle(.secondary)
+            Text("· \(count) cat\(count == 1 ? "" : "s") ·").foregroundStyle(.secondary)
             Text(office.claudeHindered ? "Claude hindered" : "Claude OK")
                 .foregroundStyle(office.claudeHindered ? Theme.waiting : .secondary)
         }
@@ -770,7 +771,10 @@ struct OfficePeekView: View {
                 Text("Cat Office").font(.headline)
                 let f = state.building.floor(id: state.followFloor)
                 Text("· \(f?.id ?? 1) \(f?.name ?? "Lounge")").font(.callout.weight(.semibold))
-                if let office = state.office { OfficeSummary(office: office).font(.callout) }
+                if let office = state.office {
+                    OfficeSummary(office: office, count: FloorPlan.cats(on: f?.id ?? 1, agents: office.agents, in: state.building).count)
+                        .font(.callout)
+                }
                 Spacer(minLength: 6)
                 MusicButton()
             }
