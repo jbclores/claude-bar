@@ -63,10 +63,13 @@ public struct Floor: Equatable, Sendable, Identifiable {
     public var gridSize: Double?
     /// building.json floor.grid.walkable: `size` rows of `size` "1"/"0" cells (nil when missing or malformed).
     public var walkable: [String]?
+    /// building.json floor.pool: the desk pool's floor (a project floor in Cat Office's floors.ts).
+    public var pool: Bool = false
 
     public init(id: Int, name: String, repoRoot: String?, floorTexture: RoomTexture?, wallTexture: RoomTexture?,
                 desks: [FloorDesk], elevator: WallItemArt?, hasLoungeSign: Bool,
-                corners: FloorCorners? = nil, room: FloorRoom? = nil, gridSize: Double? = nil, walkable: [String]? = nil) {
+                corners: FloorCorners? = nil, room: FloorRoom? = nil, gridSize: Double? = nil, walkable: [String]? = nil,
+                pool: Bool = false) {
         self.id = id
         self.name = name
         self.repoRoot = repoRoot
@@ -79,10 +82,17 @@ public struct Floor: Equatable, Sendable, Identifiable {
         self.room = room
         self.gridSize = gridSize
         self.walkable = walkable
+        self.pool = pool
     }
 
     /// Floor 1 is the Lounge in Cat Office (src/world/floors.ts LOUNGE_FLOOR).
     public var isLounge: Bool { id == 1 }
+
+    /// floors.ts isProjectFloor: a repo's floor or the desk pool.
+    public var isProjectFloor: Bool { repoRoot != nil || pool }
+
+    /// floors.ts isOwnOffice: not the lounge, not a project's floor (where spare cats have their desks).
+    public var isOwnOffice: Bool { !isLounge && !isProjectFloor }
 }
 
 /// Cat Office's building (public/data/building.json + room-parts.json).
@@ -143,7 +153,8 @@ public struct Building: Equatable, Sendable {
                 corners: f["corners"].flatMap { decode($0) },
                 room: f["room"].flatMap { decode($0) },
                 gridSize: ((f["grid"] as? [String: Any])?["size"] as? NSNumber)?.doubleValue,
-                walkable: walkableRows(f["grid"] as? [String: Any]))
+                walkable: walkableRows(f["grid"] as? [String: Any]),
+                pool: f["pool"] as? Bool ?? false)
         }
         guard !floors.isEmpty else { return nil }
         let catHeight = (root["catHeight"] as? NSNumber).map(\.doubleValue).flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
