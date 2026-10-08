@@ -24,6 +24,8 @@ public struct CatCatalog: Equatable, Sendable {
     var typePath: String
     var sleepPath: String
     var sitPath = "assets/cats/{cat}/{direction}/sit.png"
+    /// The cats as the spare roster reads them (SpareRoster.roster): id, name (else the id) and role.
+    public var cats: [SpareRoster.Cat] = []
 
     public static func parse(_ data: Data) -> CatCatalog? {
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -33,7 +35,10 @@ public struct CatCatalog: Equatable, Sendable {
             standingPath: obj["path"] as? String ?? "assets/cats/{cat}/{direction}/{gesture}.png",
             typePath: obj["typePath"] as? String ?? "assets/cats/{cat}/{direction}/type.png",
             sleepPath: obj["sleepPath"] as? String ?? "assets/cats/{cat}/sleep.png",
-            sitPath: obj["sitPath"] as? String ?? "assets/cats/{cat}/{direction}/sit.png")
+            sitPath: obj["sitPath"] as? String ?? "assets/cats/{cat}/{direction}/sit.png",
+            cats: cats.compactMap { c in
+                (c["id"] as? String).map { SpareRoster.Cat(id: $0, name: c["name"] as? String ?? $0, role: c["role"] as? String) }
+            })
     }
 
     /// The sprite for a pose; `direction` defaults to back-left for typing and front-left otherwise.

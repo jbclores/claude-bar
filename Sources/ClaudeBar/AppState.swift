@@ -33,6 +33,7 @@ final class AppState: ObservableObject {
     @Published private(set) var navs: [Int: NavGrid] = [:]
 
     private func rebuildRooms() {
+        defer { updateMirror() }
         guard let c = catalogue else { rooms = [:]; navs = [:]; return }
         rooms = Dictionary(building.floors.compactMap { f in RoomGeometry.build(floor: f, catalogue: c).map { (f.id, $0) } },
                            uniquingKeysWith: { first, _ in first })
@@ -61,9 +62,11 @@ final class AppState: ObservableObject {
     private func updateMirror() {
         let now = Date()
         // Renders only: CLAUDEBAR_RENDER_SPARES=1 shows spare cats without touching the config.
-        let spares = settings.showSpareCats || (!sideEffects && ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_SPARES"] == "1")
-        let next = OfficeMirror(office, now: now, showSpares: spares)
-        if next != mirror { mirror = next }
+        let spares = mirrorShowsSpares
+        simHost.update(agents: office?.agents ?? [], building: building, rooms: rooms, grids: navs, spares: catalogCats, showSpares: spares)
+        renderAdvance(now: now)
+        let live = MirrorPlaces.isLive(placesAt: office?.placesAt, now: now)
+        publish(simHost.mirror(OfficeMirror(office, now: now, showSpares: spares), live: live, now: now))
         mirrorExpiry?.cancel()
         mirrorExpiry = nil
         // No new post within MirrorPlaces.liveFor: the rules take over then.
@@ -72,6 +75,87 @@ final class AppState: ObservableObject {
         mirrorExpiry = item
         let left = at / 1000 + MirrorPlaces.liveFor - now.timeIntervalSince1970
         DispatchQueue.main.asyncAfter(deadline: .now() + max(0, left) + 0.05, execute: item)
+    }
+
+    // MARK: the office's own life (OfficeSim, spec section 3)
+
+    /// Cat Office's office life for the idle cats (and spares with the switch on) while no page shares its places.
+    private lazy var simHost = SimHost(seed: Self.simSeed(sideEffects: sideEffects), now: launched)
+    /// Steps the sim while the office is on screen; nil while it's closed (nothing runs then).
+    private(set) var simTimer: Timer?
+    /// Bumped when the office's cats were placed at once (the catch-up on opening): the views place them, no walks.
+    @Published private(set) var simPlacement = 0
+    /// cats.json's cats, for the spare roster.
+    private var catalogCats: [SpareRoster.Cat] = []
+    static let simTick: TimeInterval = 0.25
+    private var renderAdvanced = false
+
+    /// A new seed each launch; renders may fix it (CLAUDEBAR_SIM_SEED).
+    private static func simSeed(sideEffects: Bool) -> UInt32 {
+        if !sideEffects, let seed = ProcessInfo.processInfo.environment["CLAUDEBAR_SIM_SEED"].flatMap(UInt32.init) { return seed }
+        return UInt32.random(in: .min ... .max)
+    }
+
+    /// The office (Office tab or hover peek) is on screen.
+    private var officeOnScreen: Bool { officeTabShown || peekShownSince != nil }
+
+    /// The office opened or closed: opening catches up and places the cats; the step timer runs only while open.
+    private func updateSimClock() {
+        let on = officeOnScreen
+        guard on != simHost.visible else { return }
+        let placed = simHost.placement
+        simHost.setVisible(on, now: Date())
+        if on {
+            if simTimer == nil {
+                let timer = Timer(timeInterval: Self.simTick, repeats: true) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.simTicked() }
+                }
+                // Also while a menu or scroll tracks the mouse.
+                RunLoop.main.add(timer, forMode: .common)
+                simTimer = timer
+            }
+        } else {
+            simTimer?.invalidate()
+            simTimer = nil
+        }
+        if simHost.placement != placed { simPlacement = simHost.placement }
+        logSim(on ? "office open" : "office closed")
+        updateMirror()
+    }
+
+    private func simTicked() {
+        let now = Date()
+        simHost.tick(now: now)
+        let live = MirrorPlaces.isLive(placesAt: office?.placesAt, now: now)
+        guard !live else { return }
+        publish(simHost.mirror(.off, live: false, now: now))
+    }
+
+    private func publish(_ next: OfficeMirror) {
+        if next != mirror { mirror = next }
+    }
+
+    /// Renders only (CLAUDEBAR_SIM_ADVANCE=<minutes>): once the cats are in, that many sim minutes at once.
+    private func renderAdvance(now: Date) {
+        guard !sideEffects, !renderAdvanced, !rooms.isEmpty, !simHost.cats.isEmpty,
+              let minutes = ProcessInfo.processInfo.environment["CLAUDEBAR_SIM_ADVANCE"].flatMap(Double.init) else { return }
+        // The spares join once cats.json is in (when they're shown).
+        if simHost.cats.allSatisfy({ !$0.isSpare }), mirrorShowsSpares, catalogCats.isEmpty { return }
+        renderAdvanced = true
+        simHost.advance(minutes: minutes, now: now)
+        simPlacement = simHost.placement
+        logSim("advanced \(minutes) min")
+    }
+
+    private var mirrorShowsSpares: Bool {
+        settings.showSpareCats || (!sideEffects && ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_SPARES"] == "1")
+    }
+
+    /// Renders only: the sim's clock, so a render shows that nothing runs while the office is closed.
+    private func logSim(_ what: String) {
+        guard !sideEffects else { return }
+        print("sim: \(what): step timer \(simTimer == nil ? "nil" : "running"), sim time \(String(format: "%.2f", simHost.sim.time)) min,",
+              "\(simHost.cats.filter { !$0.isSpare }.count) session cats, \(simHost.cats.filter(\.isSpare).count) spares, taken desks \(simHost.takenSpotIds.count)")
     }
 
     private func loadBuilding() {
@@ -129,12 +213,13 @@ final class AppState: ObservableObject {
     var officeVisible = false
     private lazy var lofi = LofiPlayer()
     /// The dropdown is open on its Office tab.
-    var officeTabShown = false { didSet { if officeTabShown != oldValue { updateMusic() } } }
+    var officeTabShown = false { didSet { if officeTabShown != oldValue { updateMusic(); updateSimClock() } } }
     /// When the hover popup opened (nil while closed): the music waits OfficeMusic.popupDelay before starting.
     var peekShownSince: Date? {
         didSet {
             guard peekShownSince != oldValue else { return }
             updateMusic()
+            if (peekShownSince == nil) != (oldValue == nil) { updateSimClock() }
             if peekShownSince != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + OfficeMusic.popupDelay + 0.05) { [weak self] in self?.updateMusic() }
             }
@@ -382,10 +467,7 @@ final class AppState: ObservableObject {
     private func checkArt() {
         guard sideEffects, office != nil else { return }
         Task { @MainActor in
-            if let catalog = await art.catalog(refresh: true), catalog.catIds != catIds {
-                catIds = catalog.catIds
-                recompute()
-            }
+            if let catalog = await art.catalog(refresh: true) { catalogLoaded(catalog) }
             if officeVisible, await art.revalidate() { ArtGeneration.shared.bump() }
         }
     }
@@ -393,10 +475,7 @@ final class AppState: ObservableObject {
     /// Settings → Advanced → Refresh office art: check everything with Cat Office now (floors, furniture, characters).
     func refreshArt() {
         Task { @MainActor in
-            if let catalog = await art.catalog(refresh: true), catalog.catIds != catIds {
-                catIds = catalog.catIds
-                recompute()
-            }
+            if let catalog = await art.catalog(refresh: true) { catalogLoaded(catalog) }
             await art.revalidate(force: true)
             loadBuilding()
             loadCatalogue()
@@ -407,12 +486,21 @@ final class AppState: ObservableObject {
     /// Cat ids for picking each agent's cat (from Cat Office, or the copy cached last time).
     private func loadCatalog() {
         Task { @MainActor in
-            if let catalog = await art.catalog(), catalog.catIds != catIds {
-                catIds = catalog.catIds
-                recompute()
-            }
+            if let catalog = await art.catalog() { catalogLoaded(catalog) }
             loadBuilding()
             loadCatalogue()
+        }
+    }
+
+    /// A changed cat list: the agents' cats, and the spare roster.
+    private func catalogLoaded(_ catalog: CatCatalog) {
+        if catalog.catIds != catIds {
+            catIds = catalog.catIds
+            recompute()
+        }
+        if catalog.cats != catalogCats {
+            catalogCats = catalog.cats
+            updateMirror()
         }
     }
 

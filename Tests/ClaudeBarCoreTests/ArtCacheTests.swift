@@ -39,6 +39,16 @@ import Testing
         #expect(CatPose(status: .idle) == .sleeping)
     }
 
+    /// The spare roster's cats (name and role from the cat builder; a cat without a name goes by its id).
+    @Test func catalogKeepsTheRostersCats() throws {
+        let json = #"{"cats":[{"id":"orange","name":"Orange","role":"qa"},{"id":"gray"},{"name":"no id"}]}"#
+        let c = try #require(CatCatalog.parse(Data(json.utf8)))
+        #expect(c.cats == [SpareRoster.Cat(id: "orange", name: "Orange", role: "qa"), SpareRoster.Cat(id: "gray", name: "gray")])
+        let real = try #require(CatCatalog.parse(fixture("rooms/user/cats.json")))
+        let manifest = try JSONDecoder().decode(SpareRoster.Manifest.self, from: fixture("rooms/user/cats.json"))
+        #expect(real.cats == manifest.cats && !manifest.cats.isEmpty)
+    }
+
     @Test func shrinksImages() throws {
         let png = try #require(Self.png(width: 360, height: 380))
         let small = try #require(ArtCache.shrink(png, maxPixelSize: 128))

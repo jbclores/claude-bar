@@ -682,17 +682,29 @@ public final class OfficeSim {
 
     /// The layout's input, as step 1's mirror type (places-share.ts buildPlaces): session cats' places by agent id,
     /// and, with `showSpares`, the spare cats under "spare:<id>" with their names. `at` is the sim time in ms.
-    public func output(showSpares: Bool) -> OfficeMirror {
+    /// `forDrawing` (what the office draws): a walking cat is already where its walk on this floor ends (the spot, or
+    /// the elevator), so the view walks it there once, along the same walking grid at its own pace, as it walks a
+    /// mirrored cat to its next place; `at` is 0, so stepping alone changes nothing drawn.
+    public func output(showSpares: Bool, forDrawing: Bool = false) -> OfficeMirror {
         var mirror = OfficeMirror(places: [:])
         for rt in runtimes {
             if rt.cat.isSpare && !showSpares { continue }
-            let p = place(of: rt)
+            let p = place(of: rt, forDrawing: forDrawing)
             if rt.cat.isSpare { mirror.spares.append(p) } else { mirror.places[rt.cat.id] = p }
         }
         return mirror
     }
 
-    private func place(of rt: Runtime) -> MirrorPlace {
+    private func place(of rt: Runtime, forDrawing: Bool) -> MirrorPlace {
+        let walking = rt.phase == .walking || rt.phase == .hoppingDown
+        let ahead = forDrawing && walking ? rt.path.last : nil
+        let at = ahead ?? rt.position
+        // Facing the way it comes in at the end (the last point at least a visible leg back), as it will on arrival.
+        var direction = rt.direction
+        if let end = ahead, let f = floor(rt.floor),
+           let from = ([rt.position] + rt.path.dropLast()).last(where: { f.pxDistance($0, end) >= NavGrid.minLegPx }) {
+            direction = Self.direction(from: from, to: end)
+        }
         let spot = rt.usingSpotId.flatMap { id in floor(rt.floor)?.spots.first { $0.id == id } }
         let def = spot.flatMap { $0.kind == "elevator" ? nil : SimActivities.activity(for: $0) }
         let phase = rt.phase.shared
@@ -705,10 +717,10 @@ public final class OfficeSim {
         default: break
         }
         return MirrorPlace(
-            floor: rt.floor, u: rt.position.u, v: rt.position.v, direction: rt.direction, state: rt.state.rawValue,
+            floor: rt.floor, u: at.u, v: at.v, direction: direction, state: rt.state.rawValue,
             gesture: rt.gesture, expression: rt.expression, asleep: def?.asleep == true || rt.pose == "sleep",
             activity: rt.badge.map { .init(kind: kind, label: $0) }, spotId: rt.usingSpotId, minutesLeft: minutesLeft,
-            phase: phase, ridingTo: ridingTo, catId: rt.cat.catId, at: time * 60_000,
+            phase: phase, ridingTo: ridingTo, catId: rt.cat.catId, at: forDrawing ? 0 : time * 60_000,
             name: rt.cat.isSpare ? rt.cat.name : nil, key: rt.cat.isSpare ? "spare:\(rt.cat.id)" : nil)
     }
 }

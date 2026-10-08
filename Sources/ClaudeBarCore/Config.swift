@@ -53,7 +53,7 @@ public struct Config: Equatable, Sendable {
     /// Show the office peek when the pointer rests on the menu bar icon.
     public var hoverPeek: Bool
     public var officeLighting: OfficeLighting = .auto
-    /// Show the browser's spare cats (office cats with no session) while a Cat Office page is open ("office.spareCats").
+    /// Show the office's spare cats (office cats with no session): the browser's while a page is open, else the simulation's ("office.spareCats").
     public var showSpareCats = false
     public var sounds = SoundSettings()
     public var setup = SetupSettings()

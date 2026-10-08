@@ -60,6 +60,23 @@ enum RenderPeek {
         window.backgroundColor = NSColor(white: renderLight ? 0.93 : 0.16, alpha: 1) // what the popover looks like
         window.contentView = host
         window.orderFrontRegardless()
+        func captureHost() {
+            guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { exit(1) }
+            host.cacheDisplay(in: host.bounds, to: rep)
+            try? rep.representation(using: .png, properties: [:])?.write(to: out)
+        }
+        // The peek is on screen: the office's own life runs (after launch has set `sideEffects`, for the render seed).
+        DispatchQueue.main.async { state.peekShownSince = Date() }
+        // CLAUDEBAR_SIM_REOPEN=<seconds>: the peek closes 4 s in for that long, then opens again (the catch-up places
+        // the cats at once); the live window is captured 0.5 s after (CLAUDEBAR_SIM_REOPEN_SHOT; cats walking there would
+        // be mid-walk).
+        if let closed = ProcessInfo.processInfo.environment["CLAUDEBAR_SIM_REOPEN"].flatMap(Double.init) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { state.peekShownSince = nil }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4 + closed) { state.peekShownSince = Date() }
+            let shot = ProcessInfo.processInfo.environment["CLAUDEBAR_SIM_REOPEN_SHOT"].flatMap(Double.init) ?? 0.5
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4 + closed + shot) { captureHost(); exit(0) }
+            return true
+        }
         if let flip = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLIP_AT"].flatMap(Double.init),
            let mid = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_MIDWALK"].flatMap(Double.init) {
             // Capture the live window mid-walk (a fresh render has no walk in progress).
@@ -67,12 +84,7 @@ enum RenderPeek {
             // A third places file (CLAUDEBAR_RENDER_PLACES_STEP seconds after the second) is posted by one more replay.
             let step = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_PLACES_STEP"].flatMap(Double.init) ?? 3
             DispatchQueue.main.asyncAfter(deadline: .now() + flip + 0.3 + step + 0.05) { state.replayOffice() }
-            DispatchQueue.main.asyncAfter(deadline: .now() + flip + 0.3 + mid) {
-                guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { exit(1) }
-                host.cacheDisplay(in: host.bounds, to: rep)
-                try? rep.representation(using: .png, properties: [:])?.write(to: out)
-                exit(0)
-            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + flip + 0.3 + mid) { captureHost(); exit(0) }
             return true
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
@@ -83,7 +95,8 @@ enum RenderPeek {
                 let at = (ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_ZOOM_AT"] ?? "120,110").split(separator: ",").compactMap { Double($0) }
                 zoom.renderZoom(CGFloat(factor), at: CGPoint(x: at.first ?? 120, y: at.last ?? 110))
             }
-            let content = OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(zoom).environmentObject(FloorSelection(alwaysFollow: true))
+            let floors = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLOOR"] != nil ? FloorSelection.forRender() : FloorSelection(alwaysFollow: true)
+            let content = OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(zoom).environmentObject(floors)
                 .background(renderLight ? Color(white: 0.93) : Color(white: 0.16))
                 .environment(\.colorScheme, renderLight ? .light : .dark)
             let renderer = ImageRenderer(content: content.frame(width: size.width, height: size.height))

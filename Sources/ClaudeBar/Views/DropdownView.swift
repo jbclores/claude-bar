@@ -294,7 +294,7 @@ struct SettingsTabView: View {
             setting("Start Cat Office with ClaudeBar", state.settings.catOffice.autoStart) { state.setAutoStart($0) }
             setting("Show the office on hover", state.settings.hoverPeek) { state.setHoverPeek($0) }
             setting("Show spare cats", state.settings.showSpareCats) { state.setShowSpareCats($0) }
-                .help("Also draw the office's own cats (the ones with no Claude session) while a Cat Office page is open")
+                .help("Also draw the office's own cats (the ones with no Claude session)")
             Divider()
             sounds
             Divider()

@@ -105,6 +105,10 @@ struct OfficeRoomView: View {
     @State private var buildingFloors: [Int] = []
     /// Built floors' fits (FloorScene), by floor id, in "roomContent" points.
     @State private var fits: [Int: SceneFit] = [:]
+    /// The last AppState.simPlacement the floor check and the walks have seen: a new one places every cat where it is
+    /// now (the sim caught up while the office was closed), with no walks or rides.
+    @State private var placedFloors: Int?
+    @State private var placedFeet: Int?
 
     /// The agents plus the spare cats shown (their stand-in agents): all of them walk and ride.
     private var cats: [OfficeAgent] { (state.office?.agents ?? []) + state.mirror.spares.map(OfficeMirror.spareAgent) }
@@ -113,24 +117,28 @@ struct OfficeRoomView: View {
     private func spareFloor(of a: OfficeAgent) -> Int? { a.place.flatMap { OfficeMirror.floorId(of: $0, in: state.building) } }
 
     /// Changes when any agent's floor changes.
-    private var floorKey: String {
+    private var floorKey: String { catFloors.map { "\($0.key)@\($0.value)" }.sorted().joined(separator: ",") }
+
+    /// Each cat's floor now (agents and the spares shown).
+    private var catFloors: [String: Int] {
         let agents = state.office?.agents ?? []
-        var keys: [String] = []
-        for a in agents { if let f = FloorPlan.floorId(for: a, among: agents, in: state.building, mirror: state.mirror) { keys.append("\(a.id)@\(f)") } }
-        for a in state.mirror.spares.map(OfficeMirror.spareAgent) { if let f = spareFloor(of: a) { keys.append("\(a.id)@\(f)") } }
-        return keys.sorted().joined(separator: ",")
+        var next: [String: Int] = [:]
+        for a in agents { if let f = FloorPlan.floorId(for: a, among: agents, in: state.building, mirror: state.mirror) { next[a.id] = f } }
+        for a in state.mirror.spares.map(OfficeMirror.spareAgent) { if let f = spareFloor(of: a) { next[a.id] = f } }
+        return next
     }
 
     private func noticeFloorChanges() {
         let agents = state.office?.agents ?? []
-        var next: [String: Int] = [:]
-        for a in agents { if let f = FloorPlan.floorId(for: a, among: agents, in: state.building, mirror: state.mirror) { next[a.id] = f } }
+        let next = catFloors
         let spares = state.mirror.spares.map(OfficeMirror.spareAgent)
-        for a in spares { if let f = spareFloor(of: a) { next[a.id] = f } }
         // A different building (Cat Office's floors replacing the fallback Lounge) moves cats without anyone riding.
         let floorIds = state.building.floors.map(\.id)
         defer { buildingFloors = floorIds }
-        guard !reduceMotion, buildingFloors == floorIds else { floorOf = next; return }
+        // Cats placed at once (the catch-up on opening) take their floors without riding.
+        let placing = placedFloors != state.simPlacement
+        placedFloors = state.simPlacement
+        guard !reduceMotion, buildingFloors == floorIds, !placing else { floorOf = next; return }
         let now = Date()
         var waiting = 0
         for (id, to) in next {
@@ -152,6 +160,18 @@ struct OfficeRoomView: View {
         floorOf = next
         // The arrival's spot may have been reported before its ride began: schedule its walk out of the elevator.
         if waiting > 0 { startWalks(to: shownFeet) }
+    }
+
+    /// AppState.simPlacement changed: forget walks, rides and last places, and note each cat's floor as it is now (the
+    /// floor check and the walks then see no move), whichever of them runs first.
+    private func placeCats() {
+        walks = [:]
+        rides = [:]
+        walkOuts = [:]
+        lastFeet = [:]
+        floorOf = catFloors
+        placedFloors = state.simPlacement
+        placedFeet = state.simPlacement
     }
 
     /// Cats riding up to the shown floor: their spot stays empty until they've walked out of the elevator.
@@ -246,6 +266,8 @@ struct OfficeRoomView: View {
         // A new building can leave every cat's floor id as it was (all in the Lounge): note it anyway, or the next
         // real move would be taken for a building swap and nobody would ride.
         .onChange(of: state.building.floors.map(\.id)) { _, _ in noticeFloorChanges() }
+        // The office caught up while it was closed: every cat is placed where it is now, none walks or rides there.
+        .onChange(of: state.simPlacement) { _, _ in placeCats() }
         // Rides are kept across a floor switch, so Follow moving to the arrival floor shows the arrival.
         .onChange(of: floorId) { _, _ in
             // A different floor: show the whole room and don't walk anyone across from the last floor.
@@ -265,6 +287,14 @@ struct OfficeRoomView: View {
     /// A cat whose feet moved (status took it between desk and lounge) walks there, the way Cat Office walks.
     private func startWalks(to feet: [String: CatFeet]) {
         let now = Date()
+        // Cats placed at once (the catch-up on opening) are drawn where they are: no walks there.
+        if placedFeet != state.simPlacement {
+            placedFeet = state.simPlacement
+            walks = [:]
+            walkOuts = [:]
+            lastFeet = feet
+            return
+        }
 
         for (id, spot) in feet {
             let to = spot.point
@@ -1202,7 +1232,7 @@ struct CatCard: View {
             let place = [agent.name, agent.repoName, agent.branch, agent.model.map(Format.modelName)]
                 .compactMap { $0 }.filter { !$0.isEmpty }
             Text(place.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            // What the browser has the cat doing, while the mirror is live.
+            // What the cat is doing: the browser's while the mirror is live, else the office's own life (OfficeSim).
             if let line = state.mirror.places[agent.id]?.activityLine { Text(line).font(.caption).lineLimit(1) }
             if let reason = agent.waitReason { Text(reason).font(.caption).foregroundStyle(Theme.waiting) }
             if let task = agent.task, !task.isEmpty { Text(task).font(.caption).lineLimit(3) }

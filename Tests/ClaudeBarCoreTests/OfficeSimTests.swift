@@ -343,4 +343,29 @@ import Testing
         sim.step(minutes: 1.0 / 30)
         #expect(abs(sim.time - (t + 1.0 / 30)) < 1e-9) // the excess was dropped, not kept
     }
+
+    /// The drawn output: a walking cat is where its walk ends (the view walks it there along the same grid), `at` is
+    /// fixed, so stepping alone makes no new mirror; everything else is the plain output.
+    @Test func drawnOutputPutsWalkersAtTheirWalksEnd() throws {
+        let sim = OfficeSim(seed: 7)
+        sim.setCats([SimCat(id: "s1", isSpare: true, name: "Mochi", catId: "cat-1", floor: 1, at: FloorPoint(u: 0.5, v: 0.5))],
+                    building: building, rooms: only([1]), grids: grids)
+        var n = 0
+        while runtime(sim, "s1")!.phase.label != "walking" { sim.step(minutes: 1.0 / 30); n += 1; try #require(n < 300) }
+        sim.step(minutes: 1.0 / 30)
+        let rt = try #require(runtime(sim, "s1"))
+        let end = try #require(rt.path.last)
+        let plain = try #require(sim.output(showSpares: true).spares.first)
+        let drawn = try #require(sim.output(showSpares: true, forDrawing: true).spares.first)
+        #expect(plain.u != end.u || plain.v != end.v)
+        #expect(drawn.u == end.u && drawn.v == end.v && drawn.phase == "walking" && drawn.at == 0)
+        let mid = sim.output(showSpares: true, forDrawing: true)
+        sim.step(minutes: 2.0 / 30)
+        if runtime(sim, "s1")!.phase.label == "walking" { #expect(sim.output(showSpares: true, forDrawing: true) == mid) }
+        // Not walking: the same place as the plain output but for `at`.
+        while runtime(sim, "s1")!.phase.label == "walking" { sim.step(minutes: 1.0 / 30); n += 1; try #require(n < 3000) }
+        var p = try #require(sim.output(showSpares: true).spares.first)
+        p.at = 0
+        #expect(sim.output(showSpares: true, forDrawing: true).spares.first == p)
+    }
 }
