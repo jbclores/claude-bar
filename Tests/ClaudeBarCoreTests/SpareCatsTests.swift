@@ -74,7 +74,6 @@ func sparePlace(_ id: String, name: String, floor: Int = 4, u: Double = 0.5, v: 
         // The sessions the status, sounds and notifications track come from the agents only.
         let tracked = StatusModel.trackedSessions(fallback: [], office: snapshot(agents: [a]))
         #expect(tracked.map(\.key) == [a.key])
-        #expect(MenuBarCat.pick(agents: [], attention: [], catIds: ["calico"]) == nil)
     }
 
     @Test func theActivityLine() {

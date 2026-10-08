@@ -292,9 +292,12 @@ final class AppState: ObservableObject {
         if !sideEffects, let spec = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_PLACES"], snapshot != nil {
             let files = spec.split(separator: ",").map(String.init)
             let after = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLIP_AT"].flatMap(Double.init)
-            let later = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLIP_TO"] == "places" && files.count > 1
-                && after.map { Date().timeIntervalSince(launched) > $0 } == true
-            if let file = later ? files.last : files.first { Self.renderPlaces(file: file, into: &snapshot!) }
+            // Each further file after the second comes `CLAUDEBAR_RENDER_PLACES_STEP` seconds (default 3) after the one before.
+            let step = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_PLACES_STEP"].flatMap(Double.init) ?? 3
+            let elapsed = Date().timeIntervalSince(launched)
+            let index = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLIP_TO"] == "places"
+                ? after.map { a in elapsed > a ? min(files.count - 1, 1 + Int((elapsed - a) / step)) : 0 } ?? 0 : 0
+            if let file = files.indices.contains(index) ? files[index] : files.first { Self.renderPlaces(file: file, into: &snapshot!) }
         }
         guard snapshot != office else { updateMirror(); return }
         let cameOnline = office == nil && snapshot != nil

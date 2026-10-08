@@ -143,7 +143,7 @@ public struct OfficeMirror: Equatable, Sendable {
     }
 
     /// The floor a place is drawn on (see `floor(of:in:)`), nil when it can't be drawn.
-    static func floorId(of p: MirrorPlace, in building: Building) -> Int? {
+    public static func floorId(of p: MirrorPlace, in building: Building) -> Int? {
         let onFloor = (-edge...(1 + edge))
         guard onFloor.contains(p.u), onFloor.contains(p.v) else { return nil }
         if p.phase == "elevator", let to = p.ridingTo, building.floor(id: to) != nil { return to }

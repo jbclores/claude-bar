@@ -50,7 +50,7 @@ enum RenderPeek {
             if xy.count == 2 { pointer.location = CGPoint(x: xy[0], y: xy[1]) }
         }
         let size = OfficePeekView.size
-        let host = NSHostingView(rootView: OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(RoomZoom()).environmentObject(FloorSelection(alwaysFollow: true))
+        let host = NSHostingView(rootView: OfficePeekView().environmentObject(state).environmentObject(pointer).environmentObject(RoomZoom()).environmentObject((ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLOOR"] != nil ? FloorSelection.forRender() : FloorSelection(alwaysFollow: true)))
             .background(renderLight ? Color(white: 0.93) : Color(white: 0.16))
             .environment(\.colorScheme, renderLight ? .light : .dark))
         host.frame = NSRect(origin: .zero, size: size)
@@ -64,6 +64,9 @@ enum RenderPeek {
            let mid = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_MIDWALK"].flatMap(Double.init) {
             // Capture the live window mid-walk (a fresh render has no walk in progress).
             DispatchQueue.main.asyncAfter(deadline: .now() + flip + 0.3) { state.replayOffice() }
+            // A third places file (CLAUDEBAR_RENDER_PLACES_STEP seconds after the second) is posted by one more replay.
+            let step = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_PLACES_STEP"].flatMap(Double.init) ?? 3
+            DispatchQueue.main.asyncAfter(deadline: .now() + flip + 0.3 + step + 0.05) { state.replayOffice() }
             DispatchQueue.main.asyncAfter(deadline: .now() + flip + 0.3 + mid) {
                 guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { exit(1) }
                 host.cacheDisplay(in: host.bounds, to: rep)

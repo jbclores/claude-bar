@@ -106,17 +106,27 @@ struct OfficeRoomView: View {
     /// Built floors' fits (FloorScene), by floor id, in "roomContent" points.
     @State private var fits: [Int: SceneFit] = [:]
 
+    /// The agents plus the spare cats shown (their stand-in agents): all of them walk and ride.
+    private var cats: [OfficeAgent] { (state.office?.agents ?? []) + state.mirror.spares.map(OfficeMirror.spareAgent) }
+
+    /// A spare's floor, as drawn.
+    private func spareFloor(of a: OfficeAgent) -> Int? { a.place.flatMap { OfficeMirror.floorId(of: $0, in: state.building) } }
+
     /// Changes when any agent's floor changes.
     private var floorKey: String {
         let agents = state.office?.agents ?? []
-        return agents.compactMap { a in FloorPlan.floorId(for: a, among: agents, in: state.building, mirror: state.mirror).map { "\(a.id)@\($0)" } }
-            .sorted().joined(separator: ",")
+        var keys: [String] = []
+        for a in agents { if let f = FloorPlan.floorId(for: a, among: agents, in: state.building, mirror: state.mirror) { keys.append("\(a.id)@\(f)") } }
+        for a in state.mirror.spares.map(OfficeMirror.spareAgent) { if let f = spareFloor(of: a) { keys.append("\(a.id)@\(f)") } }
+        return keys.sorted().joined(separator: ",")
     }
 
     private func noticeFloorChanges() {
         let agents = state.office?.agents ?? []
         var next: [String: Int] = [:]
         for a in agents { if let f = FloorPlan.floorId(for: a, among: agents, in: state.building, mirror: state.mirror) { next[a.id] = f } }
+        let spares = state.mirror.spares.map(OfficeMirror.spareAgent)
+        for a in spares { if let f = spareFloor(of: a) { next[a.id] = f } }
         // A different building (Cat Office's floors replacing the fallback Lounge) moves cats without anyone riding.
         let floorIds = state.building.floors.map(\.id)
         defer { buildingFloors = floorIds }
@@ -124,7 +134,7 @@ struct OfficeRoomView: View {
         let now = Date()
         var waiting = 0
         for (id, to) in next {
-            guard let from = floorOf[id], from != to, let agent = agents.first(where: { $0.id == id }) else { continue }
+            guard let from = floorOf[id], from != to, let agent = (agents + spares).first(where: { $0.id == id }) else { continue }
             // The walk to the elevator, from where the cat last stood on the shown floor (if it was there).
             let place = elevatorPlace(waiting)
             let walkIn = from == floorId ? lastFeet[id].map {
@@ -247,7 +257,7 @@ struct OfficeRoomView: View {
             walks = [:]
             lastFeet = [:]
         }
-        .task(id: catKey) { await WalkersLayer.preload(agents: state.office?.agents ?? [], catIds: state.catIds, art: state.art) }
+        .task(id: catKey) { await WalkersLayer.preload(agents: cats, catIds: state.catIds, art: state.art) }
 
     }
 
@@ -285,7 +295,7 @@ struct OfficeRoomView: View {
             // (On or just onto a raised seat it starts from the floor under it, not the lifted point.)
             let midWalk = walks[id]?.floorPosition(at: now)
             guard let from = midWalk ?? lastFeet[id]?.point, hypot(to.x - from.x, to.y - from.y) > 12,
-                  let agent = state.office?.agents.first(where: { $0.id == id }) else { continue }
+                  let agent = cats.first(where: { $0.id == id }) else { continue }
             let fromFloor = midWalk == nil ? lastFeet[id]?.floor : nil
             let walk = CatWalk(id: id, agent: agent, path: WalkRouter.path(from: from, fromFloor: fromFloor, to: to, toFloor: spot.floor, grid: state.navs[floorId], frame: state.rooms[floorId]?.frame, fit: fits[floorId]), start: now)
             walks[id] = walk
@@ -296,13 +306,13 @@ struct OfficeRoomView: View {
         // Remember where each cat last stood, also through a layout pass where it has no spot (it left the lounge
         // before its desk appeared) or Cat Office blips offline; forget cats that left the office.
         lastFeet.merge(feet) { $1 }
-        let here = Set(floorCats.map(\.id))
+        let here = Set(floorCats.map(\.id)).union(state.mirror.spares(on: floorId, in: state.building).compactMap(\.key))
         lastFeet = lastFeet.filter { here.contains($0.key) }
     }
 
     /// Changes when the cats in the office change (to preload their walks).
     private var catKey: String {
-        (state.office?.agents ?? []).filter { $0.status != .ended }.map { CatPicker.cat(for: $0, catIds: state.catIds) }.sorted().joined(separator: ",")
+        cats.filter { $0.status != .ended }.map { CatPicker.cat(for: $0, catIds: state.catIds) }.sorted().joined(separator: ",")
     }
 
     private var floorId: Int { floors.shown(state) }
