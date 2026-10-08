@@ -149,6 +149,18 @@ out2=$(CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo
   || bad "undo never-patched misfit ($code: $out / $code2: $out2)"
 rm -rf "$nf"
 
+# Patched, unpatched (leaves a backup), then Cat Office updates so the patch no longer fits: nothing of ClaudeBar's
+# is left, so "Not patched", never a greyed row.
+g=$(mktemp -d); cp -R "$orig/." "$g/"
+CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" "$g" >/dev/null 2>&1
+CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo "$g" >/dev/null 2>&1
+printf 'a newer Cat Office\n' > "$g/$first"; sum=$(tree_sum "$g")
+out=$(CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo --dry-run "$g" 2>&1); code=$?
+[ $code = 0 ] && [[ "$out" == "Not patched"* ]] && [ "$(tree_sum "$g")" = "$sum" ] \
+  && ok "undo after patch, unpatch and a Cat Office update: Not patched, exit 0, nothing changed" \
+  || bad "undo after patch+unpatch+update ($code: $out)"
+rm -rf "$g"
+
 CAT_OFFICE_PATCH="$PATCH" bash "$REPO/scripts/patch-cat-office.sh" --undo "$notco" >/dev/null 2>&1; code=$?
 [ $code = 2 ] && ok "undo on a non-Cat Office folder exits 2" || bad "undo non-Cat Office (got $code)"
 bash "$REPO/scripts/patch-cat-office.sh" --dry-run "$u" >/dev/null 2>&1; code=$?

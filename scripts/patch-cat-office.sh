@@ -75,9 +75,16 @@ if [ "$UNDO" = 1 ]; then
   fi
   if [ -z "$REV" ]; then
     if patch -d "$DIR" -p1 --dry-run -s -f < "$PATCH" >/dev/null 2>&1; then echo "Not patched: $DIR"; exit 0; fi
-    # Neither fits. Only a folder ClaudeBar patched (it always leaves a backup) holds a patch to take out; any other
-    # (e.g. a newer Cat Office setup never patched) has nothing of ClaudeBar's in it.
-    if ! ls -d "$DIR"/.cat-office/patch-backup-* >/dev/null 2>&1; then echo "Not patched: $DIR"; exit 0; fi
+    # Neither fits. Only a folder still holding ClaudeBar's patch has something to take out: it has a backup (patching and
+    # unpatching both leave one) AND a file the patch touches still names ClaudeBar (the comments the patch adds). Any
+    # other (never patched, or patched, unpatched, then updated) has nothing of ClaudeBar's in it.
+    ours=""
+    if ls -d "$DIR"/.cat-office/patch-backup-* >/dev/null 2>&1; then
+      while read -r f; do
+        if [ -f "$DIR/$f" ] && grep -q ClaudeBar "$DIR/$f" 2>/dev/null; then ours=1; break; fi
+      done < <(grep '^+++ b/' "$PATCH" | sed 's|^+++ b/||' | sort -u)
+    fi
+    if [ -z "$ours" ]; then echo "Not patched: $DIR"; exit 0; fi
     echo "Can't take the patch out of this Cat Office cleanly; nothing was changed." >&2; exit 3
   fi
   if [ "$DRY" = 1 ]; then rm -f "$REV"; echo "Would unpatch $DIR"; exit 0; fi
