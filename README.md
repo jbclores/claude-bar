@@ -38,11 +38,22 @@ controls your Claude agents, projects or git.
 | `~/.claude/statusline-command.sh` | ClaudeBar's script, only if you chose it; plus small helper files `claude-bar-*` next to it | `statusline-command.sh.claude-bar-backup-<time>` |
 | your Cat Office folder | the patch | `.cat-office/patch-backup-<time>/` |
 
+ClaudeBar's own small files: its art cache `~/Library/Caches/ClaudeBar/` and log `~/Library/Logs/ClaudeBar/`; the
+helpers `~/.claude/claude-bar-hook.sh` and `claude-bar-statusline.sh` (only if you kept your own status line) and its
+record `~/.claude/claude-bar-statusline-original.json`; `~/.cat-office/plan-usage.json` (your usage, for Cat Office);
+and its macOS preferences (the last Cat Office folder it saw, the last tab). "Also remove ClaudeBar" moves
+`~/.config/claude-bar/`, `~/.claude/claude-bar/`, the cache and the log to the Trash, plus the two helpers once
+`settings.json` no longer runs them. The record, `plan-usage.json` and the preferences stay (`defaults delete
+com.jbclores.claudebar` removes the preferences).
+
 Patching or unpatching Cat Office restarts it, which ends the Claude sessions running inside Cat Office (you're warned
 first).
 
 **Undo:** Settings → **Undo ClaudeBar's changes…**, or `ClaudeBar --undo` (`--remove` to remove ClaudeBar too) from the
 binary inside the app. The full page, with the by-hand steps: `Resources/Help/changes.html` (also in the app's guide).
+By hand, copying a backup back replaces those files and loses changes made to them since, so the page shows how to
+put back just the `statusLine` entry (from `claude-bar-statusline-original.json`), and when to re-download Cat Office
+instead.
 Changed your mind? You can undo everything in a minute, and set it up again whenever you like.
 
 `scripts/test-undo-command.sh` tests `--undo` against a temp folder (after `scripts/build.sh`).
@@ -83,8 +94,8 @@ The patched Cat Office writes `~/.cat-office/bridge.json` (address, token, its f
 finds it on any port and remembers its folder for starting it after a move.
 
 It does a trial run first, backs up the touched files to `<cat-office>/.cat-office/patch-backup-*`, and changes
-nothing if a newer Cat Office no longer matches. To undo, copy the backed-up files back (and delete
-`server/agent-bridge/cat-assignments.ts` and `tests/sim/cat-assignments.test.ts`).
+nothing if a newer Cat Office no longer matches. To undo, use `scripts/patch-cat-office.sh --undo <cat-office-folder>`,
+or see the by-hand steps in `Resources/Help/changes.html`.
 
 ## Floors
 
