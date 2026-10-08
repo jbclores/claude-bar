@@ -28,12 +28,14 @@ struct OfficeCatList: View {
                         .foregroundStyle(row.needsAttention ? Theme.waiting : Theme.color(row.status))
                         .fixedSize()
                     Spacer(minLength: 8)
-                    Text(row.lastAction ?? row.branch ?? "")
+                    // Plain words (no commands, paths or search text); the raw action is on hover.
+                    Text(row.lastAction.map { ActionSummary.calm($0, working: row.status == .working) } ?? row.branch ?? "")
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture(perform: openOffice)
-                .help([row.name, row.detail].compactMap { $0 }.joined(separator: " — "))
+                .help(([row.name, row.detail] + [row.lastAction == row.detail ? nil : row.lastAction])
+                    .compactMap { $0 }.joined(separator: " — "))
             }
         }
     }
