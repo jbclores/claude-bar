@@ -142,7 +142,7 @@ final class AppState: ObservableObject {
         }
         // Cat Office adds a floor when a new project shows up.
         buildingTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.loadBuilding(); self?.loadCatalogue() }
+            Task { @MainActor in self?.loadBuilding(); self?.loadCatalogue(); self?.checkArt() }
         }
         // Give the feed a moment to connect; start Cat Office only if it's still unreachable.
         Task { @MainActor in
@@ -303,6 +303,33 @@ final class AppState: ObservableObject {
                             since: tracker.since, current: menuCat?.agentId)
         }
         if cat != menuCat { menuCat = cat }
+    }
+
+    /// Every minute: a changed cat list (a character added in Cat Office's cat builder), and, while the office is on
+    /// screen, the pictures in use (an edited character or piece of furniture). Cheap "has it changed?" checks.
+    private func checkArt() {
+        guard sideEffects, office != nil else { return }
+        Task { @MainActor in
+            if let catalog = await art.catalog(refresh: true), catalog.catIds != catIds {
+                catIds = catalog.catIds
+                recompute()
+            }
+            if officeVisible, await art.revalidate() { ArtGeneration.shared.bump() }
+        }
+    }
+
+    /// Settings → Advanced → Refresh office art: check everything with Cat Office now (floors, furniture, characters).
+    func refreshArt() {
+        Task { @MainActor in
+            if let catalog = await art.catalog(refresh: true), catalog.catIds != catIds {
+                catIds = catalog.catIds
+                recompute()
+            }
+            await art.revalidate(force: true)
+            loadBuilding()
+            loadCatalogue()
+            ArtGeneration.shared.bump()
+        }
     }
 
     /// Cat ids for picking each agent's cat (from Cat Office, or the copy cached last time).

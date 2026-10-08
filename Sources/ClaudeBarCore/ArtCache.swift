@@ -145,24 +145,38 @@ public enum CatPicker {
 }
 
 /// Sprites from Cat Office (served without a token), shrunk and kept in ~/Library/Caches/ClaudeBar/art.
+///
+/// Each saved file keeps Cat Office's version tag (its ETag) beside it. A picture in use is checked again at most once a
+/// minute (`revalidate`) with an "If-None-Match" request: Cat Office answers 304 when it's unchanged (nothing is
+/// downloaded), or the new picture when a character or piece of furniture was edited. With Cat Office off, the saved
+/// copies are used as before.
 public final class ArtCache: @unchecked Sendable {
     private let dir: URL
     private let baseURL: @Sendable () -> URL
     private let session: URLSession
+    private let now: @Sendable () -> Date
     private let memory = LockedBox<[String: Data]>([:])
+    /// The pictures in use: cache key → (Cat Office path, size, when last checked).
+    private let inUse = LockedBox<[String: (path: String, size: Int, checked: Date)]>([:])
     private let catalogBox = LockedBox<CatCatalog?>(nil)
+    /// How long a checked picture is trusted before it is checked again.
+    public static let recheckAfter: TimeInterval = 60
     private let deskBox = LockedBox<String?>(nil)
     private let deskCatalogBox = LockedBox<DeskCatalog?>(nil)
 
-    public init(dir: URL = Paths.artCacheDir, baseURL: @escaping @Sendable () -> URL, session: URLSession = .shared) {
+    public init(dir: URL = Paths.artCacheDir, baseURL: @escaping @Sendable () -> URL, session: URLSession = .shared,
+                now: @escaping @Sendable () -> Date = Date.init) {
         self.dir = dir
         self.baseURL = baseURL
         self.session = session
+        self.now = now
     }
 
-    public func catalog() async -> CatCatalog? {
-        if let cached = catalogBox.get() { return cached }
-        guard let data = await json("data/cats.json"), let catalog = CatCatalog.parse(data) else { return nil }
+    /// Cat Office's cat list. `refresh` checks Cat Office for a changed list (a character added or edited in its cat
+    /// builder); otherwise the list loaded before is used.
+    public func catalog(refresh: Bool = false) async -> CatCatalog? {
+        if !refresh, let cached = catalogBox.get() { return cached }
+        guard let data = await json("data/cats.json"), let catalog = CatCatalog.parse(data) else { return catalogBox.get() }
         catalogBox.set(catalog)
         return catalog
     }
@@ -244,36 +258,103 @@ public final class ArtCache: @unchecked Sendable {
     }
 
     /// A shrunken PNG of the asset at `path`, from memory, then disk, then Cat Office. The default size keeps
-    /// sprites sharp in the office zoomed to 3× on a Retina screen.
+    /// sprites sharp in the office zoomed to 3× on a Retina screen. A saved copy older than `recheckAfter` is checked
+    /// with Cat Office first (a cheap "has it changed?").
     public func image(path: String, maxPixelSize: Int = 384) async -> Data? {
         let key = "\(maxPixelSize)_" + path.replacingOccurrences(of: "/", with: "_")
-        if let data = memory.get()[key] { return data }
         let file = dir.appendingPathComponent(key)
-        if let data = try? Data(contentsOf: file) {
-            memory.update { $0[key] = data }
+        if let checked = inUse.get()[key]?.checked, now().timeIntervalSince(checked) < Self.recheckAfter,
+           let data = memory.get()[key] {
             return data
         }
-        guard let raw = await fetch(path), let small = Self.shrink(raw, maxPixelSize: maxPixelSize) else { return nil }
-        save(small, to: file)
-        memory.update { $0[key] = small }
-        return small
+        let saved = memory.get()[key] ?? (try? Data(contentsOf: file))
+        switch await fetch(path, etag: saved == nil ? nil : etag(of: file)) {
+        case .fresh(let raw, let tag):
+            if let small = Self.shrink(raw, maxPixelSize: maxPixelSize) {
+                save(small, to: file)
+                saveTag(tag, of: file)
+                remember(key, path: path, size: maxPixelSize, data: small)
+                return small
+            }
+            if let saved { remember(key, path: path, size: maxPixelSize, data: saved) }
+            return saved
+        case .unchanged, .failed:
+            if let saved { remember(key, path: path, size: maxPixelSize, data: saved) }
+            return saved
+        }
     }
 
-    /// A JSON file from Cat Office, refreshed when it answers, else the copy cached last time.
+    /// Checks every picture in use that wasn't checked within `recheckAfter` (all of them with `force`), and fetches
+    /// the ones Cat Office changed. True when any changed (the office should redraw).
+    @discardableResult
+    public func revalidate(force: Bool = false) async -> Bool {
+        let due = inUse.get().filter { force || now().timeIntervalSince($0.value.checked) >= Self.recheckAfter }
+        var changed = false
+        for (key, entry) in due {
+            let file = dir.appendingPathComponent(key)
+            switch await fetch(entry.path, etag: etag(of: file)) {
+            case .fresh(let raw, let tag):
+                guard let small = Self.shrink(raw, maxPixelSize: entry.size) else { continue }
+                if small != memory.get()[key] { changed = true }
+                save(small, to: file)
+                saveTag(tag, of: file)
+                remember(key, path: entry.path, size: entry.size, data: small)
+            case .unchanged:
+                inUse.update { $0[key]?.checked = now() }
+            case .failed:
+                // Cat Office off: keep the saved copy, and don't knock again until the next round.
+                inUse.update { $0[key]?.checked = now() }
+            }
+        }
+        return changed
+    }
+
+    private func remember(_ key: String, path: String, size: Int, data: Data) {
+        memory.update { $0[key] = data }
+        inUse.update { $0[key] = (path, size, now()) }
+    }
+
+    /// A JSON file from Cat Office, refreshed when it answers (a 304 keeps the saved copy), else the copy cached last time.
     private func json(_ path: String) async -> Data? {
         let file = dir.appendingPathComponent(path.replacingOccurrences(of: "/", with: "_"))
-        if let data = await fetch(path) {
+        let saved = try? Data(contentsOf: file)
+        switch await fetch(path, etag: saved == nil ? nil : etag(of: file)) {
+        case .fresh(let data, let tag):
             save(data, to: file)
+            saveTag(tag, of: file)
             return data
+        case .unchanged, .failed:
+            return saved
         }
-        return try? Data(contentsOf: file)
     }
 
     private func fetch(_ path: String) async -> Data? {
-        let url = baseURL().appendingPathComponent(path)
-        guard let (data, response) = try? await session.data(from: url),
-              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
-        return data
+        if case .fresh(let data, _) = await fetch(path, etag: nil) { return data }
+        return nil
+    }
+
+    enum Fetched { case fresh(Data, String?), unchanged, failed }
+
+    /// A file from Cat Office; with `etag`, Cat Office answers 304 (unchanged) when its copy has the same version.
+    private func fetch(_ path: String, etag: String?) async -> Fetched {
+        var request = URLRequest(url: baseURL().appendingPathComponent(path))
+        if let etag { request.setValue(etag, forHTTPHeaderField: "If-None-Match") }
+        guard let (data, response) = try? await session.data(for: request), let http = response as? HTTPURLResponse else { return .failed }
+        switch http.statusCode {
+        case 200: return .fresh(data, http.value(forHTTPHeaderField: "ETag"))
+        case 304: return .unchanged
+        default: return .failed
+        }
+    }
+
+    /// The version tag saved beside a cached file ("<file>.etag").
+    private func etag(of file: URL) -> String? {
+        (try? String(contentsOf: file.appendingPathExtension("etag"), encoding: .utf8)).flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    private func saveTag(_ tag: String?, of file: URL) {
+        let tagFile = file.appendingPathExtension("etag")
+        if let tag { save(Data(tag.utf8), to: tagFile) } else { try? FileManager.default.removeItem(at: tagFile) }
     }
 
     private func save(_ data: Data, to file: URL) {

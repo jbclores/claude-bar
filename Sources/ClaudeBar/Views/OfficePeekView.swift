@@ -64,6 +64,21 @@ struct OfficeSummary: View {
     }
 }
 
+/// Changes whenever Cat Office's art changed (an edited character or piece of furniture): sprites and room
+/// pictures watching it load again.
+@MainActor
+final class ArtGeneration: ObservableObject {
+    static let shared = ArtGeneration()
+    @Published private(set) var value = 0
+
+    /// Forgets every loaded sprite and room picture, and has them load again.
+    func bump() {
+        SpriteImage.loaded = [:]
+        RoomImageCache.shared.forget()
+        value += 1
+    }
+}
+
 /// The tiny office: busy cats at desks, idle ones in the lounge, a card for the cat under the pointer; a sleeping
 /// cat and the Start button while Cat Office is offline. Cat frames are measured in the "office" coordinate space,
 /// which the parent sets up together with the PeekPointer it feeds.
@@ -1104,6 +1119,8 @@ struct SpriteImage: View {
 
     /// Images already loaded, by key: a reopened dropdown (or a fresh render) draws them at once, no flicker.
     @MainActor static var loaded: [String: NSImage] = [:]
+    /// Bumped when Cat Office's art changed: each sprite loads again (showing its old picture meanwhile).
+    @ObservedObject private var artGeneration = ArtGeneration.shared
 
     var body: some View {
         Group {
@@ -1121,7 +1138,7 @@ struct SpriteImage: View {
                 Color.clear
             }
         }
-        .task(id: key) {
+        .task(id: "\(key)#\(artGeneration.value)") {
             if Self.loaded[key] != nil { return }
             if let data = await load(), let loaded = NSImage(data: data) {
                 // Tiles repeat at Retina scale (2 pixels per point), like Cat Office draws its floors.

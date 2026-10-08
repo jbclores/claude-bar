@@ -27,7 +27,10 @@ struct FloorScene: View {
         let room: BuiltRoom
         let night: Bool
         let scale: CGFloat
+        /// Bumped when Cat Office's art changed: the picture is drawn again.
+        let art: Int
     }
+    @ObservedObject private var artGeneration = ArtGeneration.shared
 
     var body: some View {
         GeometryReader { proxy in
@@ -52,7 +55,7 @@ struct FloorScene: View {
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
             .preference(key: SceneFitKey.self,
                         value: [room.floorId: SceneFit(scale: fit.scale, origin: CGPoint(x: origin.x + fit.origin.x, y: origin.y + fit.origin.y))])
-            .task(id: LoadKey(room: room, night: night, scale: scale)) {
+            .task(id: LoadKey(room: room, night: night, scale: scale, art: artGeneration.value)) {
                 // A picture drawn without some of its art (a timeout, a missing file) is shown, and drawn again a
                 // little later while the floor is shown (and on its next appearance) until it's whole.
                 while !Task.isCancelled {
@@ -436,6 +439,15 @@ final class RoomImageCache {
     }
 
     private var entries: [Key: (room: BuiltRoom, image: NSImage)] = [:]
+
+    /// Cat Office's art changed: every room picture and loaded piece of art is drawn again from the art cache.
+    func forget() {
+        entries = [:]
+        art = [:]
+        tinted = [:]
+        glows = [:]
+    }
+
     /// Art by path, as loaded.
     private var art: [String: CGImage] = [:]
     /// Art painted (a room's tint) and/or multiplied by a night colour, by "paint|tint|path".

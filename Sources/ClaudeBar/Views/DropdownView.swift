@@ -280,7 +280,7 @@ struct SettingsTabView: View {
     @EnvironmentObject var state: AppState
     /// What "Restore my old status line" did (its error, or that it worked).
     @State private var restoreMessage: String?
-    /// The two folded sections: the four separate sounds, and Advanced (Edit Config, Open Log).
+    /// The two folded sections: the four separate sounds, and Advanced (Refresh office art, Edit Config, Open Log).
     @State private var soundsOpen = SettingsTabView.startOpen
     @State private var advancedOpen = SettingsTabView.startOpen
     /// Renders only: draw both folded sections open (`CLAUDEBAR_RENDER_SETTINGS_OPEN=1`).
@@ -301,6 +301,8 @@ struct SettingsTabView: View {
             fold("Advanced", open: $advancedOpen)
             if advancedOpen {
                 HStack(spacing: 14) {
+                    Button("Refresh office art") { state.refreshArt() }
+                        .help("Check Cat Office now for changed floors, furniture and characters")
                     Button("Edit Config") { state.editConfig() }
                     Button("Open Log") { state.openLauncherLog() }
                 }
