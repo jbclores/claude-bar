@@ -64,6 +64,8 @@ Moved to the Trash (only if they exist):
 - `~/.claude/claude-bar/` — usage files from the status line
 - `~/Library/Caches/ClaudeBar/` — the art cache
 - `~/Library/Logs/ClaudeBar/` — the log
+- `~/.claude/claude-bar-statusline.sh` and `~/.claude/claude-bar-hook.sh`, only when `settings.json` no longer runs
+  ClaudeBar's wrapper
 
 Plus: Launch at Login turned off.
 
@@ -79,25 +81,36 @@ them (so Claude Code's status line keeps working if the status line wasn't undon
 - The current patch reverses cleanly (trial run) → back up the touched files, reverse it, exit 0.
 - Else an older version from the patch history reverses cleanly → same, with that version.
 - Not patched (the patch applies cleanly forward) → "Not patched", exit 0, nothing changed.
-- Neither → exit 3, nothing changed (e.g. a patched file was edited since).
+- Neither, and the folder has a `.cat-office/patch-backup-*` (ClaudeBar patched it) → exit 3, nothing changed (e.g. a
+  patched file was edited since). The window shows the row greyed.
+- Neither, and no backup (ClaudeBar never patched it, e.g. a newer Cat Office setup couldn't patch) → "Not patched",
+  exit 0: there is nothing of ClaudeBar's to undo.
 
 ## 5. The "What ClaudeBar changes" page
 
-In the guide (`Resources/Help/guide.html`, a new section and nav link) and the README. Setup's Welcome step links to
-it: **What will ClaudeBar change?** opens the guide at that section.
+Its own bundled page, `Resources/Help/changes.html` (macOS drops `#anchors` when opening a local file), linked from the
+guide's nav and a short guide section, and summarised in the README. Setup's Welcome step links to it: **What will
+ClaudeBar change?**
 
 - **What it changes:** a table of the five places (`~/.config/claude-bar/`, `~/.claude/claude-bar/`,
   `~/.claude/settings.json` (the `statusLine` entry only), `~/.claude/statusline-command.sh`, the Cat Office folder
-  (the patch)), with what changes and where each backup goes.
+  (the patch)), with what changes and where each backup goes; the `statusline-command.sh` row also names ClaudeBar's
+  helper files next to it (`claude-bar-statusline.sh`, `claude-bar-hook.sh`, `claude-bar-statusline-original.json`).
+- **ClaudeBar's own small files:** its cache and log folders, `~/.cat-office/plan-usage.json` (written by its status
+  line for Cat Office's usage display) and its macOS preferences, with which ones "Also remove" moves to the Trash.
 - **What it never does:** it talks only to the Cat Office on this Mac (`localhost`), never the internet; it never
   starts, stops or controls Claude agents, and never touches projects or git; nothing changes before Continue; it
   never deletes the user's files.
 - **What can interrupt work:** patching or unpatching restarts Cat Office, which ends the Claude sessions running
   inside Cat Office.
-- **How to undo:** the window, the `--undo` command, and by hand for each change: Cat Office (copy the files back from
-  the newest `.cat-office/patch-backup-*` folder), the status line (copy back the newest
-  `settings.json.claude-bar-backup-*` and, if there is one, `statusline-command.sh.claude-bar-backup-*`), ClaudeBar's
-  own files (the four folders in section 3), and Launch at Login (System Settings → General → Login Items).
+- **How to undo:** the window, the `--undo` command, and by hand for each change:
+  - Cat Office: copy the files back from a `.cat-office/patch-backup-*` folder (the oldest one holds the files from
+    before ClaudeBar), saying plainly that this replaces those files and loses edits made to them since.
+  - The status line: put the `statusLine` from `~/.claude/claude-bar-statusline-original.json` back into
+    `settings.json` (or remove the entry if there was none), editing only that entry; the whole-file
+    `settings.json.claude-bar-backup-*` copies are a last resort that replaces every setting changed since. Then move
+    ClaudeBar's helper files to the Trash.
+  - ClaudeBar's own files (the folders in section 3) and Launch at Login (System Settings → General → Login Items).
 
 ## 6. Wording
 
