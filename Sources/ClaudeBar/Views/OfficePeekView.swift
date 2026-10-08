@@ -228,7 +228,8 @@ struct OfficeRoomView: View {
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
         .onChange(of: zoom.tap?.at) { _, at in
-            guard let tap = zoom.tap, let at, cat(at: tap.point) != nil else { return }
+            // Spare cats never make a sound.
+            guard let tap = zoom.tap, let at, let pat = cat(at: tap.point), !pat.isSpare else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval) {
                 // The first click of a double-click is a zoom, not a pat.
                 if let double = zoom.lastDoubleClick, double >= at { return }
@@ -280,7 +281,7 @@ struct OfficeRoomView: View {
                     guard floors.shown(state) == shownAt, rides[id]?.trip == ride.trip else { return }
                     let walk = CatWalk(id: id, agent: ride.agent, path: WalkRouter.path(from: place, fromFloor: placeFloor, to: to, toFloor: spot.floor, grid: state.navs[shownAt], frame: state.rooms[shownAt]?.frame, fit: fits[shownAt]), start: Date())
                     walks[id] = walk
-                    state.playSound(.elevator)
+                    if !ride.agent.isSpare { state.playSound(.elevator) }
                     DispatchQueue.main.asyncAfter(deadline: .now() + walk.duration + CatWalk.hop) {
                         if walks[id]?.start == walk.start { walks[id] = nil }
                     }
