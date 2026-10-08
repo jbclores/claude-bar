@@ -67,6 +67,12 @@ public struct WalkPath: Equatable, Sendable {
         return b > 0 ? "front-right" : "back-left"
     }
 
+    /// Whether the walk already ends at `p` (within `tolerance` pt): a cat walking there needs no new walk.
+    public func endsAt(_ p: CGPoint, tolerance: CGFloat = 0.5) -> Bool {
+        guard let end = points.last else { return false }
+        return hypot(end.x - p.x, end.y - p.y) <= tolerance
+    }
+
     /// Where the cat is after walking `distance` (at the end once past it).
     public func position(atDistance distance: CGFloat) -> CGPoint {
         var left = max(0, distance)

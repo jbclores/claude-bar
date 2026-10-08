@@ -252,6 +252,8 @@ struct OfficeRoomView: View {
             }
             // Riding out: the rider draws its walk to the elevator.
             if let ride = rides[id], ride.trip.from == floorId { continue }
+            // Already on its way there: a new walk would restart it (and near a seat, step it off and on again).
+            if walks[id]?.path.endsAt(to) == true { continue }
             guard let from = walks[id]?.position(at: now) ?? lastFeet[id], hypot(to.x - from.x, to.y - from.y) > 12,
                   let agent = state.office?.agents.first(where: { $0.id == id }) else { continue }
             let walk = CatWalk(id: id, agent: agent, path: WalkRouter.path(from: from, to: to, grid: state.navs[floorId], frame: state.rooms[floorId]?.frame, fit: fits[floorId]), start: now)

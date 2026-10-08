@@ -67,4 +67,12 @@ import Testing
         let still = WalkPath(points: [CGPoint(x: 3, y: 4)])
         #expect(still.length == 0 && still.position(atDistance: 10) == CGPoint(x: 3, y: 4))
     }
+    /// A cat already walking to a spot isn't re-routed when its feet are reported there again (OfficePeekView.startWalks).
+    @Test func endsAtTellsAWalkAlreadyGoingThere() {
+        let path = WalkPath(points: [.zero, CGPoint(x: 40, y: 20), CGPoint(x: 80, y: 0)])
+        #expect(path.endsAt(CGPoint(x: 80, y: 0)))
+        #expect(path.endsAt(CGPoint(x: 80.3, y: -0.3)), "within half a point")
+        #expect(!path.endsAt(CGPoint(x: 81, y: 0)))
+        #expect(!path.endsAt(CGPoint(x: 40, y: 20)), "an elbow is not the end")
+    }
 }
