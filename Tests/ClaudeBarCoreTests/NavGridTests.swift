@@ -48,4 +48,45 @@ struct NavFixture: Decodable {
         #expect(NavGrid.cellIndex(FloorPoint(u: 0.999, v: 0), size: 10) == 90)
         #expect(NavGrid.cellIndex(FloorPoint(u: 1.5, v: -1), size: 10) == 90)
     }
+
+    @Test func hugeAndNaNCoordinatesDoNotTrap() {
+        let all = NavGrid.footprintCells(Footprint(u0: -1e30, u1: 1e30, v0: -1e30, v1: 1e30), size: 10)
+        #expect(Set(all) == Set(0..<100))
+        #expect(NavGrid.cellIndex(FloorPoint(u: 1e300, v: -1e300), size: 10) == 90)
+        #expect(NavGrid.cellIndex(FloorPoint(u: .nan, v: .nan), size: 10) == 0)
+        #expect(NavGrid.footprintCells(Footprint(u0: .nan, u1: 0.5, v0: 0, v1: 1), size: 10).isEmpty)
+    }
+
+    /// Building.parse's grid gate: walkable is kept only for an integer size >= 1 with exactly that many full rows.
+    @Test func gridGate() throws {
+        let (building, catalogue, _) = try load("user")
+        func floor(grid: Any?) throws -> Floor {
+            var root = try #require(JSONSerialization.jsonObject(with: fixture("rooms/user/building.json")) as? [String: Any])
+            var floors = try #require(root["floors"] as? [[String: Any]])
+            if let grid { floors[0]["grid"] = grid } else { floors[0].removeValue(forKey: "grid") }
+            root["floors"] = floors
+            let data = try JSONSerialization.data(withJSONObject: root)
+            let b = try #require(Building.parse(building: data, parts: fixture("rooms/user/room-parts.json")))
+            return try #require(b.floors.first { $0.id == building.floors[0].id })
+        }
+        let row = String(repeating: "1", count: 4)
+        let cases: [(String, Any?)] = [
+            ("valid", ["size": 4, "walkable": [String](repeating: row, count: 4)]),
+            ("short row", ["size": 4, "walkable": [row, row, "111", row]]),
+            ("wrong row count", ["size": 4, "walkable": [row, row, row]]),
+            ("fractional size", ["size": 4.5, "walkable": [String](repeating: row, count: 4)]),
+            ("zero size", ["size": 0, "walkable": [String]()]),
+            ("no walkable", ["size": 4]),
+            ("no grid", nil),
+        ]
+        let template = try #require(building.floors.first)
+        let room = try #require(RoomGeometry.build(floor: template, catalogue: catalogue))
+        for (name, grid) in cases {
+            let f = try floor(grid: grid)
+            if name == "valid" { #expect(f.walkable != nil, "\(name)"); continue }
+            #expect(f.walkable == nil, "\(name)")
+            // The room is built from the unmodified floor; the gate only reads the parsed floor's walkable.
+            #expect(NavGrid(floor: f, room: room) == nil, "\(name)")
+        }
+    }
 }

@@ -92,8 +92,9 @@ public struct NavGrid: Sendable {
     static func footprintCells(_ fp: Footprint, size: Int, margin: Double = footprintMarginCells) -> [Int] {
         let n = Double(size)
         let m = margin / n
-        func lo(_ x: Double) -> Int { max(0, Int((x * n - 0.5).rounded(.up))) }
-        func hi(_ x: Double) -> Int { min(size - 1, Int((x * n - 0.5).rounded(.down))) }
+        // Clamped in Double before converting (JS clamps in floats; Int(Double) traps on huge values). NaN gives an empty range.
+        func lo(_ x: Double) -> Int { x.isNaN ? size : Int(min(n, max(0, (x * n - 0.5).rounded(.up)))) }
+        func hi(_ x: Double) -> Int { x.isNaN ? -1 : Int(min(n - 1, max(-1, (x * n - 0.5).rounded(.down)))) }
         var cells: [Int] = []
         let u0 = lo(fp.u0 - m), u1 = hi(fp.u1 + m), v0 = lo(fp.v0 - m), v1 = hi(fp.v1 + m)
         guard u0 <= u1, v0 <= v1 else { return cells }
@@ -101,9 +102,9 @@ public struct NavGrid: Sendable {
         return cells
     }
 
-    /// desks.ts cellIndex: the grid cell containing a floor point.
+    /// desks.ts cellIndex: the grid cell containing a floor point (clamped in Double first; a NaN coordinate maps to cell 0).
     static func cellIndex(_ p: FloorPoint, size: Int) -> Int {
-        func c(_ x: Double) -> Int { min(size - 1, max(0, Int((x * Double(size)).rounded(.down)))) }
+        func c(_ x: Double) -> Int { x.isNaN ? 0 : Int(min(Double(size - 1), max(0, (x * Double(size)).rounded(.down)))) }
         return c(p.u) * size + c(p.v)
     }
 
