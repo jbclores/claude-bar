@@ -50,4 +50,21 @@ import Testing
         #expect(speeds.allSatisfy { $0 >= 85 && $0 <= 115 })
         #expect(WalkPath.speed(for: "a", base: 100) == WalkPath.speed(for: "a", base: 100))
     }
+
+    @Test func walkThroughRoutePointsFacesEachLeg() {
+        // Screen: +u is (−2, 1), +v is (2, 1). A +v leg then a +u leg.
+        let w = WalkPath(points: [CGPoint(x: 0, y: 0), CGPoint(x: 40, y: 20), CGPoint(x: 0, y: 40)])
+        #expect(w.points == [CGPoint(x: 0, y: 0), CGPoint(x: 40, y: 20), CGPoint(x: 0, y: 40)])
+        #expect(w.direction(atDistance: 1) == "front-right")
+        #expect(w.direction(atDistance: w.length - 1) == "front-left")
+        #expect(abs(w.length - 2 * hypot(40, 20)) < 1e-9)
+        #expect(w.position(atDistance: w.length + 5) == CGPoint(x: 0, y: 40))
+    }
+
+    @Test func tinyLegsMergeAndOnePointIsStill() {
+        let w = WalkPath(points: [CGPoint(x: 0, y: 0), CGPoint(x: 0.5, y: 0.25), CGPoint(x: 40, y: 20)])
+        #expect(w.points.count == 2)
+        let still = WalkPath(points: [CGPoint(x: 3, y: 4)])
+        #expect(still.length == 0 && still.position(atDistance: 10) == CGPoint(x: 3, y: 4))
+    }
 }

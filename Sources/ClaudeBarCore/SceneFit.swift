@@ -18,6 +18,11 @@ public struct SceneFit: Equatable, Sendable {
         CGPoint(x: origin.x + CGFloat(p.x) * scale, y: origin.y + CGFloat(p.y) * scale)
     }
 
+    /// The world point under a view point: the inverse of `point(_:)`.
+    public func world(_ p: CGPoint) -> WorldPoint {
+        WorldPoint(x: Double((p.x - origin.x) / scale), y: Double((p.y - origin.y) / scale))
+    }
+
     /// A world rect in points.
     public func rect(_ r: CGRect) -> CGRect {
         CGRect(x: origin.x + r.minX * scale, y: origin.y + r.minY * scale, width: r.width * scale, height: r.height * scale)

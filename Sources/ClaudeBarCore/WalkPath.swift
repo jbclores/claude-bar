@@ -11,25 +11,60 @@ public struct WalkPath: Equatable, Sendable {
     public private(set) var length: CGFloat
     private var directions: [String]
 
+    /// The L: along the floor's two diagonals, the longer leg first.
     public init(from start: CGPoint, to end: CGPoint) {
         let dx = end.x - start.x, dy = end.y - start.y
         // dx = 2(b − a), dy = a + b, for a steps along +u = (−2, 1) and b along +v = (2, 1).
         let a = (2 * dy - dx) / 4, b = (2 * dy + dx) / 4
         let uLeg = CGVector(dx: -2 * a, dy: a), vLeg = CGVector(dx: 2 * b, dy: b)
         // The longer leg first: one turn, like an A* route that prefers few turns.
-        let first = hypot(uLeg.dx, uLeg.dy) >= hypot(vLeg.dx, vLeg.dy) ? (uLeg, a, true) : (vLeg, b, false)
-        let second = first.2 ? (vLeg, b, false) : (uLeg, a, true)
-        var points = [start], directions: [String] = []
-        for (leg, amount, isU) in [first, second] where hypot(leg.dx, leg.dy) >= Self.minLeg {
+        let firstLeg = hypot(uLeg.dx, uLeg.dy) >= hypot(vLeg.dx, vLeg.dy) ? uLeg : vLeg
+        self.init(points: [start, CGPoint(x: start.x + firstLeg.dx, y: start.y + firstLeg.dy), end])
+    }
+
+    /// A walk through `points` in order (first = start), facing each leg's direction. Legs shorter than `minLeg` merge
+    /// into their neighbour; fewer than two distinct points make a zero-length walk at the point.
+    public init(points route: [CGPoint]) {
+        guard let start = route.first else { self.init(still: .zero); return }
+        var points = [start]
+        for (i, q) in route.enumerated().dropFirst() {
             let last = points[points.count - 1]
-            points.append(CGPoint(x: last.x + leg.dx, y: last.y + leg.dy))
-            directions.append(isU ? (amount > 0 ? "front-left" : "back-right") : (amount > 0 ? "front-right" : "back-left"))
+            let tiny = hypot(q.x - last.x, q.y - last.y) < Self.minLeg
+            if i < route.count - 1 {
+                if !tiny { points.append(q) }
+            } else if !tiny || points.count > 1 {
+                // The route ends exactly at its last point: a tiny final leg folds into the one before it.
+                if tiny { points[points.count - 1] = q } else { points.append(q) }
+            } else if q != start {
+                points.append(q)
+            }
         }
-        if points.count == 1 { points.append(end) ; directions.append("front-left") }
-        points[points.count - 1] = end
+        if points.count == 1 { self.init(still: start); return }
+        self.init(legs: points)
+    }
+
+    private init(still p: CGPoint) {
+        self.init(points: [p], directions: ["front-left"], length: 0)
+    }
+
+    private init(legs points: [CGPoint]) {
+        self.init(points: points, directions: zip(points, points.dropFirst()).map(Self.direction),
+                  length: zip(points, points.dropFirst()).reduce(0) { $0 + hypot($1.1.x - $1.0.x, $1.1.y - $1.0.y) })
+    }
+
+    private init(points: [CGPoint], directions: [String], length: CGFloat) {
         self.points = points
         self.directions = directions
-        length = zip(points, points.dropFirst()).reduce(0) { $0 + hypot($1.1.x - $1.0.x, $1.1.y - $1.0.y) }
+        self.length = length
+    }
+
+    /// A leg's facing from its screen vector: +u is down-left, +v down-right.
+    private static func direction(_ p: CGPoint, _ q: CGPoint) -> String {
+        let dx = q.x - p.x, dy = q.y - p.y
+        if hypot(dx, dy) < minLeg { return "front-left" }
+        let a = (2 * dy - dx) / 4, b = (2 * dy + dx) / 4
+        if abs(a) >= abs(b) { return a > 0 ? "front-left" : "back-right" }
+        return b > 0 ? "front-right" : "back-left"
     }
 
     /// Where the cat is after walking `distance` (at the end once past it).
