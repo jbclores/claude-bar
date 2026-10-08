@@ -266,7 +266,8 @@ struct OfficeRoomView: View {
             // Already on its way there: a new walk would restart it (and near a seat, step it off and on again).
             if walks[id]?.path.endsAt(to) == true { continue }
             // A cat stopped mid-walk starts from where it is (on the floor, unlifted); else from its spot.
-            let midWalk = walks[id]?.position(at: now)
+            // (On or just onto a raised seat it starts from the floor under it, not the lifted point.)
+            let midWalk = walks[id]?.floorPosition(at: now)
             guard let from = midWalk ?? lastFeet[id]?.point, hypot(to.x - from.x, to.y - from.y) > 12,
                   let agent = state.office?.agents.first(where: { $0.id == id }) else { continue }
             let fromFloor = midWalk == nil ? lastFeet[id]?.floor : nil
@@ -1002,6 +1003,8 @@ struct CatWalk: Equatable {
 
     func distance(at now: Date) -> CGFloat { CGFloat(now.timeIntervalSince(start)) * speed }
     func position(at now: Date) -> CGPoint { path.position(atDistance: distance(at: now)) }
+    /// Where it stands on the floor (under a raised seat while hopping on or off it): where a new walk starts.
+    func floorPosition(at now: Date) -> CGPoint { path.floorPosition(atDistance: distance(at: now)) }
 }
 
 /// The walking cats, drawn over the room: walk frames by distance, feet on the path, a little hop on arrival.

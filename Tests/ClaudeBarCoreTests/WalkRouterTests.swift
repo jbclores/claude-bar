@@ -138,4 +138,42 @@ import Testing
             #expect(blockedSamples(g, a, b) == 0, "leg \(a) -> \(b) stays on open floor")
         }
     }
+
+    @Test func anInterruptedWalkRestartsFromTheFloorNotTheLiftedSeat() {
+        let (g, f, ground, lifted) = raisedSeat()
+        let from = view(0.15, 0.15)
+        let up = WalkRouter.path(from: from, to: lifted, toFloor: f, grid: g, frame: frame, fit: fit)
+        // During the hop up, at its end, and past it (the 0.18 s landing window), the cat counts as under the seat.
+        for d in [up.length - 0.5, up.length, up.length + 5] {
+            let q = up.floorPosition(atDistance: d)
+            #expect(abs(q.x - ground.x) < 1e-6 && abs(q.y - ground.y) < 1e-6, "at \(d)")
+        }
+        // Mid-route on the floor it is where it is drawn.
+        #expect(up.floorPosition(atDistance: up.length / 2) == up.position(atDistance: up.length / 2))
+        // Off a raised seat: during the hop down it counts as on the floor under the seat.
+        let down = WalkRouter.path(from: lifted, fromFloor: f, to: from, grid: g, frame: frame, fit: fit)
+        for d in [CGFloat(0), 0.5] {
+            let q = down.floorPosition(atDistance: d)
+            #expect(abs(q.x - ground.x) < 1e-6 && abs(q.y - ground.y) < 1e-6, "at \(d)")
+        }
+        // A walk without raised ends is drawn where it is.
+        let flat = WalkRouter.path(from: from, to: view(0.85, 0.85), grid: g, frame: frame, fit: fit)
+        #expect(flat.floorPosition(atDistance: flat.length) == flat.position(atDistance: flat.length))
+    }
+
+    @Test func aTinyStepUnderTheSeatKeepsTheHopVertical() {
+        // Under the seat, then up: a 1 pt step before it would be merged into the hop, tilting it. It is dropped instead.
+        let pts = [CGPoint(x: 0, y: 0), CGPoint(x: 40, y: 20), CGPoint(x: 41, y: 20.5), CGPoint(x: 41, y: 10)]
+        let kept = WalkRouter.keepHopsExact(pts, liftedStart: false, liftedEnd: true)
+        #expect(kept == [CGPoint(x: 0, y: 0), CGPoint(x: 41, y: 20.5), CGPoint(x: 41, y: 10)])
+        let w = WalkPath(points: kept)
+        #expect(abs(w.points[w.points.count - 1].x - w.points[w.points.count - 2].x) < 1e-9, "the hop up is vertical")
+        // Same at the start: down off the seat, then a 1 pt step.
+        let start = [CGPoint(x: 41, y: 10), CGPoint(x: 41, y: 20.5), CGPoint(x: 42, y: 21), CGPoint(x: 80, y: 40)]
+        #expect(WalkRouter.keepHopsExact(start, liftedStart: true, liftedEnd: false)
+                == [CGPoint(x: 41, y: 10), CGPoint(x: 41, y: 20.5), CGPoint(x: 80, y: 40)])
+        // Long steps stay.
+        let long = [CGPoint(x: 0, y: 0), CGPoint(x: 40, y: 20), CGPoint(x: 60, y: 30), CGPoint(x: 60, y: 10)]
+        #expect(WalkRouter.keepHopsExact(long, liftedStart: false, liftedEnd: true) == long)
+    }
 }

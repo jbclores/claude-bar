@@ -10,6 +10,9 @@ public struct WalkPath: Equatable, Sendable {
     public private(set) var points: [CGPoint]
     public private(set) var length: CGFloat
     private var directions: [String]
+    /// The first / last leg is the hop off / onto a raised seat (set by WalkRouter): during it the cat is above the floor.
+    public internal(set) var liftedStart = false
+    public internal(set) var liftedEnd = false
 
     /// The L: along the floor's two diagonals, the longer leg first.
     public init(from start: CGPoint, to end: CGPoint) {
@@ -71,6 +74,18 @@ public struct WalkPath: Equatable, Sendable {
     public func endsAt(_ p: CGPoint, tolerance: CGFloat = 0.5) -> Bool {
         guard let end = points.last else { return false }
         return hypot(end.x - p.x, end.y - p.y) <= tolerance
+    }
+
+    /// Where the cat stands on the floor after walking `distance`: as `position`, except on a hop off or onto a raised
+    /// seat (and once arrived on one), where it is the floor point under the seat — where a new route must start from.
+    public func floorPosition(atDistance distance: CGFloat) -> CGPoint {
+        let n = points.count
+        guard n >= 2 else { return position(atDistance: distance) }
+        if liftedStart, distance <= hypot(points[1].x - points[0].x, points[1].y - points[0].y) { return points[1] }
+        if liftedEnd, distance >= length - hypot(points[n - 1].x - points[n - 2].x, points[n - 1].y - points[n - 2].y) {
+            return points[n - 2]
+        }
+        return position(atDistance: distance)
     }
 
     /// Where the cat is after walking `distance` (at the end once past it).

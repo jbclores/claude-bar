@@ -54,7 +54,23 @@ public enum WalkRouter {
             }
             points.append(to)
         }
-        return WalkPath(points: points)
+        let below = fromFloor.map { fit.point(frame.px($0)) }, under = toFloor.map { fit.point(frame.px($0)) }
+        var walk = WalkPath(points: keepHopsExact(points, liftedStart: below != nil, liftedEnd: under != nil))
+        // A hop that survived as its own leg (a seat with no lift has none): the walk knows the cat is off the floor there.
+        let w = walk.points
+        if let below, w.count >= 2, hypot(w[1].x - below.x, w[1].y - below.y) < 1e-6 { walk.liftedStart = true }
+        if let under, w.count >= 2, hypot(w[w.count - 2].x - under.x, w[w.count - 2].y - under.y) < 1e-6 { walk.liftedEnd = true }
+        return walk
+    }
+
+    /// A step under 2 pt (WalkPath.minLeg) next to a hop off or onto a raised seat would merge into the hop and tilt it:
+    /// drop the step's far end instead, so the hop stays vertical (the leg before it is off its axis by under 2 pt).
+    static func keepHopsExact(_ points: [CGPoint], liftedStart: Bool, liftedEnd: Bool) -> [CGPoint] {
+        var p = points
+        func tiny(_ a: CGPoint, _ b: CGPoint) -> Bool { hypot(b.x - a.x, b.y - a.y) < WalkPath.minLeg }
+        if liftedEnd, p.count >= 4, tiny(p[p.count - 3], p[p.count - 2]) { p.remove(at: p.count - 3) }
+        if liftedStart, p.count >= 4, tiny(p[1], p[2]) { p.remove(at: 2) }
+        return p
     }
 
     private static func isFinite(_ p: CGPoint) -> Bool { p.x.isFinite && p.y.isFinite }
