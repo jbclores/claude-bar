@@ -19,7 +19,7 @@ import Testing
 
     func snapshot(_ extra: String) throws -> OfficeSnapshot {
         let json = """
-        {"agents":[{"id":"a1","name":"office-1","status":"working","cwd":"/w","cat":"tuxedo"\(extra)}]\(extra.isEmpty ? "" : "")}
+        {"agents":[{"id":"a1","name":"office-1","status":"working","cwd":"/w","cat":"tuxedo"\(extra)}]}
         """
         return try JSONDecoder().decode(OfficeSnapshot.self, from: Data(json.utf8))
     }
@@ -118,7 +118,7 @@ import Testing
         #expect(try pose("resting") == .sitting)
         for (s, k) in [("idle", "plant"), ("walking", nil), ("talking", "meeting"), ("blocked", nil),
                        ("celebrating", "cat-tree"), ("riding-elevator", "elevator"), ("idle", "snacks"), ("idle", "bookshelf"),
-                       ("idle", "coffee"), ("idle", "printer"), ("idle", "water"), ("mystery", nil)] as [(String, String?)] {
+                       ("idle", "coffee"), ("working", "printer"), ("idle", "rug"), ("idle", "water"), ("mystery", nil)] as [(String, String?)] {
             #expect(try pose(s, kind: k) == .standing, "\(s)/\(k ?? "-")")
         }
     }

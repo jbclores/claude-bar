@@ -41,11 +41,12 @@ public struct MirrorPlace: Equatable, Sendable, Decodable {
     /// "spare:<sim id>" (spares only).
     public var key: String?
 
-    /// typing / standing / sitting / asleep. Asleep wins; "working" types; "resting" (reading, relaxing on a rug or
+    /// typing / standing / sitting / asleep. Asleep wins; "working" types (except at the printer); "resting" (reading, relaxing on a rug or
     /// window seat: activities.ts) and the window seat sit; everything else stands.
     public var pose: MirrorPose {
         if asleep { return .asleep }
-        if state == "working" { return .typing }
+        // Printing is also state "working" (activities.ts printer) but the cat stands at the printer.
+        if state == "working" { return activity?.kind == "printer" ? .standing : .typing }
         if state == "resting" || activity?.kind == "window-seat" { return .sitting }
         return .standing
     }
