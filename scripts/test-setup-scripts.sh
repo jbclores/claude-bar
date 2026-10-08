@@ -15,7 +15,15 @@ mkdir -p "$mini/server/agent-bridge"; echo '{"name":"cat-office"}' > "$mini/pack
 grep '^+++ b/' "$PATCH" | sed 's|^+++ b/||' | while read -r f; do
   if [ -f "$CO/$f" ]; then mkdir -p "$mini/$(dirname "$f")"; cp "$CO/$f" "$mini/$f"; fi
 done
-if patch -d "$mini" -p1 -R --dry-run -s -f < "$PATCH" >/dev/null 2>&1; then patch -d "$mini" -p1 -R -s -f < "$PATCH"; fi
+if patch -d "$mini" -p1 -R --dry-run -s -f < "$PATCH" >/dev/null 2>&1; then patch -d "$mini" -p1 -R -s -f < "$PATCH"
+else # Cat Office carries an older version of the patch (from git history): take that one out instead.
+  older=$(mktemp)
+  for rev in $(git -C "$REPO" log --format=%h -- patches/cat-office.patch 2>/dev/null); do
+    git -C "$REPO" show "$rev:patches/cat-office.patch" > "$older" 2>/dev/null || continue
+    if patch -d "$mini" -p1 -R --dry-run -s -f < "$older" >/dev/null 2>&1; then patch -d "$mini" -p1 -R -s -f < "$older"; break; fi
+  done
+  rm -f "$older"
+fi
 # Files the patch creates must not exist in an unpatched copy.
 grep -B1 '^+++ b/' "$PATCH" | grep -A1 '^--- /dev/null' | grep '^+++ b/' | sed 's|^+++ b/||' | while read -r f; do rm -f "$mini/$f"; done
 

@@ -12,9 +12,11 @@ FILES=(
   server/agent-bridge/workers.ts
   src/agents/live/actions.ts
   src/agents/live/agent-desks.ts
+  src/agents/live/places-share.ts
   src/agents/live/useAgentCats.ts
   src/components/mission/MissionControl.tsx
   tests/sim/cat-assignments.test.ts
+  tests/sim/places.test.ts
   tests/sim/plan-usage-workers.test.ts
 )
 : > "$OUT"

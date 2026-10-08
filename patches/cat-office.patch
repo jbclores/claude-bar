@@ -1,16 +1,20 @@
 --- a/server/agent-bridge/cat-assignments.ts
 +++ b/server/agent-bridge/cat-assignments.ts
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,262 @@
 +/**
 + * The cat the page shows for each agent, and the desk that cat works at (POST /__agents/cats), kept in
 + * <stateDir>/cat-assignments.json by agent id, so other local apps (ClaudeBar's menu bar office) show the same
 + * cats at the same desks. Every snapshot carries an agent's `cat` and `desk` once the page has reported them. Also: ~/.cat-office/bridge.json, telling those apps where the bridge is
 + * and which folder Cat Office runs from (so they find it after the folder moves).
++ *
++ * Where each cat is and what it's doing (`places`, posted every 2 s by src/agents/live/places-share.ts) is kept in
++ * memory only: each snapshot carries an agent's `place`, the spare cats' places as `spares`, and the newest `at`
++ * as `placesAt`, so those apps mirror the page's office while it is open.
 + */
 +import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 +import { homedir } from 'node:os';
 +import { dirname, join } from 'node:path';
-+import type { AgentSnapshot } from './types.ts';
++import type { AgentSnapshot, CatPlace, SparePlace } from './types.ts';
 +
 +/**
 + * Where local apps look for the running bridge: ~/.cat-office/bridge.json. A server on another state folder
@@ -27,6 +31,11 @@
 +const CAT = /^[\w-]{1,64}$/;
 +/** The file keeps at most this many agents; the oldest go first. */
 +const KEEP_MAX = 2000;
++/** A spare cat's place key: `spare:<simulation id>`. */
++const SPARE = /^spare:([\w@.-]{1,128})$/;
++/** Places kept at most (the oldest go first), and for at most this long. */
++const PLACES_MAX = 500;
++const PLACE_MAX_AGE_MS = 60_000;
 +
 +type ChangeListener = () => void;
 +
@@ -45,11 +54,54 @@
 +  return { id, flip: d.flip, rear: d.rear };
 +}
 +
++/** A place as stored: the cat's own name too (sent with spare cats). */
++type KeptPlace = CatPlace & { name: string };
++
++const WORD = /^[\w-]{1,64}$/;
++const PHASES = new Set(['walking', 'using', 'elevator', 'idle']);
++const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
++/** A short line of text: at most `max` characters, no control characters. */
++const text = (v: unknown, max: number): v is string => typeof v === 'string' && v.length <= max && [...v].every((c) => c.charCodeAt(0) >= 0x20);
++
++function readPlace(v: unknown, at: number): KeptPlace | null {
++  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
++  const p = v as Record<string, unknown>;
++  const act = p.activity as { kind?: unknown; label?: unknown } | null | undefined;
++  if (!Number.isInteger(p.floor) || !finite(p.u) || !finite(p.v)) return null;
++  if (!text(p.catId, 64) || !CAT.test(p.catId) || !text(p.name, 64)) return null;
++  if (![p.direction, p.state, p.gesture, p.expression].every((w) => typeof w === 'string' && WORD.test(w))) return null;
++  if (typeof p.asleep !== 'boolean' || typeof p.phase !== 'string' || !PHASES.has(p.phase)) return null;
++  if (act !== null && (!act || typeof act !== 'object' || !text(act.kind, 64) || !WORD.test(act.kind) || !text(act.label, 80))) return null;
++  if (p.spotId !== null && !(text(p.spotId, 128) && p.spotId.length > 0)) return null;
++  if (p.minutesLeft !== null && !finite(p.minutesLeft)) return null;
++  if (p.ridingTo !== null && !Number.isInteger(p.ridingTo)) return null;
++  return {
++    name: p.name,
++    catId: p.catId,
++    floor: p.floor as number,
++    u: p.u,
++    v: p.v,
++    direction: p.direction as string,
++    state: p.state as string,
++    gesture: p.gesture as string,
++    expression: p.expression as string,
++    asleep: p.asleep,
++    activity: act ? { kind: act.kind as string, label: act.label as string } : null,
++    spotId: p.spotId,
++    minutesLeft: p.minutesLeft,
++    phase: p.phase as CatPlace['phase'],
++    ridingTo: p.ridingTo as number | null,
++    at,
++  };
++}
++
 +const sameDesk = (a: AgentDesk | undefined, b: AgentDesk): boolean => !!a && a.id === b.id && a.flip === b.flip && a.rear === b.rear;
 +
 +export class CatAssignmentStore {
 +  private cats = new Map<string, string>();
 +  private desks = new Map<string, AgentDesk>();
++  /** Place key (agent id, or `spare:<sim id>`) → its newest place; in memory only. */
++  private places = new Map<string, KeptPlace>();
 +  private listeners = new Set<ChangeListener>();
 +  readonly file: string;
 +
@@ -68,15 +120,17 @@
 +  }
 +
 +  /**
-+   * Takes the page's `{ assignments?: { [agentId]: catId }, desks?: { [agentId]: { desk, flip, rear } } }`. False for
-+   * a bad body (nothing kept) or a failed save.
++   * Takes the page's `{ assignments?: { [agentId]: catId }, desks?: { [agentId]: { desk, flip, rear } },
++   * places?: { [agentId | "spare:<sim id>"]: place }, at? }` (`at`, epoch ms, required with places). False for a bad
++   * body (nothing kept) or a failed save. A malformed place is skipped; per cat the newest `at` wins.
 +   */
-+  merge(body: unknown): boolean {
-+    const b = body as { assignments?: unknown; desks?: unknown } | null;
-+    if (!b || (b.assignments === undefined && b.desks === undefined)) return false;
++  merge(body: unknown, now: number = Date.now()): boolean {
++    const b = body as { assignments?: unknown; desks?: unknown; places?: unknown; at?: unknown } | null;
++    if (!b || (b.assignments === undefined && b.desks === undefined && b.places === undefined)) return false;
 +    const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 +    if (b.assignments !== undefined && !isMap(b.assignments)) return false;
 +    if (b.desks !== undefined && !isMap(b.desks)) return false;
++    if (b.places !== undefined && (!isMap(b.places) || !finite(b.at))) return false;
 +    const cats = Object.entries((b.assignments ?? {}) as Record<string, unknown>);
 +    if (!cats.every(([id, cat]) => ID.test(id) && typeof cat === 'string' && CAT.test(cat))) return false;
 +    const desks = Object.entries((b.desks ?? {}) as Record<string, unknown>).map(([id, v]) => [id, readDesk(v)] as const);
@@ -96,11 +150,14 @@
 +    }
 +    while (this.cats.size > KEEP_MAX) this.cats.delete(this.cats.keys().next().value as string);
 +    while (this.desks.size > KEEP_MAX) this.desks.delete(this.desks.keys().next().value as string);
-+    if (!changed) return true;
-+    try {
-+      this.save();
-+    } catch {
-+      return false;
++    const moved = b.places !== undefined && this.mergePlaces(b.places as Record<string, unknown>, b.at as number, now);
++    if (!changed && !moved) return true;
++    if (changed) {
++      try {
++        this.save();
++      } catch {
++        return false;
++      }
 +    }
 +    for (const fn of this.listeners) {
 +      try {
@@ -112,15 +169,50 @@
 +    return true;
 +  }
 +
-+  /** The snapshot with each agent's cat and desk, for the agents the page has reported them for. */
-+  apply(snapshot: AgentSnapshot): AgentSnapshot {
++  /** Keeps the places newer than what is kept for each cat; true when any was kept. */
++  private mergePlaces(places: Record<string, unknown>, at: number, now: number): boolean {
++    let kept = false;
++    if (now - at <= PLACE_MAX_AGE_MS) {
++      for (const [key, v] of Object.entries(places)) {
++        if (!ID.test(key) && !SPARE.test(key)) continue;
++        const place = readPlace(v, at);
++        const had = this.places.get(key);
++        if (!place || (had && had.at > at)) continue;
++        this.places.delete(key); // re-inserted last: the newest
++        this.places.set(key, place);
++        kept = true;
++      }
++    }
++    for (const [key, p] of this.places) if (now - p.at > PLACE_MAX_AGE_MS) this.places.delete(key);
++    while (this.places.size > PLACES_MAX) this.places.delete(this.places.keys().next().value as string);
++    return kept;
++  }
++
++  /**
++   * The snapshot with each agent's cat, desk and place, for the agents the page has reported them for; plus the
++   * spare cats' places (`spares`) and the newest place's time (`placesAt`, null without any). Places over 60 s
++   * old are left out.
++   */
++  apply(snapshot: AgentSnapshot, now: number = Date.now()): AgentSnapshot {
++    const fresh = (p: KeptPlace | undefined): p is KeptPlace => !!p && now - p.at <= PLACE_MAX_AGE_MS;
++    let placesAt: number | null = null;
++    const spares: SparePlace[] = [];
++    for (const [key, p] of this.places) {
++      if (!fresh(p)) continue;
++      placesAt = Math.max(placesAt ?? p.at, p.at);
++      if (SPARE.test(key)) spares.push({ ...p, key });
++    }
 +    return {
 +      ...snapshot,
 +      agents: snapshot.agents.map((a) => {
 +        const cat = this.cats.get(a.id);
 +        const desk = this.desks.get(a.id);
-+        return cat || desk ? { ...a, ...(cat ? { cat } : {}), ...(desk ? { desk } : {}) } : a;
++        const kept = this.places.get(a.id);
++        const place = fresh(kept) ? withoutName(kept) : undefined;
++        return cat || desk || place ? { ...a, ...(cat ? { cat } : {}), ...(desk ? { desk } : {}), ...(place ? { place } : {}) } : a;
 +      }),
++      spares,
++      placesAt,
 +    };
 +  }
 +
@@ -147,6 +239,11 @@
 +  }
 +}
 +
++function withoutName(p: KeptPlace): CatPlace {
++  const { name: _name, ...place } = p;
++  return place;
++}
++
 +/**
 + * Writes `{ url, token, dir, pid }` to `file` (owner-only: it holds the token) for local apps to find the bridge
 + * and Cat Office's folder. Returns a remover that deletes it, unless another server has written its own since.
@@ -168,15 +265,17 @@
 +}
 --- a/server/agent-bridge/index.ts
 +++ b/server/agent-bridge/index.ts
-@@ -12,6 +12,7 @@
+@@ -12,6 +12,9 @@
   *                                and idle, gets `/exit` typed (409 mid-turn or with a dialog open), then the next
   *                                message resumes it here   {} → 200 { ok: true }
   *   POST /__agents/:id/reply    type at an external session's prompt (its Orca terminal)   { text, attachments? } → 200 { ok: true }
-+ *   POST /__agents/cats        the cat and desk the page shows per agent { assignments?, desks? } → 200 { ok: true }
++ *   POST /__agents/cats        the cat and desk the page shows per agent { assignments?, desks? } → 200 { ok: true };
++ *                              also where each cat is { places, at } (every 2 s, in memory only: snapshots' `place`,
++ *                              `spares`, `placesAt`)
   *   POST /__agents/:id/answer   answer its open question / permission / plan dialog        → 200 { ok: true }
   *   GET  /__agents/:id/files/:file   a file sent with a message (attachments.ts): images inline, the rest as downloads
   *   …plus the drawer's routes (drawer.ts): models, skills, reveal, screenshot, transcript, export, repo-files,
-@@ -32,6 +33,7 @@
+@@ -32,6 +35,7 @@
  import { ATTACHMENT_BODY_BYTES, serveAttachment } from './attachments.ts';
  import { AgentBridge } from './bridge.ts';
  import { ClaudeStatusMonitor, withClaude } from './claude-status.ts';
@@ -184,12 +283,13 @@
  import { drawerRoute } from './drawer.ts';
  import { PlanUsageWatch } from './plan-usage.ts';
  import { readJson, send } from './http.ts';
-@@ -80,8 +82,19 @@
+@@ -80,8 +84,20 @@
        // The account's 5h / 7d usage, as the terminal status line saved it: sent with every snapshot as `plan`.
        const plan = new PlanUsageWatch();
        plan.start();
 -      const extras: Extras = { claude, plan };
-+      // The cat the page shows for each agent (POST /__agents/cats): sent in every snapshot as the agent's `cat`.
++      // The cat the page shows for each agent (POST /__agents/cats): sent in every snapshot as the agent's `cat`
++      // (and `desk`, `place`; the spare cats' places as `spares`).
 +      const cats = new CatAssignmentStore(join(w.stateDir, 'cat-assignments.json'));
 +      const extras: Extras = { claude, plan, cats };
 +      // Where the bridge is, its token and this folder, for other local apps (ClaudeBar); removed on close.
@@ -205,22 +305,22 @@
          claude.stop();
          plan.stop();
          b.stop();
-@@ -99,6 +112,14 @@
-           void snapshotNow(b).then(
-             (snapshot) => send(res, 200, withExtras(snapshot, extras)),
-             (e: unknown) => send(res, 500, { error: String(e) }),
-+          );
-+          return;
-+        }
+@@ -102,6 +118,14 @@
+           );
+           return;
+         }
 +        if (url.pathname === '/__agents/cats') {
 +          if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' });
 +          void readJson(req).then(
 +            (body) => (cats.merge(body) ? send(res, 200, { ok: true }) : send(res, 400, { error: 'bad or unsaved assignments' })),
 +            (e: unknown) => send(res, e instanceof WorkerError ? e.status : 400, { error: e instanceof Error ? e.message : String(e) }),
-           );
-           return;
-         }
-@@ -236,14 +257,15 @@
++          );
++          return;
++        }
+         if (drawerRoute(req, res, url, drawer)) return;
+         const file = FILE_PATH.exec(url.pathname);
+         if (file) {
+@@ -236,14 +260,15 @@
    return s.at === 0 ? bridge.refresh() : s;
  }
  
@@ -238,7 +338,7 @@
  }
  
  function stream(req: IncomingMessage, res: ServerResponse, bridge: AgentBridge, extras: Extras): void {
-@@ -262,13 +284,14 @@
+@@ -262,13 +287,14 @@
    });
    const off = bridge.subscribe((snapshot) => write({ type: 'snapshot', snapshot: withExtras(snapshot, extras) }));
    // Claude's health changed: the latest snapshot again, with the new health (once there is a first snapshot).
@@ -254,7 +354,7 @@
    // A Kairos or Hermes run just finished successfully: sent to the pages open now, once (never in a snapshot).
    const offWins = bridge.onWin((win) => {
      if (!closed) write({ type: 'win', win });
-@@ -279,6 +302,7 @@
+@@ -279,6 +305,7 @@
      off();
      offClaude();
      offPlan();
@@ -320,7 +420,7 @@
 +}
 --- a/server/agent-bridge/types.ts
 +++ b/server/agent-bridge/types.ts
-@@ -184,6 +184,10 @@
+@@ -184,6 +184,12 @@
     * /clear (the id stays the worker's). Helpers: null.
     */
    sessionId: string | null;
@@ -328,9 +428,57 @@
 +  cat?: string;
 +  /** The desk that cat works at (catalogue id, mirrored, turned), once the page has reported it. */
 +  desk?: { id: string; flip: boolean; rear: boolean };
++  /** Where its cat is in the page's office and what it's doing, while a page reports places (in memory only). */
++  place?: CatPlace;
    startedAt: number;
    updatedAt: number;
    /** Office workers only (null for external): the conversation, last 60 entries, oldest first. */
+@@ -236,7 +242,45 @@
+   claude?: ClaudeHealth;
+   /** The account's 5-hour and 7-day usage (plan-usage.ts); absent where nothing watches it, null before any is seen. */
+   plan?: PlanUsage | null;
++  /** The spare cats' places (no session), from the page's office; absent where no page store applies (tests). */
++  spares?: SparePlace[];
++  /** Epoch ms of the newest place kept, or null with none (places over 60 s old are dropped). */
++  placesAt?: number | null;
++}
++
++/**
++ * Where a cat is in the page's office and what it's doing (POST /__agents/cats `places`, sent every 2 s by
++ * src/agents/live/places-share.ts from the simulation's snapshot), with the time of the post it came in.
++ */
++export interface CatPlace {
++  /** Its sprite set (cats.json). */
++  catId: string;
++  floor: number;
++  /** Position on the floor (0–1). */
++  u: number;
++  v: number;
++  direction: string;
++  /** The cat's state (agent.types.ts CatState), gesture and expression. */
++  state: string;
++  gesture: string;
++  expression: string;
++  /** A nap (activities.ts `asleep`, or a spot's sleeping pose). */
++  asleep: boolean;
++  /** The spot's activity kind (activities.ts), 'elevator' or 'other'; and the badge the page shows. */
++  activity: { kind: string; label: string } | null;
++  /** The spot it is at, or null. */
++  spotId: string | null;
++  /** Sim minutes left at the spot, or null. */
++  minutesLeft: number | null;
++  phase: 'walking' | 'using' | 'elevator' | 'idle';
++  /** The floor the elevator takes it to, or null. */
++  ridingTo: number | null;
++  /** Epoch ms of the post. */
++  at: number;
+ }
++
++/** A spare cat's place: keyed `spare:<simulation id>`, with the cat's own name. */
++export type SparePlace = CatPlace & { key: string; name: string };
+ 
+ /** One usage limit window, as Claude Code's status line input last reported it. */
+ export interface PlanWindow {
 --- a/server/agent-bridge/workers.ts
 +++ b/server/agent-bridge/workers.ts
 @@ -32,6 +32,7 @@
@@ -437,6 +585,128 @@
 +    return () => window.clearInterval(timer);
 +  }, [engine, building, agentOf, source]);
 +}
+--- a/src/agents/live/places-share.ts
++++ b/src/agents/live/places-share.ts
+@@ -0,0 +1,119 @@
++import { useEffect, useRef } from 'react';
++import { activityFor, type ActivityKind } from '../../simulation/activities';
++import type { SimulationEngine } from '../../simulation/simulation-engine';
++import type { AgentPhaseLabel, SimSnapshot } from '../../simulation/simulation.types';
++import type { FloorId, Spot } from '../../world/world.types';
++import { post } from './actions';
++
++/*
++ * Where each cat is and what it's doing, shared with other local apps (ClaudeBar's menu bar office mirrors it):
++ * every 2 s the page posts every cat's place to the bridge (POST /__agents/cats `{ places, at }`), keyed by the
++ * live session its cat stands for, or `spare:<sim id>` for a spare cat. The bridge keeps them in memory only
++ * (server/agent-bridge/cat-assignments.ts) and every snapshot carries them.
++ */
++
++/** What the other apps draw from: the engine's snapshot (simulation-engine.ts snapshot()), flattened. */
++export interface SharedPlace {
++  /** The cat's own name. */
++  name: string;
++  /** Its sprite set (cats.json). */
++  catId: string;
++  floor: FloorId;
++  u: number;
++  v: number;
++  direction: string;
++  /** CatState (agent.types.ts). */
++  state: string;
++  gesture: string;
++  expression: string;
++  /** A nap (activities.ts `asleep`, or a spot's sleeping pose). */
++  asleep: boolean;
++  /**
++   * `kind`: the spot's activity kind (activities.ts) while the cat is at one; 'elevator' riding; else 'other'
++   * (a badge with no spot: a meeting without a table, a fire). `label`: the badge the page shows.
++   */
++  activity: { kind: string; label: string } | null;
++  /** The spot the cat is at (after arriving), or null while walking or standing. */
++  spotId: string | null;
++  /** Sim minutes left at the spot, or null. */
++  minutesLeft: number | null;
++  phase: 'walking' | 'using' | 'elevator' | 'idle';
++  /** The floor the elevator takes it to, or null. */
++  ridingTo: FloorId | null;
++}
++
++/** The engine's phase labels (simulation.types.ts) as shared: deciding and waiting are standing about. */
++const PHASES: Record<AgentPhaseLabel, SharedPlace['phase']> = {
++  walking: 'walking',
++  using: 'using',
++  elevator: 'elevator',
++  deciding: 'idle',
++  waiting: 'idle',
++};
++
++interface FloorsWithSpots {
++  floors: readonly { id: FloorId; spots: readonly Spot[] }[];
++}
++
++const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
++
++/**
++ * Every cat's place: a session's cat under its live agent id (agentOf: sim id → session, useAgentCats), the rest
++ * under `spare:<sim id>`. `building` (the engine's) names the spot each cat is at, for its activity's kind and
++ * whether it is a nap. A cat with a non-finite position is left out.
++ */
++export function buildPlaces(snapshot: Pick<SimSnapshot, 'agents'>, agentOf: ReadonlyMap<string, { id: string }>, building?: FloorsWithSpots): Record<string, SharedPlace> {
++  const out: Record<string, SharedPlace> = {};
++  for (const a of snapshot.agents) {
++    if (!finite(a.position.u) || !finite(a.position.v)) continue;
++    const spot = a.usingSpotId ? building?.floors.find((f) => f.id === a.floor)?.spots.find((s) => s.id === a.usingSpotId) : undefined;
++    const def = spot && spot.kind !== 'elevator' ? activityFor(spot) : null;
++    const phase = PHASES[a.phase] ?? 'idle';
++    const kind: ActivityKind | 'elevator' | 'other' = def ? def.kind : phase === 'elevator' ? 'elevator' : 'other';
++    out[agentOf.get(a.id)?.id ?? `spare:${a.id}`] = {
++      name: a.name,
++      catId: a.catId,
++      floor: a.floor,
++      u: a.position.u,
++      v: a.position.v,
++      direction: a.direction,
++      state: a.state,
++      gesture: a.gesture,
++      expression: a.expression,
++      asleep: def?.asleep === true || a.pose === 'sleep',
++      activity: a.activity ? { kind, label: a.activity.label } : null,
++      spotId: a.usingSpotId,
++      minutesLeft: finite(a.minutesLeft) ? a.minutesLeft : null,
++      phase,
++      ridingTo: a.ridingTo,
++    };
++  }
++  return out;
++}
++
++const SHARE_EVERY_MS = 2000;
++
++/**
++ * Posts buildPlaces every 2 s while `on` (live data), whether the page is shown or not (the engine runs either
++ * way). agentOf is read when posting, so a new map doesn't restart the timer.
++ */
++export function usePlacesShare(engine: SimulationEngine, agentOf: ReadonlyMap<string, { id: string }>, on: boolean): void {
++  const latest = useRef(agentOf);
++  useEffect(() => {
++    latest.current = agentOf;
++  }, [agentOf]);
++  useEffect(() => {
++    if (!on) return undefined;
++    let busy = false;
++    const share = (): void => {
++      if (busy) return;
++      busy = true;
++      const places = buildPlaces(engine.snapshot(), latest.current, engine.building);
++      void post('/__agents/cats', { places, at: Date.now() }, () => true).finally(() => {
++        busy = false;
++      });
++    };
++    const timer = window.setInterval(share, SHARE_EVERY_MS);
++    return () => window.clearInterval(timer);
++  }, [engine, on]);
++}
 --- a/src/agents/live/useAgentCats.ts
 +++ b/src/agents/live/useAgentCats.ts
 @@ -1,4 +1,5 @@
@@ -470,26 +740,29 @@
    const spare = useMemo(() => (source === 'live' ? spareCats(agents ?? [], catIds, assignment) : []), [source, agents, catIds, assignment]);
 --- a/src/components/mission/MissionControl.tsx
 +++ b/src/components/mission/MissionControl.tsx
-@@ -4,6 +4,7 @@
+@@ -4,6 +4,8 @@
  import { displayName, helperIcon, isHelper } from '../../agents/live/helpers';
  import { countByStatus, formatRuntime, runtimeMs } from '../../agents/live/status';
  import { useAgentCats, type Portrait } from '../../agents/live/useAgentCats';
 +import { useReportDesks } from '../../agents/live/agent-desks';
++import { usePlacesShare } from '../../agents/live/places-share';
  import { useLiveAgents } from '../../agents/live/useLiveAgents';
  import { useWarmStart } from '../../agents/live/warm-start';
  import { withMeeting, workingHelpers } from '../../agents/live/meetings';
-@@ -162,6 +163,8 @@
+@@ -162,6 +164,10 @@
      const agentOf = new Map([...assigned.agentOf].filter(([simId, a]) => !left(simId, a)));
      return { catOf, agentOf };
    }, [assigned, departedKey]);
 +  // Which desk each session's cat works at, for other local apps (ClaudeBar) to draw the same desk.
 +  useReportDesks(engine, world.building, agentOf, live.source);
++  // Where every cat is and what it's doing (spare cats too), every 2 s, for ClaudeBar to mirror the office.
++  usePlacesShare(engine, agentOf, live.source === 'live');
    const agents = live.snapshot?.agents ?? NO_AGENTS;
    // Every session's face in the roster, drawer and feed: its cat's, the one it had, or one picked from its id;
    // muted when no cat in the office stands for it now (ended, or queued for a free cat).
 --- a/tests/sim/cat-assignments.test.ts
 +++ b/tests/sim/cat-assignments.test.ts
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,154 @@
 +// The cats the page shows, shared with other local apps (ClaudeBar): POST /__agents/cats keeps them in
 +// <stateDir>/cat-assignments.json and every snapshot carries each agent's `cat`; ~/.cat-office/bridge.json tells
 +// local apps where the bridge (and this folder) is. Unit checks of the store, then the routes on a real dev server with a temp
@@ -631,10 +904,255 @@
 +    assert.deepEqual(JSON.parse(readFileSync(join(STATE, 'cat-assignments.json'), 'utf8')).cats, { [sessionId]: 'tuxedo' });
 +    assert.equal((await post({ desks: { [sessionId]: { desk: 's2-mint', flip: true, rear: false } } })).status, 200);
 +    assert.deepEqual((await agents()).find((a) => a.id === sessionId)?.desk, { id: 's2-mint', flip: true, rear: false });
++    const place = { name: 'Mochi', catId: 'tuxedo', floor: 1, u: 0.5, v: 0.5, direction: 'front-left', state: 'idle', gesture: 'both-down', expression: 'default', asleep: false, activity: null, spotId: null, minutesLeft: null, phase: 'idle', ridingTo: null };
++    const at = Date.now();
++    assert.equal((await post({ places: { [sessionId]: place, 'spare:agent-9': { ...place, name: 'Tofu' } }, at })).status, 200);
++    const all = await (await fetch(`${base}/__agents`, { headers: { 'x-cat-office-token': token } })).json();
++    assert.equal(all.agents.find((a: { id: string }) => a.id === sessionId)?.place?.at, at);
++    assert.deepEqual(all.spares.map((p: { key: string; name: string }) => [p.key, p.name]), [['spare:agent-9', 'Tofu']]);
++    assert.equal(all.placesAt, at);
++    assert.equal('places' in JSON.parse(readFileSync(join(STATE, 'cat-assignments.json'), 'utf8')), false, 'places are not saved');
 +  } finally {
 +    await server.close();
 +  }
 +  assert.equal(existsSync(bridgeFile), false, 'bridge.json goes with the server');
++});
+--- a/tests/sim/places.test.ts
++++ b/tests/sim/places.test.ts
+@@ -0,0 +1,234 @@
++// Where each cat is and what it's doing, shared with other local apps (ClaudeBar): the page posts
++// `{ places: { <live agent id | "spare:<sim id>">: Place }, at }` to POST /__agents/cats every 2 s; the bridge keeps
++// the newest per cat in memory and every snapshot carries it (agent `place`, top-level `spares` and `placesAt`).
++import assert from 'node:assert/strict';
++import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import { after, test } from 'node:test';
++
++const TMP = realpathSync(mkdtempSync(join(tmpdir(), 'cat-office-places-')));
++after(() => rmSync(TMP, { recursive: true, force: true }));
++
++const { CatAssignmentStore } = await import('../../server/agent-bridge/cat-assignments.ts');
++const { buildPlaces } = await import('../../src/agents/live/places-share.ts');
++
++const NOW = 1_800_000_000_000;
++
++/** A place as the page posts it. */
++const place = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
++  name: 'Mochi',
++  catId: 'orange',
++  floor: 2,
++  u: 0.4,
++  v: 0.6,
++  direction: 'front-left',
++  state: 'idle',
++  gesture: 'both-down',
++  expression: 'happy',
++  asleep: false,
++  activity: { kind: 'coffee', label: 'Coffee break' },
++  spotId: 'coffee-machine:0',
++  minutesLeft: 4.5,
++  phase: 'using',
++  ridingTo: null,
++  ...over,
++});
++
++type Snap = { agents: { id: string; place?: Record<string, unknown> }[]; spares?: Record<string, unknown>[]; placesAt?: number | null };
++const snap = (...ids: string[]) => ({ agents: ids.map((id) => ({ id })), repos: [], at: 1 }) as never;
++
++test('places: a post is kept in memory and attached to the matching agent, with its at', () => {
++  const store = new CatAssignmentStore(join(TMP, 'a', 'cats.json'));
++  let changes = 0;
++  store.onChange(() => changes++);
++  assert.equal(store.merge({ places: { s1: place() }, at: NOW - 1000 }, NOW), true);
++  assert.equal(changes, 1, 'new places go out to the stream');
++  const out = store.apply(snap('s1', 's2'), NOW) as unknown as Snap;
++  const { name: _name, ...rest } = place();
++  assert.deepEqual(out.agents[0].place, { ...rest, at: NOW - 1000 });
++  assert.equal('place' in out.agents[1], false, 'no place: none attached');
++  assert.deepEqual(out.spares, []);
++  assert.equal(out.placesAt, NOW - 1000);
++});
++
++test('places: never written to disk', () => {
++  const file = join(TMP, 'b', 'cats.json');
++  const store = new CatAssignmentStore(file);
++  assert.equal(store.merge({ places: { s1: place() }, at: NOW }, NOW), true);
++  const again = new CatAssignmentStore(file).apply(snap('s1'), NOW) as unknown as Snap;
++  assert.equal('place' in again.agents[0], false);
++  assert.equal(again.placesAt, null);
++});
++
++test('places: the newest at per cat wins (two pages)', () => {
++  const store = new CatAssignmentStore(join(TMP, 'c', 'cats.json'));
++  assert.equal(store.merge({ places: { s1: place({ u: 0.1 }), 'spare:agent-3': place({ u: 0.2 }) }, at: NOW - 500 }, NOW), true);
++  // An older page's post arrives late: it changes nothing it is older for, but adds what it alone has.
++  assert.equal(store.merge({ places: { s1: place({ u: 0.9 }), s2: place({ u: 0.3 }) }, at: NOW - 1500 }, NOW), true);
++  let out = store.apply(snap('s1', 's2'), NOW) as unknown as Snap;
++  assert.equal(out.agents[0].place?.u, 0.1);
++  assert.equal(out.agents[1].place?.u, 0.3);
++  assert.equal(out.placesAt, NOW - 500, 'placesAt: the newest at');
++  assert.equal(store.merge({ places: { s1: place({ u: 0.5 }) }, at: NOW - 100 }, NOW), true);
++  out = store.apply(snap('s1'), NOW) as unknown as Snap;
++  assert.equal(out.agents[0].place?.u, 0.5);
++  assert.equal(out.placesAt, NOW - 100);
++});
++
++test('places: spare cats are listed in spares, with their key and name', () => {
++  const store = new CatAssignmentStore(join(TMP, 'd', 'cats.json'));
++  store.merge({ places: { 'spare:agent-4': place({ name: 'Tofu', catId: 'tuxedo', activity: null, spotId: null, minutesLeft: null, phase: 'walking' }), s1: place() }, at: NOW }, NOW);
++  const out = store.apply(snap('s1'), NOW) as unknown as Snap;
++  assert.equal(out.spares?.length, 1);
++  const spare = out.spares![0];
++  assert.equal(spare.key, 'spare:agent-4');
++  assert.equal(spare.name, 'Tofu');
++  assert.equal(spare.catId, 'tuxedo');
++  assert.equal(spare.activity, null);
++  assert.equal(spare.at, NOW);
++  assert.ok(out.agents[0].place, 'the session cat is not a spare');
++});
++
++test('places: malformed places are ignored, the good ones kept', () => {
++  const store = new CatAssignmentStore(join(TMP, 'e', 'cats.json'));
++  const bad: Record<string, unknown> = {
++    'a/b': place(),
++    'spare:x y': place(),
++    nan: place({ u: Number.NaN }),
++    inf: place({ v: 'Infinity' }),
++    mins: place({ minutesLeft: 'soon' }),
++    floor: place({ floor: 1.5 }),
++    phase: place({ phase: 'flying' }),
++    asleep: place({ asleep: 'no' }),
++    act: place({ activity: { kind: 'coffee' } }),
++    ride: place({ ridingTo: 'up' }),
++    notobj: 7,
++  };
++  assert.equal(store.merge({ places: { ...bad, good: place() }, at: NOW }, NOW), true);
++  const out = store.apply(snap('good', ...Object.keys(bad)), NOW) as unknown as Snap;
++  assert.ok(out.agents[0].place);
++  for (const a of out.agents.slice(1)) assert.equal('place' in a, false, a.id);
++  assert.deepEqual(out.spares, []);
++  // The body itself must be right: places a map, at a finite time.
++  for (const body of [{ places: [], at: NOW }, { places: { good: place() } }, { places: { good: place() }, at: Number.NaN }, { places: { good: place() }, at: 'now' }]) {
++    assert.equal(store.merge(body, NOW), false, JSON.stringify(body));
++  }
++});
++
++test('places: entries older than 60 s are dropped; at most 500 cats kept', () => {
++  const store = new CatAssignmentStore(join(TMP, 'f', 'cats.json'));
++  store.merge({ places: { old: place() }, at: NOW - 61_000 }, NOW);
++  let out = store.apply(snap('old'), NOW) as unknown as Snap;
++  assert.equal('place' in out.agents[0], false, 'a post over 60 s old is not kept');
++  store.merge({ places: { s1: place() }, at: NOW }, NOW);
++  store.merge({ places: { s2: place() }, at: NOW + 61_000 }, NOW + 61_000);
++  out = store.apply(snap('s1', 's2'), NOW + 61_000) as unknown as Snap;
++  assert.equal('place' in out.agents[0], false, 'dropped once 60 s old');
++  assert.ok(out.agents[1].place);
++  const many = Object.fromEntries(Array.from({ length: 600 }, (_, i) => [`m${i}`, place()]));
++  store.merge({ places: many, at: NOW + 62_000 }, NOW + 62_000);
++  out = store.apply(snap(...Object.keys(many)), NOW + 62_000) as unknown as Snap;
++  assert.equal(out.agents.filter((a) => a.place).length, 500);
++});
++
++test('places: assignments and desks still merge as before alongside places', () => {
++  const store = new CatAssignmentStore(join(TMP, 'g', 'cats.json'));
++  assert.equal(store.merge({ assignments: { s1: 'orange' }, places: { s1: place() }, at: NOW }, NOW), true);
++  const out = store.apply(snap('s1'), NOW) as unknown as { agents: { cat?: string; place?: unknown }[] };
++  assert.equal(out.agents[0].cat, 'orange');
++  assert.ok(out.agents[0].place);
++});
++
++/** A sim cat as engine.snapshot() has it (only the fields the builder reads matter). */
++const simCat = (over: Record<string, unknown>) => ({
++  id: 'agent-1',
++  name: 'Mochi',
++  catId: 'orange',
++  floor: 2,
++  position: { u: 0.25, v: 0.75 },
++  direction: 'back-right',
++  state: 'working',
++  gesture: 'both-down',
++  expression: 'default',
++  pose: 'type',
++  usingSpotId: 'f2-desk-1',
++  activity: { label: 'Working', icon: 'laptop' },
++  phase: 'using',
++  ridingTo: null,
++  minutesLeft: 12,
++  ...over,
++});
++
++const building = {
++  floors: [
++    {
++      id: 2,
++      spots: [
++        { id: 'f2-desk-1', kind: 'desk', pose: 'type' },
++        { id: 'sofa-1:0', kind: 'sofa', pose: 'sit' },
++        { id: 'rug-1:0', kind: 'rug', pose: 'sleep' },
++      ],
++    },
++  ],
++};
++
++test('buildPlaces: session cats by live agent id, spare cats as spare:<sim id>, fields copied', () => {
++  const snapshot = {
++    agents: [
++      simCat({}),
++      simCat({ id: 'agent-2', name: 'Tofu', catId: 'tuxedo', state: 'resting', pose: 'sit', usingSpotId: 'sofa-1:0', activity: { label: 'Napping', icon: 'moon' }, minutesLeft: 3 }),
++      simCat({ id: 'agent-3', name: 'Bean', catId: 'calico', state: 'walking', usingSpotId: null, activity: null, phase: 'walking', minutesLeft: null }),
++      simCat({ id: 'agent-4', name: 'Pip', state: 'riding-elevator', usingSpotId: null, activity: { label: 'Taking the elevator', icon: 'elevator' }, phase: 'elevator', ridingTo: 1, minutesLeft: null }),
++      simCat({ id: 'agent-5', name: 'Kit', state: 'idle', usingSpotId: null, activity: null, phase: 'deciding', minutesLeft: null }),
++      simCat({ id: 'agent-6', name: 'Ash', state: 'resting', pose: 'sleep', usingSpotId: 'rug-1:0', activity: { label: 'Napping', icon: 'moon' } }),
++    ],
++  };
++  const agentOf = new Map([
++    ['agent-1', { id: 'sess-1' }],
++    ['agent-2', { id: 'sess-2' }],
++  ]);
++  const places = buildPlaces(snapshot as never, agentOf as never, building as never);
++  assert.deepEqual(Object.keys(places).sort(), ['sess-1', 'sess-2', 'spare:agent-3', 'spare:agent-4', 'spare:agent-5', 'spare:agent-6']);
++  assert.deepEqual(places['sess-1'], {
++    name: 'Mochi',
++    catId: 'orange',
++    floor: 2,
++    u: 0.25,
++    v: 0.75,
++    direction: 'back-right',
++    state: 'working',
++    gesture: 'both-down',
++    expression: 'default',
++    asleep: false,
++    activity: { kind: 'desk', label: 'Working' },
++    spotId: 'f2-desk-1',
++    minutesLeft: 12,
++    phase: 'using',
++    ridingTo: null,
++  });
++  assert.equal(places['sess-2'].asleep, true, 'a sofa nap: asleep from the activity def');
++  assert.deepEqual(places['sess-2'].activity, { kind: 'sofa', label: 'Napping' });
++  assert.equal(places['spare:agent-3'].phase, 'walking');
++  assert.equal(places['spare:agent-3'].activity, null);
++  assert.equal(places['spare:agent-3'].spotId, null);
++  assert.equal(places['spare:agent-4'].phase, 'elevator');
++  assert.equal(places['spare:agent-4'].ridingTo, 1);
++  assert.deepEqual(places['spare:agent-4'].activity, { kind: 'elevator', label: 'Taking the elevator' });
++  assert.equal(places['spare:agent-5'].phase, 'idle', 'deciding / waiting: idle');
++  assert.equal(places['spare:agent-6'].asleep, true, 'a rug with a sleeping pose is a nap');
++  assert.deepEqual(places['spare:agent-6'].activity, { kind: 'rug', label: 'Napping' });
++});
++
++test('buildPlaces: a badge without a spot keeps its label; a non-finite position is left out', () => {
++  const snapshot = {
++    agents: [
++      simCat({ usingSpotId: null, activity: { label: 'Leading a meeting', icon: 'message' }, phase: 'waiting' }),
++      simCat({ id: 'agent-2', position: { u: Number.NaN, v: 0.5 } }),
++    ],
++  };
++  const places = buildPlaces(snapshot as never, new Map() as never, building as never);
++  assert.deepEqual(places['spare:agent-1'].activity, { kind: 'other', label: 'Leading a meeting' });
++  assert.equal(places['spare:agent-1'].phase, 'idle');
++  assert.equal('spare:agent-2' in places, false);
 +});
 --- a/tests/sim/plan-usage-workers.test.ts
 +++ b/tests/sim/plan-usage-workers.test.ts
