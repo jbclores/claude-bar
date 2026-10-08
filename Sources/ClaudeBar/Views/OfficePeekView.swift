@@ -104,7 +104,7 @@ struct OfficeRoomView: View {
             guard let from = floorOf[id], from != to, let agent = agents.first(where: { $0.id == id }) else { continue }
             // The walk to the elevator, from where the cat last stood on the shown floor (if it was there).
             let place = elevatorPlace(waiting)
-            let walkIn = from == floorId ? lastFeet[id].map { WalkPath(from: $0, to: place) } : nil
+            let walkIn = from == floorId ? lastFeet[id].map { WalkRouter.path(from: $0, to: place, grid: state.navs[floorId], frame: state.rooms[floorId]?.frame, fit: fits[floorId]) } : nil
             let speed = WalkPath.speed(for: id, base: CatWalk.baseSpeed)
             let trip = ElevatorTrip(from: from, to: to, start: now, walkIn: TimeInterval((walkIn?.length ?? 0) / speed))
             rides[id] = Rider(id: id, agent: agent, trip: trip, walkIn: walkIn, waitIndex: waiting)
@@ -241,7 +241,7 @@ struct OfficeRoomView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                     walkOuts[id] = nil
                     guard floors.shown(state) == shownAt, rides[id]?.trip == ride.trip else { return }
-                    let walk = CatWalk(id: id, agent: ride.agent, path: WalkPath(from: place, to: to), start: Date())
+                    let walk = CatWalk(id: id, agent: ride.agent, path: WalkRouter.path(from: place, to: to, grid: state.navs[shownAt], frame: state.rooms[shownAt]?.frame, fit: fits[shownAt]), start: Date())
                     walks[id] = walk
                     state.playSound(.elevator)
                     DispatchQueue.main.asyncAfter(deadline: .now() + walk.duration + CatWalk.hop) {
@@ -254,7 +254,7 @@ struct OfficeRoomView: View {
             if let ride = rides[id], ride.trip.from == floorId { continue }
             guard let from = walks[id]?.position(at: now) ?? lastFeet[id], hypot(to.x - from.x, to.y - from.y) > 12,
                   let agent = state.office?.agents.first(where: { $0.id == id }) else { continue }
-            let walk = CatWalk(id: id, agent: agent, path: WalkPath(from: from, to: to), start: now)
+            let walk = CatWalk(id: id, agent: agent, path: WalkRouter.path(from: from, to: to, grid: state.navs[floorId], frame: state.rooms[floorId]?.frame, fit: fits[floorId]), start: now)
             walks[id] = walk
             DispatchQueue.main.asyncAfter(deadline: .now() + walk.duration + CatWalk.hop) {
                 if walks[id]?.start == walk.start { walks[id] = nil }

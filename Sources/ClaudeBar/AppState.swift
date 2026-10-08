@@ -29,11 +29,16 @@ final class AppState: ObservableObject {
     @Published private(set) var catalogue: RoomCatalogue? { didSet { rebuildRooms() } }
     /// Each floor's built room, by floor id (floors without a room, corners or catalogue are absent).
     @Published private(set) var rooms: [Int: BuiltRoom] = [:]
+    /// Each floor's walking grid, built with its room (floors without a valid grid are absent).
+    @Published private(set) var navs: [Int: NavGrid] = [:]
 
     private func rebuildRooms() {
-        guard let c = catalogue else { rooms = [:]; return }
+        guard let c = catalogue else { rooms = [:]; navs = [:]; return }
         rooms = Dictionary(building.floors.compactMap { f in RoomGeometry.build(floor: f, catalogue: c).map { (f.id, $0) } },
                            uniquingKeysWith: { first, _ in first })
+        navs = Dictionary(uniqueKeysWithValues: rooms.compactMap { id, room in
+            building.floors.first { $0.id == id }.flatMap { NavGrid(floor: $0, room: room) }.map { (id, $0) }
+        })
     }
 
     private func loadCatalogue() {
