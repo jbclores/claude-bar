@@ -78,15 +78,19 @@ struct NavFixture: Decodable {
             ("zero size", ["size": 0, "walkable": [String]()]),
             ("no walkable", ["size": 4]),
             ("no grid", nil),
+            ("valid at the 512 cap", ["size": 512, "walkable": [String](repeating: String(repeating: "1", count: 512), count: 512)]),
+            ("size over the 512 cap", ["size": 513, "walkable": [String](repeating: String(repeating: "1", count: 513), count: 513)]),
         ]
         let template = try #require(building.floors.first)
         let room = try #require(RoomGeometry.build(floor: template, catalogue: catalogue))
         for (name, grid) in cases {
             let f = try floor(grid: grid)
-            if name == "valid" { #expect(f.walkable != nil, "\(name)"); continue }
-            #expect(f.walkable == nil, "\(name)")
+            let kept = f.walkable != nil   // a Bool, so a failure doesn't print 512 rows
+            if name.hasPrefix("valid") { #expect(kept, "\(name)"); continue }
+            #expect(!kept, "\(name)")
             // The room is built from the unmodified floor; the gate only reads the parsed floor's walkable.
-            #expect(NavGrid(floor: f, room: room) == nil, "\(name)")
+            let built = NavGrid(floor: f, room: room) != nil
+            #expect(!built, "\(name)")
         }
     }
 

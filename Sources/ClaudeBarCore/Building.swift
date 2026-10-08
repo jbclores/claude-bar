@@ -151,9 +151,10 @@ public struct Building: Equatable, Sendable {
     }
 }
 
-/// `grid.walkable` when `grid.size` is an integer >= 1 and there are exactly that many rows of that many characters.
+/// `grid.walkable` when `grid.size` is an integer in 1...512 (Cat Office uses 48; the cap keeps a malformed size from
+/// allocating a huge grid per route on the main thread) and there are exactly that many rows of that many characters.
 private func walkableRows(_ grid: [String: Any]?) -> [String]? {
-    guard let size = (grid?["size"] as? NSNumber)?.doubleValue, size >= 1, size == size.rounded(), size < 4096,
+    guard let size = (grid?["size"] as? NSNumber)?.doubleValue, size >= 1, size == size.rounded(), size <= 512,
           let rows = grid?["walkable"] as? [String], rows.count == Int(size),
           rows.allSatisfy({ $0.count == Int(size) }) else { return nil }
     return rows

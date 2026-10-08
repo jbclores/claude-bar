@@ -18,9 +18,9 @@ public struct BuiltRoom: Equatable, Sendable {
     public var seats: [RoomSpot]
     /// The floor parallelogram and both walls' boxes, in world px.
     public var bounds: CGRect
-    /// The room's paint (RoomTint.normal): walls, floor; nil leaves the material as drawn.
     /// Every spot on the room's rugs (buildRoomFloor 978-984), seats or not: the walking grid reopens their cells.
     public var rugSpots: [RoomSpot] = []
+    /// The room's paint (RoomTint.normal): walls, floor; nil leaves the material as drawn.
     public var wallTint: String? = nil
     public var floorTint: String? = nil
 }
