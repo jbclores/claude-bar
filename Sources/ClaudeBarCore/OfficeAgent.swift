@@ -45,6 +45,8 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
     /// What the helper was asked to do.
     public var agentDescription: String?
     public var isSubagent: Bool { kind == "subagent" }
+    /// Where its cat is and what it's doing, once the patched Cat Office page shares it (nil from an older patch or no page).
+    public var place: MirrorPlace?
     /// Where `task` came from: "custom" (renamed), "ai", "description", or "prompt" (the first message).
     public var titleSource: String?
 
@@ -92,7 +94,7 @@ extension OfficeAgent: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case id, name, owner, status, waitReason, cwd, repo, branch, model, task, lastAction, waitingSince, sessionId, cat
-        case titleSource, desk, kind, parentName, agentType, description
+        case titleSource, desk, kind, parentName, agentType, description, place
     }
 
     public init(from decoder: Decoder) throws {
@@ -122,6 +124,7 @@ extension OfficeAgent: Decodable {
         parentName = try? c.decodeIfPresent(String.self, forKey: .parentName)
         agentType = try? c.decodeIfPresent(String.self, forKey: .agentType)
         agentDescription = try? c.decodeIfPresent(String.self, forKey: .description)
+        place = (try? c.decodeIfPresent(MirrorPlace.self, forKey: .place)) ?? nil
     }
 }
 
@@ -129,20 +132,36 @@ extension OfficeAgent: Decodable {
 public struct OfficeSnapshot: Equatable, Sendable, Decodable {
     public var agents: [OfficeAgent]
     public var claudeHindered: Bool
+    /// Cats not tied to a session (Cat Office's spare cats), with `key` and `name`. Empty without a page or older patch.
+    public var spares: [MirrorPlace]
+    /// When the newest place was posted (ms since 1970); nil with no page open. See `MirrorPlaces.isLive`.
+    public var placesAt: Double?
 
-    public init(agents: [OfficeAgent], claudeHindered: Bool = false) {
+    public init(agents: [OfficeAgent], claudeHindered: Bool = false, spares: [MirrorPlace] = [], placesAt: Double? = nil) {
         self.agents = agents
         self.claudeHindered = claudeHindered
+        self.spares = spares
+        self.placesAt = placesAt
     }
 
     private struct Health: Decodable { var hindered: Bool? }
-    enum CodingKeys: String, CodingKey { case agents, claude }
+    enum CodingKeys: String, CodingKey { case agents, claude, spares, placesAt }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         agents = try c.decode([OfficeAgent].self, forKey: .agents)
         claudeHindered = (try? c.decodeIfPresent(Health.self, forKey: .claude))??.hindered ?? false
+        // One bad spare is skipped, not the whole snapshot.
+        var list = (try? c.nestedUnkeyedContainer(forKey: .spares)).map { $0 }
+        var spares: [MirrorPlace] = []
+        while list?.isAtEnd == false {
+            if let p = try? list?.decode(MirrorPlace.self) { spares.append(p) } else { _ = try? list?.decode(Skip.self) }
+        }
+        self.spares = spares
+        let at = (try? c.decodeIfPresent(Double.self, forKey: .placesAt)) ?? nil
+        placesAt = at?.isFinite == true ? at : nil
     }
+    private struct Skip: Decodable { init(from decoder: Decoder) throws {} }
 }
 
 extension LiveSession {
