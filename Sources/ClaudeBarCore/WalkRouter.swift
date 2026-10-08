@@ -16,10 +16,22 @@ public enum WalkRouter {
             points.append(q)
         }
         // The route ends on `to` when it is open floor; when it is blocked (a seat, a bed) it ends on the open floor in
-        // front of it, and the last hop onto `to` is kept (it runs along an axis).
-        if let end = route.last, abs(end.u - goal.u) < 1e-9, abs(end.v - goal.v) < 1e-9 {
+        // front of it, and the last hop onto `to` is kept (it runs along an axis). When NavGrid's approach fell back to
+        // the nearest cell's centre, off both of `to`'s axes, that hop becomes an L (nav-grid.ts axisLegs: the open
+        // elbow, else the longer leg on screen first) instead of a diagonal.
+        guard let end = route.last else { return fallback }
+        let du = abs(end.u - goal.u), dv = abs(end.v - goal.v)
+        if du < 1e-9, dv < 1e-9 {
             points[points.count - 1] = to
         } else {
+            if du >= 1e-9, dv >= 1e-9 {
+                let uFirst = FloorPoint(u: goal.u, v: end.v), vFirst = FloorPoint(u: end.u, v: goal.v)
+                let order = du * frame.eu >= dv * frame.ev ? [uFirst, vFirst] : [vFirst, uFirst]
+                let elbow = order.first(where: grid.isOpenAt) ?? order[0]
+                let q = fit.point(frame.px(elbow))
+                guard isFinite(q) else { return fallback }
+                points.append(q)
+            }
             points.append(to)
         }
         return WalkPath(points: points)

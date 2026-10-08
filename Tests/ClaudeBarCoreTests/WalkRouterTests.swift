@@ -62,4 +62,19 @@ import Testing
         let u = CGPoint(x: uAxis.x - o.x, y: uAxis.y - o.y), v = CGPoint(x: vAxis.x - o.x, y: vAxis.y - o.y)
         #expect(abs(cross(hop, u)) < 1e-6 || abs(cross(hop, v)) < 1e-6, "the last leg runs along u or v")
     }
+    /// A seat in cell (4,4) with its four axis neighbours blocked and its diagonals open: NavGrid's approach falls back
+    /// to the nearest open cell's centre, off both axes of the seat, so the last hop needs an L, not a diagonal.
+    @Test func aFallbackApproachEndsWithAnLNotADiagonal() {
+        var open = [Bool](repeating: true, count: 100)
+        for (u, v) in [(4, 4), (3, 4), (5, 4), (4, 3), (4, 5)] { open[u * 10 + v] = false }
+        let g = NavGrid(size: 10, open: open, frame: frame)
+        let from = view(0.15, 0.15), to = view(0.45, 0.45)
+        let w = WalkRouter.path(from: from, to: to, grid: g, frame: frame, fit: fit)
+        #expect(w.points.first == from && w.points.last == to)
+        #expect(w.points.count > 2, "a route, not the L fallback")
+        let uv = w.points.map { frame.uv(fit.world($0)) }
+        for (a, b) in zip(uv, uv.dropFirst()) {
+            #expect(abs(b.u - a.u) < 1e-6 || abs(b.v - a.v) < 1e-6, "leg \(a) -> \(b) runs along u or v")
+        }
+    }
 }
