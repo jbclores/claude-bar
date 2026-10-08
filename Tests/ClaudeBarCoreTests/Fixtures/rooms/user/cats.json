@@ -1,0 +1,181 @@
+{
+  "canvas": {
+    "width": 360,
+    "height": 380
+  },
+  "feet": {
+    "x": 180,
+    "y": 300
+  },
+  "bodyHeight": 210,
+  "directions": [
+    "front-left",
+    "front-right",
+    "back-right",
+    "back-left"
+  ],
+  "gestures": [
+    "both-down",
+    "left-up",
+    "right-up",
+    "both-up"
+  ],
+  "path": "assets/cats/{cat}/{direction}/{gesture}.png",
+  "cats": [
+    {
+      "id": "orange",
+      "name": "Orange",
+      "fluffy": false,
+      "walk": true
+    },
+    {
+      "id": "gray",
+      "name": "Gray",
+      "fluffy": false,
+      "walk": true
+    },
+    {
+      "id": "calico",
+      "name": "Calico",
+      "fluffy": false,
+      "walk": true
+    },
+    {
+      "id": "tuxedo",
+      "name": "Tuxedo",
+      "fluffy": false,
+      "walk": true
+    },
+    {
+      "id": "cream",
+      "name": "Cream",
+      "fluffy": false,
+      "walk": true
+    },
+    {
+      "id": "fluffy-orange",
+      "name": "Fluffy Orange",
+      "fluffy": true,
+      "walk": true
+    },
+    {
+      "id": "fluffy-gray",
+      "name": "Fluffy Gray",
+      "fluffy": true,
+      "walk": true
+    },
+    {
+      "id": "fluffy-calico",
+      "name": "Fluffy Calico",
+      "fluffy": true,
+      "walk": true
+    },
+    {
+      "id": "fluffy-tuxedo",
+      "name": "Fluffy Tuxedo",
+      "fluffy": true,
+      "walk": true
+    },
+    {
+      "id": "fluffy-cream",
+      "name": "Fluffy Cream",
+      "fluffy": true,
+      "walk": true
+    },
+    {
+      "id": "fluffy-white",
+      "name": "Yuki",
+      "fluffy": true,
+      "sleepPoses": [
+        "nod-1",
+        "nod-2"
+      ],
+      "walk": true
+    },
+    {
+      "id": "fluffy-black",
+      "name": "Noir",
+      "fluffy": true,
+      "sleepPoses": [
+        "nod-1",
+        "nod-2"
+      ],
+      "walk": true
+    },
+    {
+      "id": "fluffy-siamese",
+      "name": "Siam",
+      "fluffy": true,
+      "sleepPoses": [
+        "nod-1",
+        "nod-2"
+      ],
+      "walk": true
+    },
+    {
+      "id": "fluffy-ragdoll",
+      "name": "Bluebell",
+      "fluffy": true,
+      "sleepPoses": [
+        "nod-1",
+        "nod-2"
+      ],
+      "walk": true
+    },
+    {
+      "id": "fluffy-mainecoon",
+      "name": "Maple",
+      "fluffy": true,
+      "sleepPoses": [
+        "nod-1",
+        "nod-2",
+        "nod-3"
+      ],
+      "walk": true
+    },
+    {
+      "id": "fluffy-silver",
+      "name": "Silver",
+      "fluffy": true,
+      "sleepPoses": [
+        "nod-1",
+        "nod-2"
+      ],
+      "walk": true
+    },
+    {
+      "id": "fluffy-tortie",
+      "name": "Marmalade",
+      "fluffy": true,
+      "sleepPoses": [
+        "nod-1",
+        "nod-2"
+      ],
+      "walk": true
+    },
+    {
+      "id": "fluffy-lilac",
+      "name": "Lilac",
+      "fluffy": true,
+      "sleepPoses": [
+        "nod-1",
+        "nod-2"
+      ],
+      "walk": true
+    }
+  ],
+  "sitPath": "assets/cats/{cat}/{direction}/sit.png",
+  "sleepPath": "assets/cats/{cat}/sleep.png",
+  "typePath": "assets/cats/{cat}/{direction}/type.png",
+  "sleepPosePath": "assets/cats/{cat}/sleep/{pose}.png",
+  "sleepPoses": [
+    "nod"
+  ],
+  "walkPath": "assets/cats/{cat}/{direction}/{frame}.png",
+  "walkFrames": [
+    "walk-1",
+    "walk-2",
+    "walk-3",
+    "walk-4"
+  ]
+}
