@@ -732,7 +732,8 @@ private struct RoutesView: View {
     let k: CGFloat
     @State private var fit: SceneFit?
 
-    struct Walk { let name: String; let path: WalkPath; let routed: Bool }
+    /// A walk, with its ends' floor points (a raised seat's drawn feet are lifted off them).
+    struct Walk { let name: String; let path: WalkPath; let routed: Bool; let fromFloor: FloorPoint; let toFloor: FloorPoint }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -775,19 +776,21 @@ private struct RoutesView: View {
         }
     }
 
-    /// The walks a cat would take out of the elevator: to every desk's stand-at, and to every Lounge seat (its feet
-    /// lifted the way SceneCats draws them, since that is the point the peek walks a cat to).
+    /// The walks a cat would take out of the elevator: to every desk's stand-at, and to every Lounge seat, with the
+    /// inputs the peek gives WalkRouter: each end's drawn feet (a seat's lifted the way SceneCats draws them) and its
+    /// floor point (CatFeet.floor; the elevator spot's for the start).
     static func walks(room: BuiltRoom, grid: NavGrid?, fit: SceneFit) -> [Walk] {
         let door = room.elevator?.standAt ?? FloorPoint(u: 0.5, v: 0.5)
-        let from = fit.point(room.frame.px(ElevatorTrip.waitingPlace(door, index: 0)))
-        var targets: [(String, CGPoint)] = room.desks.map { ("desk \($0.id)", fit.point(room.frame.px($0.standAt))) }
+        let fromFloor = ElevatorTrip.waitingPlace(door, index: 0)
+        let from = fit.point(room.frame.px(fromFloor))
+        var targets: [(String, CGPoint, FloorPoint)] = room.desks.map { ("desk \($0.id)", fit.point(room.frame.px($0.standAt)), $0.standAt) }
         for s in room.seats {
             let g = fit.point(room.frame.px(s.standAt))
-            targets.append(("seat \(s.id) (lift \(s.lift))", CGPoint(x: g.x, y: g.y - CGFloat(s.lift) * fit.scale)))
+            targets.append(("seat \(s.id) (lift \(s.lift))", CGPoint(x: g.x, y: g.y - CGFloat(s.lift) * fit.scale), s.standAt))
         }
-        return targets.map { name, to in
-            let path = WalkRouter.path(from: from, to: to, grid: grid, frame: room.frame, fit: fit)
-            return Walk(name: name, path: path, routed: grid != nil && path != WalkPath(from: from, to: to))
+        return targets.map { name, to, toFloor in
+            let path = WalkRouter.path(from: from, fromFloor: fromFloor, to: to, toFloor: toFloor, grid: grid, frame: room.frame, fit: fit)
+            return Walk(name: name, path: path, routed: grid != nil && path != WalkPath(from: from, to: to), fromFloor: fromFloor, toFloor: toFloor)
         }
     }
 
@@ -795,10 +798,16 @@ private struct RoutesView: View {
         let blockedCells = grid.map { g in (0..<(g.size * g.size)).filter { !g.isOpen($0 / g.size, $0 % g.size) }.count } ?? 0
         print("floor \(room.floorId): \(grid.map { "grid \($0.size)×\($0.size), \(blockedCells) blocked cells" } ?? "NO GRID: every walk is the L (orange)"), fit scale \(fit.scale)")
         for w in walks {
-            let uv = w.path.points.map { room.frame.uv(fit.world($0)) }
+            // In floor terms the drawn ends are their floor points (the hop up or down a lift is no floor move).
+            var uv = w.path.points.map { room.frame.uv(fit.world($0)) }
+            uv[0] = w.fromFloor
+            uv[uv.count - 1] = w.toFloor
+            let p = w.path.points
+            let hop = p.count >= 2 ? String(format: ", last hop dx %.2f dy %.2f", p[p.count - 1].x - p[p.count - 2].x, p[p.count - 1].y - p[p.count - 2].y) : ""
             var blocked: [String] = []
             if let grid {
-                for (k, (a, b)) in zip(uv, uv.dropFirst()).enumerated() {
+                // The hop up or down a lift is no floor move (a ≈ b): not sampled.
+                for (k, (a, b)) in zip(uv, uv.dropFirst()).enumerated() where abs(b.u - a.u) > 1e-6 || abs(b.v - a.v) > 1e-6 {
                     let hits = (1..<20).filter { t in
                         let f = Double(t) / 20
                         return !grid.isOpenAt(FloorPoint(u: a.u + (b.u - a.u) * f, v: a.v + (b.v - a.v) * f))
@@ -809,7 +818,7 @@ private struct RoutesView: View {
             let diagonal = zip(uv, uv.dropFirst()).contains { a, b in abs(b.u - a.u) > 1e-6 && abs(b.v - a.v) > 1e-6 }
             let end = uv.last.map { String(format: "(%.3f, %.3f) %@", $0.u, $0.v, grid?.isOpenAt($0) == true ? "open" : "blocked") } ?? "-"
             print("  \(w.name): \(w.routed ? "route" : "L fallback"), \(w.path.points.count) points, ends \(end)"
-                  + (diagonal ? ", HAS A DIAGONAL LEG" : "") + (blocked.isEmpty ? "" : ", samples on blocked cells: " + blocked.joined(separator: "; ")))
+                  + hop + (diagonal ? ", HAS A DIAGONAL LEG" : "") + (blocked.isEmpty ? "" : ", samples on blocked cells: " + blocked.joined(separator: "; ")))
         }
         fflush(stdout)
     }

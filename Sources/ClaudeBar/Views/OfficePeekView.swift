@@ -9,10 +9,17 @@ final class PeekPointer: ObservableObject {
     @Published var location: CGPoint?
 }
 
-/// Where each cat's feet are (agent id → point in "roomContent"), for walking it to its next spot.
+/// A cat's feet as drawn, in "roomContent" (lifted on a raised seat), and on a built floor the floor point it stands
+/// on: walks route between floor points and hop up or down to the drawn feet (WalkRouter).
+struct CatFeet: Equatable {
+    var point: CGPoint
+    var floor: FloorPoint?
+}
+
+/// Where each cat's feet are (agent id → CatFeet), for walking it to its next spot.
 struct CatFeetKey: PreferenceKey {
-    static let defaultValue: [String: CGPoint] = [:]
-    static func reduce(value: inout [String: CGPoint], nextValue: () -> [String: CGPoint]) {
+    static let defaultValue: [String: CatFeet] = [:]
+    static func reduce(value: inout [String: CatFeet], nextValue: () -> [String: CatFeet]) {
         value.merge(nextValue()) { $1 }
     }
 }
@@ -65,7 +72,7 @@ struct OfficeRoomView: View {
     @EnvironmentObject var zoom: RoomZoom
     @Environment(\.colorScheme) private var colorScheme
     @State private var catFrames: [String: CatHit] = [:]
-    @State private var lastFeet: [String: CGPoint] = [:]
+    @State private var lastFeet: [String: CatFeet] = [:]
     @EnvironmentObject var floors: FloorSelection
     /// Who sits where, per floor, kept between updates so cats keep their desks and seats.
     @State private var seatings: [Int: FloorSeating] = [:]
@@ -77,7 +84,7 @@ struct OfficeRoomView: View {
     /// Arrivals whose walk out of the elevator is scheduled: agent id → its trip's start.
     @State private var walkOuts: [String: Date] = [:]
     /// The cats' feet as last reported (CatFeetKey).
-    @State private var shownFeet: [String: CGPoint] = [:]
+    @State private var shownFeet: [String: CatFeet] = [:]
     /// The building's floor ids at the last floor check.
     @State private var buildingFloors: [Int] = []
     /// Built floors' fits (FloorScene), by floor id, in "roomContent" points.
@@ -104,7 +111,10 @@ struct OfficeRoomView: View {
             guard let from = floorOf[id], from != to, let agent = agents.first(where: { $0.id == id }) else { continue }
             // The walk to the elevator, from where the cat last stood on the shown floor (if it was there).
             let place = elevatorPlace(waiting)
-            let walkIn = from == floorId ? lastFeet[id].map { WalkRouter.path(from: $0, to: place, grid: state.navs[floorId], frame: state.rooms[floorId]?.frame, fit: fits[floorId]) } : nil
+            let walkIn = from == floorId ? lastFeet[id].map {
+                WalkRouter.path(from: $0.point, fromFloor: $0.floor, to: place, toFloor: elevatorFloorPoint(waiting),
+                                grid: state.navs[floorId], frame: state.rooms[floorId]?.frame, fit: fits[floorId])
+            } : nil
             let speed = WalkPath.speed(for: id, base: CatWalk.baseSpeed)
             let trip = ElevatorTrip(from: from, to: to, start: now, walkIn: TimeInterval((walkIn?.length ?? 0) / speed))
             rides[id] = Rider(id: id, agent: agent, trip: trip, walkIn: walkIn, waitIndex: waiting)
@@ -226,22 +236,23 @@ struct OfficeRoomView: View {
     }
 
     /// A cat whose feet moved (status took it between desk and lounge) walks there, the way Cat Office walks.
-    private func startWalks(to feet: [String: CGPoint]) {
+    private func startWalks(to feet: [String: CatFeet]) {
         let now = Date()
 
-        for (id, to) in feet {
+        for (id, spot) in feet {
+            let to = spot.point
             // Riding in: it walks out of the elevator once it has arrived, from where it appeared.
             if let ride = rides[id], ride.trip.to == floorId {
                 // Once per ride (layout passes repeat), and only if this floor is still the one shown when it's out.
                 guard walks[id] == nil, walkOuts[id] != ride.trip.start else { continue }
                 walkOuts[id] = ride.trip.start
                 let delay = max(0, ride.trip.doneTime.timeIntervalSince(now))
-                let place = elevatorPlace(ride.waitIndex)
+                let place = elevatorPlace(ride.waitIndex), placeFloor = elevatorFloorPoint(ride.waitIndex)
                 let shownAt = floorId
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                     walkOuts[id] = nil
                     guard floors.shown(state) == shownAt, rides[id]?.trip == ride.trip else { return }
-                    let walk = CatWalk(id: id, agent: ride.agent, path: WalkRouter.path(from: place, to: to, grid: state.navs[shownAt], frame: state.rooms[shownAt]?.frame, fit: fits[shownAt]), start: Date())
+                    let walk = CatWalk(id: id, agent: ride.agent, path: WalkRouter.path(from: place, fromFloor: placeFloor, to: to, toFloor: spot.floor, grid: state.navs[shownAt], frame: state.rooms[shownAt]?.frame, fit: fits[shownAt]), start: Date())
                     walks[id] = walk
                     state.playSound(.elevator)
                     DispatchQueue.main.asyncAfter(deadline: .now() + walk.duration + CatWalk.hop) {
@@ -254,9 +265,12 @@ struct OfficeRoomView: View {
             if let ride = rides[id], ride.trip.from == floorId { continue }
             // Already on its way there: a new walk would restart it (and near a seat, step it off and on again).
             if walks[id]?.path.endsAt(to) == true { continue }
-            guard let from = walks[id]?.position(at: now) ?? lastFeet[id], hypot(to.x - from.x, to.y - from.y) > 12,
+            // A cat stopped mid-walk starts from where it is (on the floor, unlifted); else from its spot.
+            let midWalk = walks[id]?.position(at: now)
+            guard let from = midWalk ?? lastFeet[id]?.point, hypot(to.x - from.x, to.y - from.y) > 12,
                   let agent = state.office?.agents.first(where: { $0.id == id }) else { continue }
-            let walk = CatWalk(id: id, agent: agent, path: WalkRouter.path(from: from, to: to, grid: state.navs[floorId], frame: state.rooms[floorId]?.frame, fit: fits[floorId]), start: now)
+            let fromFloor = midWalk == nil ? lastFeet[id]?.floor : nil
+            let walk = CatWalk(id: id, agent: agent, path: WalkRouter.path(from: from, fromFloor: fromFloor, to: to, toFloor: spot.floor, grid: state.navs[floorId], frame: state.rooms[floorId]?.frame, fit: fits[floorId]), start: now)
             walks[id] = walk
             DispatchQueue.main.asyncAfter(deadline: .now() + walk.duration + CatWalk.hop) {
                 if walks[id]?.start == walk.start { walks[id] = nil }
@@ -294,6 +308,12 @@ struct OfficeRoomView: View {
         }
         let door = ElevatorArt.door()
         return CGPoint(x: door.x + ElevatorTrip.waitingOffset(index: index), y: door.y)
+    }
+
+    /// The floor point of `elevatorPlace(index)` on a built floor (nil on the simple room).
+    private func elevatorFloorPoint(_ index: Int) -> FloorPoint? {
+        guard let built = state.rooms[floorId], fits[floorId] != nil else { return nil }
+        return ElevatorTrip.waitingPlace(built.elevator?.standAt ?? FloorPoint(u: 0.5, v: 0.5), index: index)
     }
 
     /// The floor as seated on a built room: only the desks the room could place (unknown designs are skipped).
@@ -555,9 +575,9 @@ struct LoungeFloor: View {
         CGRect(x: spots[spot].x + 10 + CGFloat(k) * 16, y: spots[spot].y - 40, width: 40, height: 42)
     }
 
-    private func feet(_ o: CGPoint) -> [String: CGPoint] {
-        var out: [String: CGPoint] = [:]
-        for (i, a) in slots.prefix(Self.spots.count).enumerated() { if let a { out[a.id] = CGPoint(x: o.x + Self.spots[i].x, y: o.y + Self.spots[i].y) } }
+    private func feet(_ o: CGPoint) -> [String: CatFeet] {
+        var out: [String: CatFeet] = [:]
+        for (i, a) in slots.prefix(Self.spots.count).enumerated() { if let a { out[a.id] = CatFeet(point: CGPoint(x: o.x + Self.spots[i].x, y: o.y + Self.spots[i].y)) } }
         return out
     }
 
@@ -772,7 +792,7 @@ extension View {
     func catFeet(_ id: String, at point: CGPoint) -> some View {
         background(GeometryReader { proxy in
             let origin = proxy.frame(in: .named("roomContent")).origin
-            Color.clear.preference(key: CatFeetKey.self, value: [id: CGPoint(x: origin.x + point.x, y: origin.y + point.y)])
+            Color.clear.preference(key: CatFeetKey.self, value: [id: CatFeet(point: CGPoint(x: origin.x + point.x, y: origin.y + point.y))])
         })
     }
 }

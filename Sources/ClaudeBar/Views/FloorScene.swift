@@ -284,7 +284,7 @@ struct SceneCats: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .preference(key: CatFeetKey.self, value: Dictionary(drawn.map { ($0.cat.agent.id, shift($0.feet)) }, uniquingKeysWith: { a, _ in a }))
+        .preference(key: CatFeetKey.self, value: Dictionary(drawn.map { ($0.cat.agent.id, CatFeet(point: shift($0.feet), floor: $0.cat.at)) }, uniquingKeysWith: { a, _ in a }))
         .preference(key: CatFramesKey.self, value: Dictionary(drawn.map {
             ($0.cat.agent.id, CatHit(frame: fit.rect($0.figure).offsetBy(dx: origin.x, dy: origin.y), z: $0.z, feet: shift($0.feet)))
         }, uniquingKeysWith: { a, _ in a }))
