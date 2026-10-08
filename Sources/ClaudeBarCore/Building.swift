@@ -61,10 +61,12 @@ public struct Floor: Equatable, Sendable, Identifiable {
     public var room: FloorRoom?
     /// Cells along each side of the floor's walk grid (building.json floor.grid.size): sizes props measured in cells.
     public var gridSize: Double?
+    /// building.json floor.grid.walkable: `size` rows of `size` "1"/"0" cells (nil when missing or malformed).
+    public var walkable: [String]?
 
     public init(id: Int, name: String, repoRoot: String?, floorTexture: RoomTexture?, wallTexture: RoomTexture?,
                 desks: [FloorDesk], elevator: WallItemArt?, hasLoungeSign: Bool,
-                corners: FloorCorners? = nil, room: FloorRoom? = nil, gridSize: Double? = nil) {
+                corners: FloorCorners? = nil, room: FloorRoom? = nil, gridSize: Double? = nil, walkable: [String]? = nil) {
         self.id = id
         self.name = name
         self.repoRoot = repoRoot
@@ -76,6 +78,7 @@ public struct Floor: Equatable, Sendable, Identifiable {
         self.corners = corners
         self.room = room
         self.gridSize = gridSize
+        self.walkable = walkable
     }
 
     /// Floor 1 is the Lounge in Cat Office (src/world/floors.ts LOUNGE_FLOOR).
@@ -139,10 +142,19 @@ public struct Building: Equatable, Sendable {
                 hasLoungeSign: items.contains { $0.hasPrefix("sign-lounge") },
                 corners: f["corners"].flatMap { decode($0) },
                 room: f["room"].flatMap { decode($0) },
-                gridSize: ((f["grid"] as? [String: Any])?["size"] as? NSNumber)?.doubleValue)
+                gridSize: ((f["grid"] as? [String: Any])?["size"] as? NSNumber)?.doubleValue,
+                walkable: walkableRows(f["grid"] as? [String: Any]))
         }
         guard !floors.isEmpty else { return nil }
         let catHeight = (root["catHeight"] as? NSNumber).map(\.doubleValue).flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
         return Building(floors: floors.sorted { $0.id < $1.id }, catHeight: catHeight)
     }
+}
+
+/// `grid.walkable` when `grid.size` is an integer >= 1 and there are exactly that many rows of that many characters.
+private func walkableRows(_ grid: [String: Any]?) -> [String]? {
+    guard let size = (grid?["size"] as? NSNumber)?.doubleValue, size >= 1, size == size.rounded(), size < 4096,
+          let rows = grid?["walkable"] as? [String], rows.count == Int(size),
+          rows.allSatisfy({ $0.count == Int(size) }) else { return nil }
+    return rows
 }

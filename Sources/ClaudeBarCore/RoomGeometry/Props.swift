@@ -12,6 +12,8 @@ public struct RoomSpot: Equatable, Sendable {
     public var lift: Double
     /// The prop placement or rug the spot belongs to.
     public var owner: String
+    /// Where each further occupant stands (room.ts Spot.slots); empty for a single-cat spot.
+    public var slots: [FloorPoint] = []
 }
 
 /// A prop standing on a floor (room.ts PlacedProp).
@@ -31,6 +33,8 @@ public struct PlacedProp: Equatable, Sendable {
     public var cover: [WorldPoint]?
     /// Its lit copy at night (RoomProps.tsx glow), over `rect`, mirrored with it.
     public var glow: RoomGlow? = nil
+    /// Stands on a table (its def's placeOn is "table"): it takes no floor.
+    public var tableBit: Bool = false
 }
 
 /// A rug as drawn (RoomShell.tsx Rug): its box in floor-plane px (FloorFrame.plane).
@@ -206,16 +210,22 @@ public enum PropPlacer {
         let anchor = frame.px(artAnchor(frame, def, placement, grid: grid))
         let mirrored = placement.facing % 2 == 1
         let turned = placement.facing >= 2
-        return (def.spots ?? []).enumerated().map { i, s in
-            let lift = s.lift ?? 0
-            var at = frame.uv(WorldPoint(x: anchor.x + (mirrored ? -s.stand.dx : s.stand.dx), y: anchor.y + s.stand.dy + lift))
-            var facing = mirrored ? (mirroredFacing[s.facing] ?? s.facing) : s.facing
+        // A stand offset as placed: mirrored with the prop, and turned round about its middle.
+        func place(_ stand: SpotOffset, _ drawnFacing: String, _ lift: Double) -> (at: FloorPoint, facing: String) {
+            var at = frame.uv(WorldPoint(x: anchor.x + (mirrored ? -stand.dx : stand.dx), y: anchor.y + stand.dy + lift))
+            var facing = mirrored ? (mirroredFacing[drawnFacing] ?? drawnFacing) : drawnFacing
             if turned {
                 at = FloorPoint(u: fp.u0 + fp.u1 - at.u, v: fp.v0 + fp.v1 - at.v)
                 facing = turnedFacing[facing] ?? facing
             }
+            return (at, facing)
+        }
+        return (def.spots ?? []).enumerated().map { i, s in
+            let lift = s.lift ?? 0
+            let (at, facing) = place(s.stand, s.facing, lift)
             return RoomSpot(id: propSpotId(placement, i, s.id), kind: s.kind, pose: s.pose, standAt: at, facing: facing,
-                            lift: lift - drop > 0 ? lift - drop : 0, owner: placement.id)
+                            lift: lift - drop > 0 ? lift - drop : 0, owner: placement.id,
+                            slots: (s.slots ?? []).map { place($0.stand, $0.facing, lift).at })
         }
     }
 
@@ -290,7 +300,7 @@ public enum PropPlacer {
             // RoomProps.tsx 139, 178: the switched-on art (only for the prop's own picture) inside the sprite's mask.
             glow: sprite.flatMap { s in
                 RoomGlow.make(image: s.image == def.image ? (def.emissiveImage ?? s.image) : s.image, mask: s.emissive, modes: def.glowModes)
-            })
+            }, tableBit: isTableBit(def))
         return Placed(prop: prop, hasPanels: def.panels != nil, onTable: table != nil, tableBit: isTableBit(def))
     }
 
