@@ -97,6 +97,60 @@ import Testing
         #expect(!SceneCast.mirroredCat(agent, awake, in: room).sleepMirrored)
     }
 
+    /// The browser's nap as it draws it (places-share sleepMirror, sleepPose): its mirror wins over ClaudeBar's own rule,
+    /// on a bed or rug too; a page that doesn't share it (older patch) keeps the seat rule.
+    @Test func aSharedNapMirrorAndPoseAreDrawn() throws {
+        let all: [(Int, BuiltRoom, RoomSpot)] = rooms.flatMap { entry in
+            (entry.value.seats + entry.value.props.flatMap(\.spots)).map { (entry.key, entry.value, $0) }
+        }
+        let (floorId, room, seat) = try #require(all.first { $0.2.pose == "sit" })
+        let agent = OfficeAgent(id: "a", name: "A", owner: "me", status: .idle, cwd: "", cat: nil)
+        func nap(_ direction: String, at spot: String?, mirror: Bool?, pose: String?) -> MirrorPlace {
+            var p = MirrorPlace(floor: floorId, u: seat.standAt.u, v: seat.standAt.v, direction: direction, state: "resting",
+                                asleep: true, spotId: spot, phase: "using", at: 0)
+            p.sleepMirror = mirror
+            p.sleepPose = pose
+            return p
+        }
+        let bed = SceneCast.mirroredCat(agent, nap("front-left", at: nil, mirror: true, pose: "nod-1"), in: room)
+        #expect(bed.sleepMirrored && bed.sleepPose == "nod-1")
+        #expect(!SceneCast.mirroredCat(agent, nap("front-right", at: seat.id, mirror: false, pose: nil), in: room).sleepMirrored)
+        #expect(SceneCast.mirroredCat(agent, nap("front-right", at: seat.id, mirror: nil, pose: nil), in: room).sleepMirrored)
+        var awake = nap("front-left", at: nil, mirror: true, pose: "nod-1")
+        awake.asleep = false
+        let up = SceneCast.mirroredCat(agent, awake, in: room)
+        #expect(!up.sleepMirrored && up.sleepPose == nil)
+    }
+
+    /// simulation-engine.ts applyActivityPose: a nap on a bed or rug picks one of the cat's sleeping poses and is mirrored
+    /// half the time; a nap in a seat facing front picks a pose and is mirrored facing front-right; the output shares both.
+    @Test func simNapsPickAPoseAndAMirrorAsCatOfficeDoes() throws {
+        let sim = OfficeSim(seed: 9)
+        sim.sleepPoses = SimSleepPoses(byCat: ["siam": ["nod-1", "nod-2"]], shared: ["nod"], hasSleepSprite: true)
+        sim.setCats([SimCat(id: "agent-1", isSpare: true, name: "Siam", catId: "siam", floor: 1, at: FloorPoint(u: 0.5, v: 0.5))],
+                    building: building, rooms: only([1]), grids: grids)
+        let rt = try #require(runtime(sim, "agent-1"))
+        let all = rooms.values.flatMap(\.spots)
+        let bed = try #require(all.first { $0.pose == "sleep" })
+        let bedDef = try #require(SimActivities.activity(for: bed))
+        var mirrors = Set<Bool>()
+        for _ in 0..<40 {
+            sim.applyActivityPose(rt, bedDef, bed, facing: bed.facing)
+            #expect(["nod-1", "nod-2"].contains(rt.sleepPose ?? ""))
+            mirrors.insert(rt.sleepMirror)
+        }
+        #expect(mirrors == [true, false], "mirrored about half the time")
+        let seat = try #require(all.first { s in s.pose == "sit" && SimActivities.activity(for: s)?.asleep == true })
+        let seatDef = try #require(SimActivities.activity(for: seat))
+        sim.applyActivityPose(rt, seatDef, seat, facing: "front-right")
+        #expect(rt.pose == "sleep" && rt.sleepMirror && rt.sleepPose != nil)
+        sim.applyActivityPose(rt, seatDef, seat, facing: "front-left")
+        #expect(rt.pose == "sleep" && !rt.sleepMirror)
+        // A cat without its own poses uses the shared ones.
+        let other = SimSleepPoses(byCat: [:], shared: ["nod"], hasSleepSprite: true)
+        #expect(other.poses(for: "gray") == ["nod"] && other.poses(for: nil) == ["nod"])
+    }
+
     /// choose → walk (route length / walk speed) → use (a duration in the activity's range, gains applied) → choose again.
     @Test func oneCatsFullCycle() throws {
         let sim = OfficeSim(seed: 7)

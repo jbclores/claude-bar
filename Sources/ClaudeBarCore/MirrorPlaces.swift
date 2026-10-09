@@ -40,6 +40,10 @@ public struct MirrorPlace: Equatable, Sendable, Decodable {
     public var name: String?
     /// "spare:<sim id>" (spares only).
     public var key: String?
+    /// A nap as the page draws it: the sleeping sprite mirrored, and its sleeping pose (cats.json sleepPoses). Nil from
+    /// pages that don't share them (an older patch).
+    public var sleepMirror: Bool?
+    public var sleepPose: String?
 
     /// typing / standing / sitting / asleep. Asleep wins; "working" types (except at the printer); "resting" (reading, relaxing on a rug or
     /// window seat: activities.ts) and the window seat sit; everything else stands.
@@ -75,6 +79,7 @@ public struct MirrorPlace: Equatable, Sendable, Decodable {
 
     private enum CodingKeys: String, CodingKey {
         case floor, u, v, direction, state, gesture, expression, asleep, activity, spotId, minutesLeft, phase, ridingTo, catId, at, name, key
+        case sleepMirror, sleepPose
     }
 
     public init(from decoder: Decoder) throws {
@@ -102,6 +107,8 @@ public struct MirrorPlace: Equatable, Sendable, Decodable {
         }
         name = try? c.decodeIfPresent(String.self, forKey: .name)
         key = try? c.decodeIfPresent(String.self, forKey: .key)
+        sleepMirror = (try? c.decodeIfPresent(Bool.self, forKey: .sleepMirror)) ?? nil
+        sleepPose = (try? c.decodeIfPresent(String.self, forKey: .sleepPose)) ?? nil
     }
 }
 

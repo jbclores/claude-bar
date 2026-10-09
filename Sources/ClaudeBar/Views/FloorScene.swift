@@ -291,8 +291,9 @@ struct SceneCats: View {
         return TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || agent.status == .waiting)) { context in
             let motion = reduceMotion ? CatMotion(offsetY: 0, scale: 1)
                 : CatMotion.at(status: agent.status, time: context.date.timeIntervalSinceReferenceDate)
-            SpriteImage(key: "\(cat)-\(pose.rawValue)-\(direction)", fallback: Theme.color(agent.status)) {
-                await state.art.catImage(cat: cat, pose: pose, direction: direction)
+            let sleepPose = pose == .sleeping ? d.cat.sleepPose : nil
+            SpriteImage(key: "\(cat)-\(pose.rawValue)-\(direction)\(sleepPose.map { "-\($0)" } ?? "")", fallback: Theme.color(agent.status)) {
+                await state.art.catImage(cat: cat, pose: pose, direction: direction, sleepPose: sleepPose)
             }
             .frame(width: r.width, height: r.height)
             // A nap in a front-right seat: the sleeping sprite mirrored about the feet (CatCharacter.css .cat--mirror).

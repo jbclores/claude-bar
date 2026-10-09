@@ -32,7 +32,23 @@ public struct SimCat: Equatable, Sendable {
 /// Cat Office's speed (the elevator for another floor), uses it for a duration drawn from its activity's range while
 /// its needs gain, then chooses again. Stepped STEP (1/30 sim minute) at a time, as the engine steps. Its output is
 /// step 1's mirror type, so the layout, walks, rides and hover cards draw it as they draw the browser's office.
+/// The cats' sleeping poses for naps (cats.ts catSleepPoses: a cat's own list, else the manifest's), and whether the
+/// cats have a sleeping sprite at all (simulation-engine.ts hasSleepSprite: cats.json sleepPath).
+public struct SimSleepPoses: Equatable, Sendable {
+    public var byCat: [String: [String]]
+    public var shared: [String]
+    public var hasSleepSprite: Bool
+
+    public init(byCat: [String: [String]] = [:], shared: [String] = [], hasSleepSprite: Bool = true) {
+        self.byCat = byCat; self.shared = shared; self.hasSleepSprite = hasSleepSprite
+    }
+
+    public func poses(for catId: String?) -> [String] { catId.flatMap { byCat[$0] } ?? shared }
+}
+
 public final class OfficeSim {
+    /// The cats' sleeping poses (cats.json), for naps.
+    public var sleepPoses = SimSleepPoses()
     // MARK: simulation-engine.ts constants
 
     /// simulation-engine.ts WALK_SPEED_PX: world px per sim minute.
@@ -138,6 +154,9 @@ public final class OfficeSim {
         var groundLift = 0.0
         var perch: String?
         var gestureLeft = 0.0
+        /// A nap's sleeping pose and mirrored sprite (Agent.sleepPose, sleepMirror).
+        var sleepPose: String?
+        var sleepMirror = false
 
         init(cat: SimCat, index: Int, floor: Int, position: FloorPoint, direction: String, needs: SimNeeds, phase: Phase, speedPx: Double) {
             self.cat = cat; self.index = index; self.floor = floor; self.position = position; self.direction = direction
@@ -298,6 +317,11 @@ public final class OfficeSim {
                 rt.position = point
                 arrive(rt)
                 land(rt)
+                // The nap as the page drew it.
+                if p.asleep, rt.pose == "sleep" {
+                    if let m = p.sleepMirror { rt.sleepMirror = m }
+                    if let pose = p.sleepPose { rt.sleepPose = pose }
+                }
                 if case let .using(_, total) = rt.phase, let left = p.minutesLeft, left > 0 {
                     rt.phase = .using(t: left, total: max(total, left))
                 }
@@ -436,6 +460,8 @@ public final class OfficeSim {
         rt.state = .idle
         rt.gesture = "both-down"
         rt.pose = "stand"
+        rt.sleepPose = nil
+        rt.sleepMirror = false
         rt.usingSpotId = nil
         rt.badge = badge
         rt.phase = .waiting(t: rng.range(min, max))
@@ -526,6 +552,8 @@ public final class OfficeSim {
         rt.path = path
         rt.gesture = "both-down"
         rt.pose = "stand"
+        rt.sleepPose = nil
+        rt.sleepMirror = false
         rt.usingSpotId = nil
         rt.badge = sameFloor ? "Heading to the \(t.spot.label.lowercased())" : Self.elevatorBadge
         let leaves = pathLeaves(rt, path)
@@ -656,11 +684,23 @@ public final class OfficeSim {
         }
     }
 
-    /// simulation-engine.ts applyActivityPose 1402-1430 (the cat's own sleeping sprites aside: a nap in a seat facing
-    /// front is drawn asleep).
-    private func applyActivityPose(_ rt: Runtime, _ def: SimActivity, _ spot: RoomSpot, facing: String) {
+    /// simulation-engine.ts applyActivityPose 1418-1446: the pose for the spot; a nap on a bed or rug gets one of the
+    /// cat's sleeping poses, mirrored half the time; a nap in a seat facing front is drawn asleep in one, mirrored when
+    /// the seat faces front-right.
+    func applyActivityPose(_ rt: Runtime, _ def: SimActivity, _ spot: RoomSpot, facing: String) {
         rt.pose = spot.kind == "meeting" ? "stand" : spot.pose ?? "stand"
-        if rt.pose == "sit" && def.asleep && facing.hasPrefix("front") { rt.pose = "sleep" }
+        rt.sleepPose = nil
+        rt.sleepMirror = false
+        let poses = sleepPoses.poses(for: rt.cat.catId)
+        let hasSleepSprite = !poses.isEmpty || sleepPoses.hasSleepSprite
+        if rt.pose == "sleep" {
+            rt.sleepPose = poses.isEmpty ? nil : rng.pick(poses)
+            rt.sleepMirror = hasSleepSprite && rng.chance(0.5)
+        } else if rt.pose == "sit" && def.asleep && hasSleepSprite && facing.hasPrefix("front") {
+            rt.pose = "sleep"
+            rt.sleepPose = poses.isEmpty ? nil : rng.pick(poses)
+            rt.sleepMirror = facing == "front-right"
+        }
         rt.usingSpotId = spot.id
         rt.state = def.state
         rt.gesture = def.gesture
@@ -752,11 +792,14 @@ public final class OfficeSim {
         case let .using(t, _): minutesLeft = (t - 1e-9).rounded(.up)
         default: break
         }
-        return MirrorPlace(
+        var out = MirrorPlace(
             floor: rt.floor, u: at.u, v: at.v, direction: direction, state: rt.state.rawValue,
             gesture: rt.gesture, expression: rt.expression, asleep: def?.asleep == true || rt.pose == "sleep",
             activity: rt.badge.map { .init(kind: kind, label: $0) }, spotId: rt.usingSpotId, minutesLeft: minutesLeft,
             phase: phase, ridingTo: ridingTo, catId: rt.cat.catId, at: forDrawing ? 0 : time * 60_000,
             name: rt.cat.isSpare ? rt.cat.name : nil, key: rt.cat.isSpare ? "spare:\(rt.cat.id)" : nil)
+        out.sleepMirror = rt.pose == "sleep" ? rt.sleepMirror : nil
+        out.sleepPose = rt.pose == "sleep" ? rt.sleepPose : nil
+        return out
     }
 }

@@ -1,6 +1,6 @@
 --- a/server/agent-bridge/cat-assignments.ts
 +++ b/server/agent-bridge/cat-assignments.ts
-@@ -0,0 +1,312 @@
+@@ -0,0 +1,317 @@
 +/**
 + * The cat the page shows for each agent, and the desk that cat works at (POST /__agents/cats), kept in
 + * <stateDir>/cat-assignments.json by agent id, so other local apps (ClaudeBar's menu bar office) show the same
@@ -86,6 +86,9 @@
 +  if (p.spotId !== null && !(text(p.spotId, 128) && p.spotId.length > 0)) return null;
 +  if (p.minutesLeft !== null && !finite(p.minutesLeft)) return null;
 +  if (p.ridingTo !== null && !Number.isInteger(p.ridingTo)) return null;
++  // A nap's mirror and sleeping pose: optional (pages from before they were shared post neither).
++  if (p.sleepMirror !== undefined && typeof p.sleepMirror !== 'boolean') return null;
++  if (p.sleepPose !== undefined && p.sleepPose !== null && !(text(p.sleepPose, 64) && WORD.test(p.sleepPose))) return null;
 +  return {
 +    name: p.name,
 +    catId: p.catId,
@@ -102,6 +105,8 @@
 +    minutesLeft: p.minutesLeft,
 +    phase: p.phase as CatPlace['phase'],
 +    ridingTo: p.ridingTo as number | null,
++    ...(p.sleepMirror !== undefined ? { sleepMirror: p.sleepMirror } : {}),
++    ...(p.sleepPose !== undefined ? { sleepPose: p.sleepPose as string | null } : {}),
 +    at,
 +  };
 +}
@@ -483,7 +488,7 @@
    startedAt: number;
    updatedAt: number;
    /** Office workers only (null for external): the conversation, last 60 entries, oldest first. */
-@@ -236,7 +242,45 @@
+@@ -236,8 +242,49 @@
    claude?: ClaudeHealth;
    /** The account's 5-hour and 7-day usage (plan-usage.ts); absent where nothing watches it, null before any is seen. */
    plan?: PlanUsage | null;
@@ -491,8 +496,8 @@
 +  spares?: SparePlace[];
 +  /** Epoch ms of the newest place kept, or null with none (places over 60 s old are dropped). */
 +  placesAt?: number | null;
-+}
-+
+ }
+ 
 +/**
 + * Where a cat is in the page's office and what it's doing (POST /__agents/cats `places`, sent every 2 s by
 + * src/agents/live/places-share.ts from the simulation's snapshot), with the time of the post it came in.
@@ -520,15 +525,19 @@
 +  phase: 'walking' | 'using' | 'elevator' | 'idle';
 +  /** The floor the elevator takes it to, or null. */
 +  ridingTo: number | null;
++  /** A nap's sprite mirrored, and its sleeping pose (cats.json sleepPoses), as the page draws it; absent from older pages. */
++  sleepMirror?: boolean;
++  sleepPose?: string | null;
 +  /** Epoch ms of the post. */
 +  at: number;
- }
++}
 +
 +/** A spare cat's place: keyed `spare:<simulation id>`, with the cat's own name. */
 +export type SparePlace = CatPlace & { key: string; name: string };
- 
++
  /** One usage limit window, as Claude Code's status line input last reported it. */
  export interface PlanWindow {
+   /** 0–100. */
 --- a/server/agent-bridge/workers.ts
 +++ b/server/agent-bridge/workers.ts
 @@ -32,6 +32,7 @@
@@ -637,7 +646,7 @@
 +}
 --- a/src/agents/live/places-share.ts
 +++ b/src/agents/live/places-share.ts
-@@ -0,0 +1,135 @@
+@@ -0,0 +1,141 @@
 +import { useEffect, useRef } from 'react';
 +import { activityFor, type ActivityKind } from '../../simulation/activities';
 +import type { SimulationEngine } from '../../simulation/simulation-engine';
@@ -683,6 +692,10 @@
 +  phase: 'walking' | 'using' | 'elevator' | 'idle';
 +  /** The floor the elevator takes it to, or null. */
 +  ridingTo: FloorId | null;
++  /** A nap's sprite mirrored (simulation-engine.ts applyActivityPose sleepMirror). */
++  sleepMirror: boolean;
++  /** A nap's sleeping pose (cats.json sleepPoses: sleepPosePath's {pose}), or null for the plain sleeping sprite. */
++  sleepPose: string | null;
 +}
 +
 +/** The engine's phase labels (simulation.types.ts) as shared: deciding and waiting are standing about. */
@@ -729,6 +742,8 @@
 +      minutesLeft: finite(a.minutesLeft) ? Math.ceil(a.minutesLeft) : null,
 +      phase,
 +      ridingTo: a.ridingTo,
++      sleepMirror: a.sleepMirror === true,
++      sleepPose: a.sleepPose ?? null,
 +    };
 +  }
 +  return out;
@@ -985,7 +1000,7 @@
 +});
 --- a/tests/sim/places.test.ts
 +++ b/tests/sim/places.test.ts
-@@ -0,0 +1,350 @@
+@@ -0,0 +1,368 @@
 +// Where each cat is and what it's doing, shared with other local apps (ClaudeBar): the page posts
 +// `{ places: { <live agent id | "spare:<sim id>">: Place }, at }` to POST /__agents/cats every 2 s; the bridge keeps
 +// the newest per cat in memory and every snapshot carries it (agent `place`, top-level `spares` and `placesAt`).
@@ -1091,6 +1106,8 @@
 +    asleep: place({ asleep: 'no' }),
 +    act: place({ activity: { kind: 'coffee' } }),
 +    ride: place({ ridingTo: 'up' }),
++    mirror: place({ sleepMirror: 'yes' }),
++    pose: place({ sleepPose: 5 }),
 +    notobj: 7,
 +  };
 +  assert.equal(store.merge({ places: { ...bad, good: place() }, at: NOW }, NOW), true);
@@ -1169,7 +1186,7 @@
 +      simCat({ id: 'agent-3', name: 'Bean', catId: 'calico', state: 'walking', usingSpotId: null, activity: null, phase: 'walking', minutesLeft: null }),
 +      simCat({ id: 'agent-4', name: 'Pip', state: 'riding-elevator', usingSpotId: null, activity: { label: 'Taking the elevator', icon: 'elevator' }, phase: 'elevator', ridingTo: 1, minutesLeft: null }),
 +      simCat({ id: 'agent-5', name: 'Kit', state: 'idle', usingSpotId: null, activity: null, phase: 'deciding', minutesLeft: null }),
-+      simCat({ id: 'agent-6', name: 'Ash', state: 'resting', pose: 'sleep', usingSpotId: 'rug-1:0', activity: { label: 'Napping', icon: 'moon' } }),
++      simCat({ id: 'agent-6', name: 'Ash', state: 'resting', pose: 'sleep', usingSpotId: 'rug-1:0', activity: { label: 'Napping', icon: 'moon' }, sleepPose: 'nod', sleepMirror: true }),
 +    ],
 +  };
 +  const agentOf = new Map([
@@ -1194,6 +1211,8 @@
 +    minutesLeft: 12,
 +    phase: 'using',
 +    ridingTo: null,
++    sleepMirror: false,
++    sleepPose: null,
 +  });
 +  assert.equal(places['sess-2'].asleep, true, 'a sofa nap: asleep from the activity def');
 +  assert.deepEqual(places['sess-2'].activity, { kind: 'sofa', label: 'Napping' });
@@ -1206,6 +1225,9 @@
 +  assert.equal(places['spare:agent-5'].phase, 'idle', 'deciding / waiting: idle');
 +  assert.equal(places['spare:agent-6'].asleep, true, 'a rug with a sleeping pose is a nap');
 +  assert.deepEqual(places['spare:agent-6'].activity, { kind: 'rug', label: 'Napping' });
++  // The nap as the page draws it: its sleeping pose, and the sprite mirrored (applyActivityPose sleepMirror).
++  assert.equal(places['spare:agent-6'].sleepMirror, true);
++  assert.equal(places['spare:agent-6'].sleepPose, 'nod');
 +});
 +
 +test('buildPlaces: a badge without a spot keeps its label; a non-finite position is left out', () => {
@@ -1335,6 +1357,17 @@
 +  assert.equal(changes, 3, 'a moved cat: a broadcast');
 +  store.merge({ places: { s1: place({ minutesLeft: 3, u: 0.7, activity: { kind: 'water', label: 'Drinking' } }) }, at: NOW + 8000 }, NOW + 8000);
 +  assert.equal(changes, 4, 'a changed activity: a broadcast');
++});
++
++test('places: a nap keeps its sleeping pose and mirror; a page without them (older) still shares', () => {
++  const store = new CatAssignmentStore(join(TMP, 'nap.json'));
++  const nap = place({ asleep: true, sleepMirror: true, sleepPose: 'nod' });
++  assert.equal(store.merge({ places: { s1: nap, s2: place() }, at: NOW }, NOW), true);
++  const out = store.apply(snap('s1', 's2'), NOW) as unknown as Snap;
++  assert.equal(out.agents[0].place?.sleepMirror, true);
++  assert.equal(out.agents[0].place?.sleepPose, 'nod');
++  assert.ok(out.agents[1].place, 'an older page posts neither field');
++  assert.equal('sleepMirror' in (out.agents[1].place ?? {}), false);
 +});
 --- a/tests/sim/plan-usage-workers.test.ts
 +++ b/tests/sim/plan-usage-workers.test.ts

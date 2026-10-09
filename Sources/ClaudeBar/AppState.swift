@@ -541,6 +541,7 @@ final class AppState: ObservableObject {
             recompute()
         }
         if catalog.frame != catFrame { catFrame = catalog.frame }
+        simHost.sim.sleepPoses = catalog.simSleepPoses
         let counts = Dictionary(uniqueKeysWithValues: catalog.catIds.map { ($0, catalog.walkFrames(cat: $0).count) })
         if counts != walkFrameCounts { walkFrameCounts = counts }
         if catalog.cats != catalogCats {

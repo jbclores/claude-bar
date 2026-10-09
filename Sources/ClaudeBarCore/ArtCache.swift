@@ -66,6 +66,10 @@ public struct CatCatalog: Equatable, Sendable {
     var walkPathTemplate: String?
     var walkFrameNames: [String] = []
     var walkers: Set<String> = []
+    /// cats.json sleepPosePath, the manifest's sleepPoses and each cat's own.
+    var sleepPosePath: String?
+    var sharedSleepPoses: [String] = []
+    var catSleepPoses: [String: [String]] = [:]
 
     /// cats.ts MAX_WALK_FRAMES.
     static let maxWalkFrames = 4
@@ -85,7 +89,27 @@ public struct CatCatalog: Equatable, Sendable {
             frame: CatFrame.parse(obj),
             walkPathTemplate: obj["walkPath"] as? String,
             walkFrameNames: obj["walkFrames"] as? [String] ?? [],
-            walkers: Set(cats.compactMap { c in c["walk"] as? Bool == true ? c["id"] as? String : nil }))
+            walkers: Set(cats.compactMap { c in c["walk"] as? Bool == true ? c["id"] as? String : nil }),
+            sleepPosePath: obj["sleepPosePath"] as? String,
+            sharedSleepPoses: obj["sleepPoses"] as? [String] ?? [],
+            catSleepPoses: Dictionary(cats.compactMap { c in
+                (c["id"] as? String).flatMap { id in (c["sleepPoses"] as? [String]).map { (id, $0) } }
+            }, uniquingKeysWith: { a, _ in a }))
+    }
+
+    /// cats.ts catSleepPoses: the cat's own sleeping poses, else the manifest's.
+    public func sleepPoses(cat: String) -> [String] { catSleepPoses[cat] ?? sharedSleepPoses }
+
+    /// The poses for the simulation's naps.
+    public var simSleepPoses: SimSleepPoses {
+        SimSleepPoses(byCat: catSleepPoses, shared: sharedSleepPoses, hasSleepSprite: true)
+    }
+
+    /// A nap's sprite (cat.sprite.ts catSpriteFor): its sleeping pose's when it has one and the path is known, else the
+    /// plain sleeping sprite.
+    public func sleepPath(cat: String, pose: String?) -> String {
+        guard let pose, let template = sleepPosePath else { return path(cat: cat, pose: .sleeping) }
+        return template.replacingOccurrences(of: "{cat}", with: cat).replacingOccurrences(of: "{pose}", with: pose)
     }
 
     /// cats.ts catWalkFrames: the walking frame names for a cat marked `walk` (at most 4), else none.
@@ -291,8 +315,10 @@ public final class ArtCache: @unchecked Sendable {
         return RoomCatalogue.parse(roomParts: parts, props: props, desks: desks, wallItemArt: try? Data(contentsOf: files[3]))
     }
 
-    public func catImage(cat: String, pose: CatPose, direction: String? = nil) async -> Data? {
+    public func catImage(cat: String, pose: CatPose, direction: String? = nil, sleepPose: String? = nil) async -> Data? {
         guard let catalog = await catalog() else { return nil }
+        // A nap in its own sleeping pose; the plain sleeping sprite when that pose's picture is missing (cat.sprite.ts altUrl).
+        if pose == .sleeping, let sleepPose, let data = await image(path: catalog.sleepPath(cat: cat, pose: sleepPose)) { return data }
         if let data = await image(path: catalog.path(cat: cat, pose: pose, direction: direction)) { return data }
         // cat.sprite.ts: a cat without a sit sprite stands.
         return pose == .sitting ? await image(path: catalog.path(cat: cat, pose: .standing, direction: direction)) : nil

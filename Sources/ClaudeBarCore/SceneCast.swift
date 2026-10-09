@@ -57,9 +57,10 @@ public struct SceneCat: Equatable, Sendable {
     public let perch: String?
     /// The desk it works at (world px), for the screen's glow at night.
     public let desk: CGRect?
-    /// Asleep in a seat facing front-right: the sleeping sprite (drawn facing front-left) mirrored, as Cat Office's
-    /// applyActivityPose sleepMirror.
+    /// The sleeping sprite (drawn facing front-left) mirrored, as Cat Office draws the nap (applyActivityPose sleepMirror).
     public var sleepMirrored = false
+    /// The nap's sleeping pose (cats.json sleepPoses), nil for the plain sleeping sprite.
+    public var sleepPose: String? = nil
 
     /// Status ring and waiting glow: not for a cat asleep on a seat (the Lounge's, or a mirrored nap).
     public var showsRing: Bool { kind != .seat && kind != .spare && !(kind == .mirrored && pose == .sleeping) }
@@ -201,9 +202,12 @@ extension SceneCast {
         let lift = spot.map { max(0, $0.lift) } ?? 0
         let desk = riding ? nil : place.spotId.flatMap { id in room.desks.first { $0.id == id }?.rect }
         let pose = CatPose(place)
+        let asleep = pose == .sleeping
+        // The page's own mirror when it shares it; else (an older patch) a nap in a seat facing front-right is mirrored.
+        let mirrored = place.sleepMirror ?? (spot?.pose == "sit" && place.direction == "front-right")
         return SceneCat(agent: agent, kind: kind, at: at, lift: lift, size: 1, pose: pose,
                         direction: place.direction, perch: lift > 0 ? spot?.owner : nil, desk: desk,
-                        sleepMirrored: pose == .sleeping && spot?.pose == "sit" && place.direction == "front-right")
+                        sleepMirrored: asleep && mirrored, sleepPose: asleep ? place.sleepPose : nil)
     }
 }
 

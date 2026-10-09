@@ -84,6 +84,24 @@ import Testing
         #expect(real.walkPath(cat: "orange", direction: "front-right", frame: 3) == "assets/cats/orange/front-right/walk-3.png")
     }
 
+    /// cat.sprite.ts catSpriteFor: a nap with a sleeping pose uses sleepPosePath; without one (or no path), sleepPath.
+    @Test func sleepingPoseSprites() throws {
+        let c = try #require(CatCatalog.parse(fixture("rooms/user/cats.json")))
+        #expect(c.sleepPath(cat: "fluffy-siamese", pose: "nod-1") == "assets/cats/fluffy-siamese/sleep/nod-1.png")
+        #expect(c.sleepPath(cat: "fluffy-siamese", pose: nil) == "assets/cats/fluffy-siamese/sleep.png")
+        #expect(c.sleepPoses(cat: "fluffy-siamese") == ["nod-1", "nod-2"])
+        #expect(c.sleepPoses(cat: "orange") == ["nod"], "the manifest's shared list")
+        let none = try #require(CatCatalog.parse(Data(#"{"cats":[{"id":"x"}]}"#.utf8)))
+        #expect(none.sleepPath(cat: "x", pose: "nod") == "assets/cats/x/sleep.png")
+        #expect(none.sleepPoses(cat: "x") == [])
+        // Decoding a shared nap: both fields optional (older pages send neither).
+        let json = #"{"floor":1,"u":0.5,"v":0.5,"direction":"front-left","state":"resting","asleep":true,"phase":"using","at":1,"sleepMirror":true,"sleepPose":"nod-1"}"#
+        let p = try JSONDecoder().decode(MirrorPlace.self, from: Data(json.utf8))
+        #expect(p.sleepMirror == true && p.sleepPose == "nod-1")
+        let old = try JSONDecoder().decode(MirrorPlace.self, from: Data(#"{"floor":1,"u":0.5,"v":0.5,"direction":"front-left","state":"idle","at":1}"#.utf8))
+        #expect(old.sleepMirror == nil && old.sleepPose == nil)
+    }
+
     @Test func shrinksImages() throws {
         let png = try #require(Self.png(width: 360, height: 380))
         let small = try #require(ArtCache.shrink(png, maxPixelSize: 128))
