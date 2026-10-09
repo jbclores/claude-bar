@@ -283,8 +283,9 @@ struct SetupView: View {
                 choice($model.start, "Start Cat Office now", "Runs Cat Office's dev server (it needs Node.js).", result: "start")
             }
             if model.chosen == nil {
-                Text("Without Cat Office, ClaudeBar still shows your usage and projects.")
+                Text("That's completely fine: ClaudeBar works without it and still shows your usage and projects. Whenever you'd like the cats, Settings → Set up ClaudeBar… brings Cat Office in.")
                     .font(.callout).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .disabled(model.working)

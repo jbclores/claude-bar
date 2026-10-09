@@ -13,6 +13,14 @@ enum DropdownTab: String, CaseIterable {
         }
     }
 
+    /// The tabs shown: no Office tab for "I don't use Cat Office" (SetupSettings.showsOffice).
+    static func shown(officeShown: Bool) -> [DropdownTab] { officeShown ? allCases : [.projects, .settings] }
+
+    /// The tab to show for `tab`: Projects in place of a hidden Office tab.
+    static func showing(_ tab: DropdownTab, officeShown: Bool) -> DropdownTab {
+        tab == .office && !officeShown ? .projects : tab
+    }
+
     var symbol: String {
         switch self {
         case .office: "cat.fill"
@@ -59,14 +67,14 @@ struct DropdownBody: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            switch selection.tab {
+            switch DropdownTab.showing(selection.tab, officeShown: state.officeShown) {
             case .office: OfficeTabView()
             case .projects: ProjectsTabView()
             case .settings: SettingsTabView()
             }
             Divider()
             HStack(spacing: 14) {
-                if state.office != nil {
+                if state.office != nil, state.officeShown {
                     Button("Open Cat Office ↗") { state.openCatOffice() }
                 }
                 Spacer()
@@ -95,8 +103,8 @@ struct DropdownView: View {
         let selection = TabSelection(forcedTab)
         return VStack(alignment: .leading, spacing: 10) {
             DropdownHeader()
-            Picker("", selection: .constant(selection.tab)) {
-                ForEach(DropdownTab.allCases, id: \.self) { Label($0.title, systemImage: $0.symbol).tag($0) }
+            Picker("", selection: .constant(DropdownTab.showing(selection.tab, officeShown: state.officeShown))) {
+                ForEach(DropdownTab.shown(officeShown: state.officeShown), id: \.self) { Label($0.title, systemImage: $0.symbol).tag($0) }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -115,7 +123,10 @@ final class DropdownController: NSViewController {
     private let state: AppState
     private let selection = TabSelection()
     /// The dropdown is showing its Office tab (for the office's music); `onTabChange` reports switches.
-    var showsOffice: Bool { selection.tab == .office }
+    var showsOffice: Bool { DropdownTab.showing(selection.tab, officeShown: state.officeShown) == .office }
+    /// The tabs in the tab control, in order.
+    private var shownTabs: [DropdownTab] = []
+    private var attention = false
     var onTabChange: (() -> Void)?
     let roomZoom = RoomZoom()
     let floorSelection = FloorSelection()
@@ -133,15 +144,10 @@ final class DropdownController: NSViewController {
     override func loadView() {
         header = ClickThroughHostingView(rootView: AnyView(DropdownHeader().environmentObject(state)))
         content = ClickThroughHostingView(rootView: AnyView(DropdownBody(selection: selection).environmentObject(state).environmentObject(roomZoom).environmentObject(floorSelection)))
-        tabs = FirstClickSegmentedControl(labels: DropdownTab.allCases.map(\.title), trackingMode: .selectOne,
-                                          target: self, action: #selector(tabChanged(_:)))
-        for (i, tab) in DropdownTab.allCases.enumerated() {
-            tabs.setImage(NSImage(systemSymbolName: tab.symbol, accessibilityDescription: tab.title), forSegment: i)
-            tabs.setImageScaling(.scaleProportionallyDown, forSegment: i)
-        }
+        tabs = FirstClickSegmentedControl(labels: [], trackingMode: .selectOne, target: self, action: #selector(tabChanged(_:)))
         tabs.controlSize = .large
         tabs.segmentDistribution = .fillEqually
-        tabs.selectedSegment = DropdownTab.allCases.firstIndex(of: selection.tab) ?? 0
+        updateTabs()
 
         // Each SwiftUI piece in a plain container: a hosting view claims clicks beyond its own frame when its
         // content draws outside it (the office's cats do), which took the tab control's clicks.
@@ -173,12 +179,32 @@ final class DropdownController: NSViewController {
 
     /// "Office •" on the Office tab when something needs the user.
     func updateAttention(_ attention: Bool) {
-        tabs?.setLabel(attention ? "Office •" : "Office", forSegment: 0)
+        self.attention = attention
+        if let i = shownTabs.firstIndex(of: .office) { tabs?.setLabel(attention ? "Office •" : "Office", forSegment: i) }
+    }
+
+    /// The tab control's segments: without the Office tab for "I don't use Cat Office" (it comes back once Cat Office
+    /// is set up or running), the hidden tab's place taken by Projects.
+    func updateTabs() {
+        guard let tabs else { return }
+        let wanted = DropdownTab.shown(officeShown: state.officeShown)
+        if wanted != shownTabs {
+            shownTabs = wanted
+            tabs.segmentCount = wanted.count
+            for (i, tab) in wanted.enumerated() {
+                tabs.setLabel(tab.title, forSegment: i)
+                tabs.setImage(NSImage(systemSymbolName: tab.symbol, accessibilityDescription: tab.title), forSegment: i)
+                tabs.setImageScaling(.scaleProportionallyDown, forSegment: i)
+            }
+            updateAttention(attention)
+            DispatchQueue.main.async { [weak self] in self?.resize() }
+        }
+        tabs.selectedSegment = wanted.firstIndex(of: DropdownTab.showing(selection.tab, officeShown: state.officeShown)) ?? 0
     }
 
     @objc private func tabChanged(_ sender: NSSegmentedControl) {
-        guard DropdownTab.allCases.indices.contains(sender.selectedSegment) else { return }
-        selection.tab = DropdownTab.allCases[sender.selectedSegment]
+        guard shownTabs.indices.contains(sender.selectedSegment) else { return }
+        selection.tab = shownTabs[sender.selectedSegment]
         onTabChange?()
         // Measure once SwiftUI has laid out the new tab.
         DispatchQueue.main.async { [weak self] in self?.resize() }
@@ -246,11 +272,38 @@ struct SetupCard: View {
     }
 }
 
+/// For "I don't use Cat Office": a friendly invitation to try it, at the top of Projects, until "Not now".
+struct CatOfficeInvite: View {
+    @EnvironmentObject var state: AppState
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "pawprint.fill").font(.title3).foregroundStyle(Theme.working)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Your sessions could be cats in a little office").font(.callout.weight(.semibold))
+                Text("Cat Office shows each Claude session as a cat at its desk: napping when it's idle, snacking now and then, and waving when it needs you. It's a cosy way to keep an eye on your work.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 14) {
+                    Button("See how") { state.openHelpGuide(section: "cat-office") }
+                    Button("Set up…") { SetupWindow.shared.open(state: state) }
+                    Button("Not now") { state.catOfficeInviteDismissed = true }
+                }
+                .buttonStyle(.link).font(.caption)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.working.opacity(0.08)))
+    }
+}
+
 struct ProjectsTabView: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if state.invitesToCatOffice { CatOfficeInvite() }
             if state.output.projects.isEmpty {
                 Text("No projects yet").font(.callout).foregroundStyle(.secondary)
             }
@@ -291,10 +344,13 @@ struct SettingsTabView: View {
             heading("General")
             setting("Launch at Login", state.launchAtLogin) { state.setLaunchAtLogin($0) }
             setting("Notify when a cat finishes", state.settings.notifications) { state.setNotifications($0) }
-            setting("Start Cat Office with ClaudeBar", state.settings.catOffice.autoStart) { state.setAutoStart($0) }
-            setting("Show the office on hover", state.settings.hoverPeek) { state.setHoverPeek($0) }
-            setting("Show spare cats", state.settings.showSpareCats) { state.setShowSpareCats($0) }
-                .help("Also draw the office's own cats (the ones with no Claude session)")
+            // Cat Office's switches: not for "I don't use Cat Office" (they come back with the Office tab).
+            if state.officeShown {
+                setting("Start Cat Office with ClaudeBar", state.settings.catOffice.autoStart) { state.setAutoStart($0) }
+                setting("Show the office on hover", state.settings.hoverPeek) { state.setHoverPeek($0) }
+                setting("Show spare cats", state.settings.showSpareCats) { state.setShowSpareCats($0) }
+                    .help("Also draw the office's own cats (the ones with no Claude session)")
+            }
             Divider()
             sounds
             Divider()
@@ -345,7 +401,7 @@ struct SettingsTabView: View {
 
     /// "✓ Set up · Cat Office: <name>" (full path on hover), then "Set up ClaudeBar…" and "Undo ClaudeBar's changes…".
     @ViewBuilder private var setup: some View {
-        let setup = state.settings.setup
+        let setup = state.setup
         let running = UserDefaults.standard.string(forKey: AppState.rememberedDirKey)
         heading("Setup")
         HStack(spacing: 4) {

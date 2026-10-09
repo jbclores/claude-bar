@@ -61,13 +61,35 @@ import Testing
 @Suite struct SetupEntryPointTests {
     @Test func officeCardOnlyWhenNotSetUpOrReduced() {
         // Not set up: .noCatOffice, or no state and no Cat Office known.
-        #expect(SetupSettings(seen: true, state: .noCatOffice).card(catOfficeKnown: true) == .notSetUp)
+        // Chose no Cat Office: no Office tab, so no Office card (the invitation sits on Projects instead).
+        #expect(SetupSettings(seen: true, state: .noCatOffice).card(catOfficeKnown: true) == nil)
         #expect(SetupSettings().card(catOfficeKnown: false) == .notSetUp)
         // No state but a Cat Office is known (configured or running): no card.
         #expect(SetupSettings(seen: true, state: nil).card(catOfficeKnown: true) == nil)
         #expect(SetupSettings(seen: true, state: .reduced).card(catOfficeKnown: true) == .reduced)
         #expect(SetupSettings(seen: true, state: .full).card(catOfficeKnown: true) == nil)
         #expect(SetupSettings(seen: true, state: .full).card(catOfficeKnown: false) == nil)
+    }
+
+    /// "I don't use Cat Office": no Office tab or hover peek, unless a Cat Office turns up running anyway.
+    @Test func officeHiddenOnlyForNoCatOffice() {
+        #expect(!SetupSettings(seen: true, state: .noCatOffice).showsOffice(officeLive: false))
+        #expect(SetupSettings(seen: true, state: .noCatOffice).showsOffice(officeLive: true))
+        for state: SetupState? in [nil, .full, .reduced] {
+            #expect(SetupSettings(seen: true, state: state).showsOffice(officeLive: false))
+        }
+        #expect(SetupSettings().showsOffice(officeLive: false), "not decided yet: today's Office tab and its card")
+    }
+
+    /// The Projects tab's invitation to Cat Office: for "I don't use Cat Office", until "Not now" (or the office shows).
+    @Test func invitationUntilNotNow() {
+        let none = SetupSettings(seen: true, state: .noCatOffice)
+        #expect(none.invitesToCatOffice(dismissed: false, officeLive: false))
+        #expect(!none.invitesToCatOffice(dismissed: true, officeLive: false))
+        #expect(!none.invitesToCatOffice(dismissed: false, officeLive: true))
+        for state: SetupState? in [nil, .full, .reduced] {
+            #expect(!SetupSettings(seen: true, state: state).invitesToCatOffice(dismissed: false, officeLive: false))
+        }
     }
 
     @Test func settingsLineShowsTheFolderName() {
@@ -78,7 +100,7 @@ import Testing
                 == "Some extras are off · Cat Office: co")
         #expect(SetupSettings(seen: true, state: .full).line(catOfficeDir: "/opt/co", home: home)
                 == "Set up · Cat Office: co")
-        #expect(SetupSettings(seen: true, state: .noCatOffice).line(catOfficeDir: nil, home: home) == "Cat Office isn't set up")
+        #expect(SetupSettings(seen: true, state: .noCatOffice).line(catOfficeDir: nil, home: home) == "Cat Office: not in use")
         #expect(SetupSettings().line(catOfficeDir: nil, home: home) == "Cat Office isn't set up")
         // A known folder without a recorded state (inferred, patch unknown): just where it is.
         #expect(SetupSettings(seen: true, state: nil).line(catOfficeDir: "/Users/x/co", home: home) == "Cat Office: co")

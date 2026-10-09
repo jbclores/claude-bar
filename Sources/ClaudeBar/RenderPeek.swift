@@ -23,7 +23,7 @@ enum RenderPeek {
             renderWindow(DropdownView(forcedTab: tab).environmentObject(state).environmentObject(PeekPointer()), width: 500, to: out)
             return true
         }
-        // `--render-setup <welcome|find|find-searching|connect|connect-running-unpatched|done|done-restart> <out.png>`: the setup window over
+        // `--render-setup <welcome|find|find-searching|connect|connect-running-unpatched|connect-none|done|done-restart> <out.png>`: the setup window over
         // temp folders only (a fake home with one Cat Office, a claude folder with its own status line).
         if let i = CommandLine.arguments.firstIndex(of: "--render-setup"), i + 2 < CommandLine.arguments.count {
             let args = CommandLine.arguments
@@ -192,6 +192,7 @@ private func setupModel(step: String, state: AppState) -> SetupModel? {
     case "find-searching": model.step = .find; model.searching = true
     case "connect": model.step = .connect
     case "connect-running-unpatched": model.step = .connect; model.somethingAnswers = true
+    case "connect-none": model.useNoCatOffice()
     case "done", "done-restart":
         model.step = .done
         model.results["usage"] = StepResult(ok: true, text: "Your status line is kept; ClaudeBar reads its data quietly.")
@@ -324,6 +325,8 @@ enum TestTabs {
             }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            // The tabs as the menu bar item sets them (CLAUDEBAR_RENDER_NO_CAT_OFFICE=1: no Office tab).
+            controller.updateTabs()
             if controller.preferredContentSize.height > 0 { window.setContentSize(controller.preferredContentSize) }
             guard let control = findControl(in: window.contentView!) else { print("no tab control found"); exit(1) }
             print("start:", UserDefaults.standard.string(forKey: TabSelection.key) ?? "-", "dropdown size:", controller.preferredContentSize)

@@ -220,9 +220,35 @@ final class AppState: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
-    func openHelpGuide() {
+    /// The guide, at `section` (an id in guide.html) when given.
+    func openHelpGuide(section: String? = nil) {
         guard let url = helpGuide else { return }
-        NSWorkspace.shared.open(url)
+        guard let section, var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        parts.fragment = section
+        NSWorkspace.shared.open(parts.url ?? url)
+    }
+
+    /// The Office tab and the hover peek show: not for "I don't use Cat Office", unless one is running anyway.
+    var officeShown: Bool { setup.showsOffice(officeLive: officeLive) }
+
+    /// Renders only (CLAUDEBAR_RENDER_NO_CAT_OFFICE=1): as someone who chose "I don't use Cat Office", none running.
+    private var renderNoCatOffice: Bool { !sideEffects && ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_NO_CAT_OFFICE"] == "1" }
+    /// How far setup got (in renders with CLAUDEBAR_RENDER_NO_CAT_OFFICE: "I don't use Cat Office").
+    var setup: SetupSettings { renderNoCatOffice ? SetupSettings(seen: true, state: .noCatOffice) : settings.setup }
+    private var officeLive: Bool { office != nil && !renderNoCatOffice }
+
+    /// "Not now" on the Projects tab's invitation to Cat Office (a preference: it stays hidden).
+    static let inviteDismissedKey = "catOfficeInviteDismissed"
+    @Published var catOfficeInviteDismissed = UserDefaults.standard.bool(forKey: AppState.inviteDismissedKey) {
+        didSet { UserDefaults.standard.set(catOfficeInviteDismissed, forKey: Self.inviteDismissedKey) }
+    }
+
+    /// The Projects tab shows its invitation to try Cat Office.
+    var invitesToCatOffice: Bool {
+        setup.invitesToCatOffice(dismissed: catOfficeInviteDismissed && !renderNoCatOffice, officeLive: officeLive)
     }
 
     /// The office is on screen (the hover peek, or the dropdown): the click meow and elevator ding only play then.

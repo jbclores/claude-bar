@@ -66,19 +66,29 @@ public struct SetupSettings: Equatable, Sendable {
 
     public enum Card: Equatable, Sendable { case notSetUp, reduced }
 
-    /// The Office tab's card: "isn't set up" for no Cat Office (chosen, or no state and none known), "Some extras are
-    /// off" for reduced; nothing for a full setup or an inferred one whose Cat Office is known.
+    /// The Office tab and the hover peek: hidden for "I don't use Cat Office", unless a Cat Office is running anyway.
+    public func showsOffice(officeLive: Bool) -> Bool { state != .noCatOffice || officeLive }
+
+    /// The Projects tab's invitation to try Cat Office: for "I don't use Cat Office", until "Not now", and not once a Cat
+    /// Office is running (its office shows instead).
+    public func invitesToCatOffice(dismissed: Bool, officeLive: Bool) -> Bool {
+        state == .noCatOffice && !dismissed && !officeLive
+    }
+
+    /// The Office tab's card: "isn't set up" when no state is recorded and no Cat Office is known, "Some extras are off"
+    /// for reduced; nothing for a full setup, an inferred one whose Cat Office is known, or "I don't use Cat Office"
+    /// (its invitation is on the Projects tab: invitesToCatOffice).
     public func card(catOfficeKnown: Bool) -> Card? {
         switch state {
-        case .noCatOffice: .notSetUp
+        case .noCatOffice: nil
         case .reduced: .reduced
         case .full: nil
         case nil: catOfficeKnown ? nil : .notSetUp
         }
     }
 
-    /// Settings' setup line: "Set up · Cat Office: <folder name>", "Some extras are off · Cat Office: <name>", or
-    /// "Cat Office isn't set up". The folder is the configured one, else the running (or remembered) one; a full or
+    /// Settings' setup line: "Set up · Cat Office: <folder name>", "Some extras are off · Cat Office: <name>",
+    /// "Cat Office: not in use" ("I don't use Cat Office"), or "Cat Office isn't set up". The folder is the configured one, else the running (or remembered) one; a full or
     /// reduced setup without either still reads "Set up" / "Some extras are off", never "isn't set up". The full path
     /// shows on hover (folderPath).
     public func line(catOfficeDir: String?, runningDir: String? = nil, home: String) -> String {
@@ -87,7 +97,7 @@ public struct SetupSettings: Equatable, Sendable {
         switch state {
         case .full: return "Set up" + at
         case .reduced: return "Some extras are off" + at
-        case .noCatOffice: return "Cat Office isn't set up"
+        case .noCatOffice: return "Cat Office: not in use"
         case nil: return name.map { "Cat Office: \($0)" } ?? "Cat Office isn't set up"
         }
     }

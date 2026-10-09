@@ -73,6 +73,10 @@ final class StatusItemController: NSResponder {
                 self.applyTheme(self.state.appearance)
             }
             .store(in: &subscriptions)
+        // The Office tab comes and goes with "I don't use Cat Office" (and a Cat Office running anyway).
+        state.$settings.map(\.setup).removeDuplicates().combineLatest(state.$office.map { $0 != nil }.removeDuplicates())
+            .sink { [weak self] _, _ in DispatchQueue.main.async { self?.dropdownController.updateTabs() } }
+            .store(in: &subscriptions)
         state.$menuCat.removeDuplicates()
             .sink { [weak self] cat in self?.updateIcon(cat) }
             .store(in: &subscriptions)
@@ -153,6 +157,7 @@ final class StatusItemController: NSResponder {
         guard let button = item.button else { return }
         NSApp.activate(ignoringOtherApps: true)
         dropdownController.resetZoom()
+        dropdownController.updateTabs()
         dropdown.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         state.acknowledge()
     }
@@ -162,7 +167,7 @@ final class StatusItemController: NSResponder {
     override func mouseEntered(with event: NSEvent) {
         overIcon = true
         hideTimer?.invalidate()
-        guard state.settings.hoverPeek, !peek.isShown, !dropdown.isShown else { return }
+        guard state.settings.hoverPeek, state.officeShown, !peek.isShown, !dropdown.isShown else { return }
         showTimer?.invalidate()
         showTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
             Task { @MainActor in self?.showPeek() }
