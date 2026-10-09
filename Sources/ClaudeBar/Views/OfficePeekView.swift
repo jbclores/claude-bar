@@ -277,7 +277,7 @@ struct OfficeRoomView: View {
             walks = [:]
             lastFeet = [:]
         }
-        .task(id: catKey) { await WalkersLayer.preload(agents: cats, catIds: state.catIds, art: state.art) }
+        .task(id: catKey) { await WalkersLayer.preload(agents: cats, catIds: state.catIds, walkFrames: state.walkFrameCounts, art: state.art) }
 
     }
 
@@ -338,9 +338,10 @@ struct OfficeRoomView: View {
         lastFeet = lastFeet.filter { here.contains($0.key) }
     }
 
-    /// Changes when the cats in the office change (to preload their walks).
+    /// Changes when the cats in the office or their walking frames change (to preload their walks).
     private var catKey: String {
-        cats.filter { $0.status != .ended }.map { CatPicker.cat(for: $0, catIds: state.catIds) }.sorted().joined(separator: ",")
+        cats.filter { $0.status != .ended }.map { CatPicker.cat(for: $0, catIds: state.catIds) }.sorted()
+            .map { "\($0):\(state.walkFrameCounts[$0] ?? 0)" }.joined(separator: ",")
     }
 
     private var floorId: Int { floors.shown(state) }
@@ -665,8 +666,10 @@ struct RidersLayer: View {
             let speed = WalkPath.speed(for: ride.id, base: CatWalk.baseSpeed)
             let d = CGFloat(now.timeIntervalSince(ride.trip.start)) * speed
             let path = ride.walkIn ?? WalkPath(from: place, to: place)
+            let frames = state.walkFrameCounts[CatPicker.cat(for: ride.agent, catIds: catIds)] ?? 0
             sprite(ride, feet: path.position(atDistance: d), direction: path.direction(atDistance: d),
-                   frame: WalkPath.frame(distance: d, stride: CatWalk.stride, phase: WalkPath.phase(for: ride.id)), alpha: 1)
+                   frame: WalkPath.frame(distance: d, stride: CatWalk.stride, phase: WalkPath.phase(for: ride.id), frames: frames),
+                   alpha: 1)
         case (.boarding(let p), true, _):
             sprite(ride, feet: place, direction: "back-left", frame: 0, alpha: 1 - p)
         case (.arriving(let p), _, true):
@@ -678,14 +681,14 @@ struct RidersLayer: View {
 
     private func sprite(_ ride: Rider, feet: CGPoint, direction: String, frame: Int, alpha: Double) -> some View {
         let cat = CatPicker.cat(for: ride.agent, catIds: catIds)
-        let s = DeskComposition.catScale * DeskStation.scale * scale
+        let r = state.catFrame.rect(feet: feet, scale: DeskComposition.catScale(state.catFrame) * DeskStation.scale * scale)
         return SpriteImage(key: "walk-\(cat)-\(direction)-\(frame)", fallback: Theme.color(ride.agent.status)) {
             await state.art.walkImage(cat: cat, direction: direction, frame: frame)
         }
-        .frame(width: 360 * s, height: 380 * s)
+        .frame(width: r.width, height: r.height)
         .colorMultiply(officeNight ? Night.furniture : .white)
         .opacity(alpha)
-        .offset(x: feet.x - 180 * s, y: feet.y - 300 * s)
+        .offset(x: r.minX, y: r.minY)
     }
 }
 
@@ -949,12 +952,11 @@ struct DeskStation: View {
 
     var body: some View {
         let k = Self.scale
-        let c = DeskComposition(geometry ?? Self.fallback, flip: scene.mirrored, rear: scene.rear)
+        let c = DeskComposition(geometry ?? Self.fallback, flip: scene.mirrored, rear: scene.rear, cat: state.catFrame)
         let b = c.bounds
         let desk = place(c.desk, in: b)
         let catRect = place(c.cat, in: b)
-        let feet = CGPoint(x: (c.cat.minX + 180 * DeskComposition.catScale - b.minX) * k,
-                           y: (c.cat.minY + 300 * DeskComposition.catScale - b.minY) * k)
+        let feet = CGPoint(x: (c.feet.x - b.minX) * k, y: (c.feet.y - b.minY) * k)
         ZStack(alignment: .topLeading) {
             if agent.status == .waiting {
                 Ellipse()
@@ -1047,11 +1049,11 @@ struct CatWalk: Equatable {
 /// The walking cats, drawn over the room: walk frames by distance, feet on the path, a little hop on arrival.
 struct WalkersLayer: View {
     /// Loads the cats' walk frames (4 directions × still + 4 steps) ahead, so a walk never starts invisible.
-    @MainActor static func preload(agents: [OfficeAgent], catIds: [String], art: ArtCache) async {
+    @MainActor static func preload(agents: [OfficeAgent], catIds: [String], walkFrames: [String: Int], art: ArtCache) async {
         let cats = Set(agents.filter { $0.status != .ended }.map { CatPicker.cat(for: $0, catIds: catIds) })
         for cat in cats {
             for direction in ["front-left", "front-right", "back-left", "back-right"] {
-                for frame in 0...4 {
+                for frame in 0...(walkFrames[cat] ?? 0) {
                     let key = "walk-\(cat)-\(direction)-\(frame)"
                     guard SpriteImage.loaded[key] == nil, let data = await art.walkImage(cat: cat, direction: direction, frame: frame),
                           let image = NSImage(data: data) else { continue }
@@ -1085,19 +1087,20 @@ struct WalkersLayer: View {
         let distance = walk.distance(at: now)
         let arrived = distance >= walk.path.length
         let direction = walk.path.direction(atDistance: min(distance, walk.path.length - 0.01))
-        let frame = arrived || !legFrames ? 0 : WalkPath.frame(distance: distance, stride: CatWalk.stride, phase: WalkPath.phase(for: walk.id))
+        let frames = state.walkFrameCounts[cat] ?? 0
+        let frame = arrived || !legFrames ? 0
+            : WalkPath.frame(distance: distance, stride: CatWalk.stride, phase: WalkPath.phase(for: walk.id), frames: frames)
         let feet = walk.path.position(atDistance: distance)
         // The hop: a small arc once there.
         let hopT = arrived ? min(1, now.timeIntervalSince(walk.start) - walk.duration) / CatWalk.hop : 0
         let lift = arrived ? CGFloat(sin(Double.pi * max(0, min(1, hopT)))) * 2 : 0
-        let s = DeskComposition.catScale * DeskStation.scale * scale
-        let size = CGSize(width: 360 * s, height: 380 * s)
+        let r = state.catFrame.rect(feet: feet, scale: DeskComposition.catScale(state.catFrame) * DeskStation.scale * scale)
         return SpriteImage(key: "walk-\(cat)-\(direction)-\(frame)", fallback: Theme.color(walk.agent.status)) {
             await state.art.walkImage(cat: cat, direction: direction, frame: frame)
         }
-        .frame(width: size.width, height: size.height)
+        .frame(width: r.width, height: r.height)
         .colorMultiply(officeNight ? Night.furniture : .white)
-        .offset(x: feet.x - 180 * s, y: feet.y - 300 * s - lift)
+        .offset(x: r.minX, y: r.minY - lift)
     }
 }
 
@@ -1185,6 +1188,7 @@ struct CatCard: View {
     private var spareCard: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(agent.name).font(.callout.weight(.semibold)).lineLimit(1)
+            if let role = state.spareRole(agent) { Text(role).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
             if let p = agent.place, let key = p.key {
                 ActivityLine(place: p, key: key, clock: state.minutesLeft).foregroundStyle(.secondary)
             }

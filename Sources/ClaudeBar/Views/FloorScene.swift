@@ -95,10 +95,10 @@ struct SceneCats: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.walkingCats) private var walkingCats
 
-    /// Today's cats are drawn at catScale × 0.22 points per canvas px: a scene cat's size relative to that, for
-    /// walkers, riders, rings and glows.
+    /// Today's cats are drawn 160 floor px tall at 0.22 points per px: a scene cat's size relative to that, for
+    /// walkers, riders, rings and glows (the same for any cats.json canvas).
     static func relative(catHeight: Double, fit: SceneFit) -> CGFloat {
-        CGFloat(catHeight / 210) * fit.scale / (DeskComposition.catScale * DeskStation.scale)
+        CGFloat(catHeight / 160) * fit.scale / DeskStation.scale
     }
 
     /// A cat as drawn: feet (points, lifted), canvas scale (points per canvas px), depth.
@@ -108,8 +108,9 @@ struct SceneCats: View {
         let k: CGFloat
         let z: Int
         let figure: CGRect
-        var canvas: CGRect { CGRect(x: feet.x - 180 * k, y: feet.y - 300 * k, width: 360 * k, height: 380 * k) }
-        var rel: CGFloat { k / (DeskComposition.catScale * DeskStation.scale) }
+        let frame: CatFrame
+        var canvas: CGRect { frame.rect(feet: feet, scale: k) }
+        var rel: CGFloat { k / (DeskComposition.catScale(frame) * DeskStation.scale) }
     }
 
     private struct Cover {
@@ -227,7 +228,8 @@ struct SceneCats: View {
         let z = RoomGeometry.catZ(feet: cat.at, figure: figure, boxes: room.boxes, perch: cat.perch)
         let ground = fit.point(px)
         let feet = CGPoint(x: ground.x, y: ground.y - CGFloat(cat.lift) * fit.scale)
-        return Drawn(cat: cat, feet: feet, k: CGFloat(h / 210) * fit.scale, z: z, figure: figure)
+        let frame = state.catFrame
+        return Drawn(cat: cat, feet: feet, k: frame.scale(catHeight: CGFloat(h)) * fit.scale, z: z, figure: figure, frame: frame)
     }
 
     /// Where a cat's name tag wants to go, in view points after zoom: centred under its feet, the tag's own size.

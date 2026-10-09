@@ -23,6 +23,9 @@ final class AppState: ObservableObject {
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
     @Published private(set) var officeLaunch = OfficeLaunch.none
     @Published private(set) var catIds: [String] = []
+    /// cats.json's sprite canvas, and each cat's walking frame count (cats.ts catWalkFrames).
+    @Published private(set) var catFrame: CatFrame = .standard
+    @Published private(set) var walkFrameCounts: [String: Int] = [:]
     /// Cat Office's floors (the fallback Lounge until it has loaded).
     @Published private(set) var building = Building.fallback { didSet { rebuildRooms() } }
     /// Cat Office's room parts, props and desks (nil until loaded).
@@ -511,10 +514,18 @@ final class AppState: ObservableObject {
             catIds = catalog.catIds
             recompute()
         }
+        if catalog.frame != catFrame { catFrame = catalog.frame }
+        let counts = Dictionary(uniqueKeysWithValues: catalog.catIds.map { ($0, catalog.walkFrames(cat: $0).count) })
+        if counts != walkFrameCounts { walkFrameCounts = counts }
         if catalog.cats != catalogCats {
             catalogCats = catalog.cats
             updateMirror()
         }
+    }
+
+    /// A spare cat's role in words ("UI/UX Designer"), as Cat Office's roster gives it.
+    func spareRole(_ agent: OfficeAgent) -> String? {
+        agent.isSpare ? SpareRoster.roleLabel(spareKey: agent.id, cats: catalogCats) : nil
     }
 
     /// The user opened the dropdown or the peek.
