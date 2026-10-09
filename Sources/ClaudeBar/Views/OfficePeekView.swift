@@ -1145,7 +1145,7 @@ struct SpriteImage: View {
 
     var body: some View {
         Group {
-            if let image = image ?? Self.loaded[key] {
+            if let image = SpriteChoice.shown(cached: Self.loaded[key], held: image) {
                 switch mode {
                 case .fit: Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
                 case .fill: Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fill)

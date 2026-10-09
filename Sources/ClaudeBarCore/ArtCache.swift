@@ -552,3 +552,9 @@ public struct DeskComposition: Equatable, Sendable {
         facing = rear ? (flip ? "front-right" : "front-left") : (flip ? "back-left" : "back-right")
     }
 }
+
+/// Which picture a sprite view shows: the cached picture for its current key (a cat that turned), else the one it
+/// already holds (an earlier key's, or the old art while Cat Office's changed art reloads) until the new one loads.
+public enum SpriteChoice {
+    public static func shown<T>(cached: T?, held: T?) -> T? { cached ?? held }
+}
