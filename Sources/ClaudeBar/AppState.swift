@@ -305,6 +305,8 @@ final class AppState: ObservableObject {
         if case .starting = officeLaunch { return }
         let started = Date()
         officeLaunch = .starting(since: started)
+        // Renders and click tests never start Cat Office.
+        guard sideEffects else { return }
         var settings = config.config.catOffice
         settings.dir = CatOfficeDiscovery.folderToStart(
             configured: settings.dir, remembered: UserDefaults.standard.string(forKey: Self.rememberedDirKey))

@@ -28,7 +28,11 @@ final class RoomZoom: ObservableObject {
     /// For --render-peek with CLAUDEBAR_RENDER_ZOOM: zoom to `factor` at a room point.
     func renderZoom(_ factor: CGFloat, at point: CGPoint) { view.zoom(by: factor, at: point, in: roomRect.size) }
 
-    func contains(_ point: CGPoint) -> Bool { roomRect.contains(point) }
+    /// Off while Cat Office isn't running: nothing to zoom or pat, and the room's own buttons (Start Cat Office) take
+    /// their clicks.
+    var interactive = true
+
+    func contains(_ point: CGPoint) -> Bool { interactive && roomRect.contains(point) }
 
     /// Handles a mouse, scroll or magnify event at `point` (office space). False: not for the room, pass it on.
     func handle(_ event: NSEvent, at point: CGPoint) -> Bool {

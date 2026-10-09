@@ -141,7 +141,8 @@ CLAUDEBAR_LIVE=1 swift test                  # also against the running Cat Offi
 ```
 
 Click tests run offscreen from the built app: `build/ClaudeBar.app/Contents/MacOS/ClaudeBar --test-tabs`,
-`--test-zoom`, `--test-setup`, `--test-undo`.
+`--test-zoom`, `--test-setup`, `--test-undo`, and `CLAUDEBAR_NO_DATA=1 … --test-start` (the Start Cat Office button takes
+its click; it never starts Cat Office).
 
 Some tests compare ClaudeBar with Cat Office's own code. When Cat Office changes, regenerate their fixtures from the Cat
 Office folder (it is only read):

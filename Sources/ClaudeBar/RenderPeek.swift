@@ -9,6 +9,7 @@ enum RenderPeek {
     static func runIfRequested(state: AppState) -> Bool {
         if RenderLabel.runIfRequested(state: state) { return true }
         if TestTabs.runIfRequested(state: state) { return true }
+        if TestStart.runIfRequested(state: state) { return true }
         if TestZoom.runIfRequested(state: state) { return true }
         if TestSetup.runIfRequested() { return true }
         if TestUndo.runIfRequested() { return true }
@@ -403,6 +404,41 @@ enum TestTabs {
         if let control = view as? NSSegmentedControl { return control }
         for sub in view.subviews { if let found = findControl(in: sub) { return found } }
         return nil
+    }
+}
+
+/// `CLAUDEBAR_NO_DATA=1 ClaudeBar --test-start`: the live dropdown offscreen on the Office tab with Cat Office not
+/// running; clicks "Start Cat Office" (found by its frame, nothing else) and prints whether the click reached it. Never
+/// starts Cat Office (side effects are off).
+@MainActor
+enum TestStart {
+    static func runIfRequested(state: AppState) -> Bool {
+        guard CommandLine.arguments.contains("--test-start") else { return false }
+        UserDefaults.standard.set("office", forKey: TabSelection.key)
+        let controller = DropdownController(state: state)
+        let window = KeyWindow(contentViewController: controller)
+        window.styleMask = [.borderless]
+        window.setFrameOrigin(NSPoint(x: -10_000, y: -10_000))
+        window.orderFrontRegardless()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            if controller.preferredContentSize.height > 0 { window.setContentSize(controller.preferredContentSize) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                guard let frame = controller.floorSelection.targets["office-start"] else { print("FAIL: no Start button shown"); exit(1) }
+                let point = NSPoint(x: frame.midX, y: window.contentView!.bounds.height - frame.midY)
+                let hit = window.contentView!.hitTest(window.contentView!.superview!.convert(point, from: nil))
+                print("start: at \(frame), hits \(hit.map { String(describing: type(of: $0)) } ?? "nothing")")
+                NSApp.postEvent(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                   windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0)!, atStart: false)
+                window.sendEvent(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if case .starting = state.officeLaunch { print("PASS: the click reached Start Cat Office"); exit(0) }
+                    print("FAIL: the click didn't reach Start Cat Office (launch: \(state.officeLaunch))")
+                    exit(1)
+                }
+            }
+        }
+        return true
     }
 }
 

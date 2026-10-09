@@ -242,6 +242,7 @@ struct OfficeRoomView: View {
                 // Off screen (another tab): no room, so the cursor, clicks and scrolls there belong to that tab.
                 .onDisappear { zoom.roomRect = .zero }
         })
+        .onChange(of: state.office == nil, initial: true) { _, offline in zoom.interactive = !offline }
         // Clicks only inside the visible room: the backdrop and cats extend past it, and took the tabs' clicks.
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .onPreferenceChange(CatFramesKey.self) { catFrames = $0 }
@@ -454,6 +455,7 @@ struct OfficeRoomView: View {
             }
             RoomPill(text: "Cat Office isn't running")
             OfficeStarter(launch: state.officeLaunch, start: { state.startCatOffice() }, openLog: { state.openLauncherLog() })
+                .target("office-start", in: floors)
                 .padding(.horizontal, 8).padding(.vertical, 3)
                 .background(Capsule().fill(.regularMaterial))
             Spacer()

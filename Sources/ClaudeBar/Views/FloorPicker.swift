@@ -90,8 +90,8 @@ struct FloorPicker: View {
     }
 }
 
-private extension View {
-    /// Records this button's frame in the window, for the click test.
+extension View {
+    /// Records this button's frame in the window, for the click tests.
     func target(_ name: String, in floors: FloorSelection) -> some View {
         onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { floors.targets[name] = $0 }
     }
