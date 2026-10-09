@@ -110,9 +110,15 @@ public struct WalkPath: Equatable, Sendable {
         return directions[directions.count - 1]
     }
 
-    /// The walk frame (1–4) after `distance`: the next one every `stride`, starting from the cat's own `phase`.
-    public static func frame(distance: CGFloat, stride: CGFloat, phase: Int) -> Int {
-        (Int((max(0, distance) / stride).rounded(.down)) + phase) % 4 + 1
+    /// The walk frame after `distance` (1 for the first of the cat's `frames`…, 0 for the still sprite): the next step
+    /// every `stride`, starting from the cat's own `phase` (Office.tsx walkFrame). Three or more frames run in turn; one
+    /// or two step still, 1, still, 2; a cat with none keeps the still sprite.
+    public static func frame(distance: CGFloat, stride: CGFloat, phase: Int, frames: Int = 4) -> Int {
+        guard frames > 0 else { return 0 }
+        let legCycle = frames >= 3
+        let step = (Int((max(0, distance) / stride).rounded(.down)) + phase) % (legCycle ? frames : frames * 2)
+        if legCycle { return step + 1 }
+        return step % 2 == 0 ? 0 : (step + 1) / 2
     }
 
     /// Each cat starts its stride somewhere else, so cats don't march in step (Cat Office's stridePhase).

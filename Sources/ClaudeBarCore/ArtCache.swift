@@ -17,6 +17,40 @@ public enum CatPose: String, Sendable {
     }
 }
 
+/// A cat sprite's canvas (cats.json canvas, feet, bodyHeight): every sprite is drawn at catHeight / bodyHeight with its
+/// feet point on the cat's spot (Cat Office's cat.sprite.ts).
+public struct CatFrame: Equatable, Sendable {
+    public var canvas: CGSize
+    public var feet: CGPoint
+    public var bodyHeight: CGFloat
+
+    public init(canvas: CGSize, feet: CGPoint, bodyHeight: CGFloat) {
+        self.canvas = canvas; self.feet = feet; self.bodyHeight = bodyHeight
+    }
+
+    /// Cat Office's own cats.
+    public static let standard = CatFrame(canvas: CGSize(width: 360, height: 380), feet: CGPoint(x: 180, y: 300), bodyHeight: 210)
+
+    /// Drawn size per canvas pixel for a cat `catHeight` tall.
+    public func scale(catHeight: CGFloat) -> CGFloat { catHeight / bodyHeight }
+
+    /// The canvas drawn at `scale` with its feet point at `feet`.
+    public func rect(feet at: CGPoint, scale s: CGFloat) -> CGRect {
+        CGRect(x: at.x - feet.x * s, y: at.y - feet.y * s, width: canvas.width * s, height: canvas.height * s)
+    }
+
+    /// cats.json's values; the standard cat's when any is missing or unusable.
+    static func parse(_ obj: [String: Any]) -> CatFrame {
+        func num(_ o: Any?, _ key: String) -> CGFloat? {
+            ((o as? [String: Any])?[key] as? NSNumber).map { CGFloat($0.doubleValue) }
+        }
+        guard let w = num(obj["canvas"], "width"), let h = num(obj["canvas"], "height"), w > 0, h > 0,
+              let x = num(obj["feet"], "x"), let y = num(obj["feet"], "y"),
+              let body = (obj["bodyHeight"] as? NSNumber).map({ CGFloat($0.doubleValue) }), body > 0 else { return .standard }
+        return CatFrame(canvas: CGSize(width: w, height: h), feet: CGPoint(x: x, y: y), bodyHeight: body)
+    }
+}
+
 /// Cat Office's cat list and sprite path templates (/data/cats.json).
 public struct CatCatalog: Equatable, Sendable {
     public var catIds: [String]
@@ -26,6 +60,15 @@ public struct CatCatalog: Equatable, Sendable {
     var sitPath = "assets/cats/{cat}/{direction}/sit.png"
     /// The cats as the spare roster reads them (SpareRoster.roster): id, name (else the id) and role.
     public var cats: [SpareRoster.Cat] = []
+    /// The sprites' canvas.
+    public var frame: CatFrame = .standard
+    /// cats.json walkPath and walkFrames, and the cats marked `walk` (they have those frames).
+    var walkPathTemplate: String?
+    var walkFrameNames: [String] = []
+    var walkers: Set<String> = []
+
+    /// cats.ts MAX_WALK_FRAMES.
+    static let maxWalkFrames = 4
 
     public static func parse(_ data: Data) -> CatCatalog? {
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -38,7 +81,30 @@ public struct CatCatalog: Equatable, Sendable {
             sitPath: obj["sitPath"] as? String ?? "assets/cats/{cat}/{direction}/sit.png",
             cats: cats.compactMap { c in
                 (c["id"] as? String).map { SpareRoster.Cat(id: $0, name: c["name"] as? String ?? $0, role: c["role"] as? String) }
-            })
+            },
+            frame: CatFrame.parse(obj),
+            walkPathTemplate: obj["walkPath"] as? String,
+            walkFrameNames: obj["walkFrames"] as? [String] ?? [],
+            walkers: Set(cats.compactMap { c in c["walk"] as? Bool == true ? c["id"] as? String : nil }))
+    }
+
+    /// cats.ts catWalkFrames: the walking frame names for a cat marked `walk` (at most 4), else none.
+    public func walkFrames(cat: String) -> [String] {
+        guard walkPathTemplate != nil, walkers.contains(cat) else { return [] }
+        return Array(walkFrameNames.prefix(Self.maxWalkFrames))
+    }
+
+    /// A walking sprite: frame 0 is the still both-down sprite, frame n the cat's nth walking frame (still when it has
+    /// no such frame).
+    public func walkPath(cat: String, direction: String, frame: Int) -> String {
+        let names = walkFrames(cat: cat)
+        guard frame > 0, frame <= names.count, let template = walkPathTemplate else {
+            return path(cat: cat, pose: .standing, direction: direction)
+        }
+        return template
+            .replacingOccurrences(of: "{cat}", with: cat)
+            .replacingOccurrences(of: "{direction}", with: direction)
+            .replacingOccurrences(of: "{frame}", with: names[frame - 1])
     }
 
     /// The sprite for a pose; `direction` defaults to back-left for typing and front-left otherwise.
@@ -235,8 +301,7 @@ public final class ArtCache: @unchecked Sendable {
     /// A walk frame (1–4) facing `direction`; frame 0 is the still, paws-down stand.
     public func walkImage(cat: String, direction: String, frame: Int) async -> Data? {
         guard let catalog = await catalog() else { return nil }
-        let path = catalog.path(cat: cat, pose: .standing, direction: direction)
-        return await image(path: frame == 0 ? path : path.replacingOccurrences(of: "both-down.png", with: "walk-\(frame).png"))
+        return await image(path: catalog.walkPath(cat: cat, direction: direction, frame: frame))
     }
 
     /// A desk design's geometry (anchor, stand point); the default desk's when `id` is nil or unknown.
@@ -456,19 +521,21 @@ public struct DeskGeometry: Equatable, Sendable {
 /// desk's anchor at the origin: the desk sprite (mirrored about the anchor when flipped), the cat's feet on the
 /// stand point (mirrored too), the cat facing the desk; a turned desk puts the cat on the far side, facing us.
 public struct DeskComposition: Equatable, Sendable {
-    /// Cats are drawn at catHeight / bodyHeight (building.json 160, cats.json 210) of their 360×380 canvas, feet at (180, 300).
-    public static let catScale: CGFloat = 160.0 / 210.0
-    static let catCanvas = CGSize(width: 360, height: 380)
-    static let catFeet = CGPoint(x: 180, y: 300)
+    /// Cats are drawn at catHeight / bodyHeight (building.json 160, cats.json bodyHeight) of their canvas, feet on the
+    /// stand point; Cat Office's own cats (bodyHeight 210) at 160/210.
+    public static func catScale(_ frame: CatFrame) -> CGFloat { frame.scale(catHeight: 160) }
+    public static let catScale: CGFloat = catScale(.standard)
 
     public var desk: CGRect
     public var cat: CGRect
     /// Front desk: the cat stands at the front edge, drawn over the desk. Turned desk: behind it.
+    /// Where the cat's feet are (the stand point).
+    public var feet: CGPoint
     public var catInFront: Bool
     public var facing: String
     public var bounds: CGRect { desk.union(cat) }
 
-    public init(_ g: DeskGeometry, flip: Bool, rear: Bool) {
+    public init(_ g: DeskGeometry, flip: Bool, rear: Bool, cat frame: CatFrame = .standard) {
         let sprite = rear ? (g.rear ?? g.front) : g.front
         let left = flip ? -(sprite.width - sprite.anchor.x) : -sprite.anchor.x
         desk = CGRect(x: left, y: -sprite.anchor.y, width: sprite.width, height: sprite.height)
@@ -479,9 +546,8 @@ public struct DeskComposition: Equatable, Sendable {
             let middle = CGPoint(x: desk.midX, y: -sprite.anchor.y * 0.3)
             feet = CGPoint(x: 2 * middle.x - feet.x, y: 2 * middle.y - feet.y)
         }
-        let s = Self.catScale
-        cat = CGRect(x: feet.x - Self.catFeet.x * s, y: feet.y - Self.catFeet.y * s,
-                     width: Self.catCanvas.width * s, height: Self.catCanvas.height * s)
+        self.feet = feet
+        cat = frame.rect(feet: feet, scale: Self.catScale(frame))
         catInFront = !rear
         facing = rear ? (flip ? "front-right" : "front-left") : (flip ? "back-left" : "back-right")
     }

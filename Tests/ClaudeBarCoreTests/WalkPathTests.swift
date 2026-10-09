@@ -45,6 +45,15 @@ import Testing
         #expect((0..<4).contains(WalkPath.phase(for: "x")))
     }
 
+    /// Office.tsx walkFrame: three or more frames run in turn; two step still, 1, still, 2; none keep the still sprite.
+    @Test func legFramesFollowTheCatsOwnFrameCount() {
+        #expect((0..<4).map { WalkPath.frame(distance: CGFloat($0) * 5, stride: 5, phase: 0, frames: 3) } == [1, 2, 3, 1])
+        #expect((0..<5).map { WalkPath.frame(distance: CGFloat($0) * 5, stride: 5, phase: 0, frames: 2) } == [0, 1, 0, 2, 0])
+        #expect((0..<3).map { WalkPath.frame(distance: CGFloat($0) * 5, stride: 5, phase: 0, frames: 1) } == [0, 1, 0])
+        #expect(WalkPath.frame(distance: 15, stride: 5, phase: 0, frames: 0) == 0)
+        #expect(WalkPath.frame(distance: 0, stride: 5, phase: 2, frames: 4) == WalkPath.frame(distance: 0, stride: 5, phase: 2))
+    }
+
     @Test func speedVariesUpTo15PercentPerCat() {
         let speeds = ["a", "b", "c", "office-82eb65", "office-9fc8a4"].map { WalkPath.speed(for: $0, base: 100) }
         #expect(speeds.allSatisfy { $0 >= 85 && $0 <= 115 })

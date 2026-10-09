@@ -27,6 +27,17 @@ import Testing
         #expect(c.catInFront && c.facing == "back-right")
     }
 
+    @Test func aTeammatesOwnCatCanvasKeepsItsFeetOnTheStandPoint() {
+        let frame = CatFrame(canvas: CGSize(width: 200, height: 250), feet: CGPoint(x: 100, y: 220), bodyHeight: 160)
+        let c = DeskComposition(walnut, flip: false, rear: false, cat: frame)
+        // catHeight 160 over bodyHeight 160: drawn at full size.
+        #expect(near(c.cat.minX + 100, -110) && near(c.cat.minY + 220, -20))
+        #expect(near(c.cat.width, 200) && near(c.cat.height, 250))
+        #expect(near(c.feet.x, -110) && near(c.feet.y, -20))
+        #expect(near(DeskComposition.catScale(frame), 1))
+        #expect(near(DeskComposition.catScale(.standard), DeskComposition.catScale))
+    }
+
     @Test func mirroredDeskMirrorsTheStandPointAndFacing() {
         let c = DeskComposition(walnut, flip: true, rear: false)
         #expect(near(c.desk.minX, -(276 - 186.5)))

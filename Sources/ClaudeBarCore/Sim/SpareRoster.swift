@@ -39,6 +39,21 @@ public enum SpareRoster {
     /// agent.registry.ts ROLE_CYCLE 21-23.
     public static let roleCycle = ["project-manager", "system-analyst", "ui-ux", "frontend", "backend", "qa"]
 
+    /// agent.types.ts ROLE_LABELS 85-92.
+    public static let roleLabels = [
+        "project-manager": "Project Manager", "system-analyst": "System Analyst", "ui-ux": "UI/UX Designer",
+        "frontend": "Frontend Developer", "backend": "Backend Developer", "qa": "QA Engineer",
+    ]
+
+    /// A spare cat's role, in words: "spare:agent-N" (or "agent-N") is the roster's Nth cat, its role as `roster` gives it.
+    public static func roleLabel(spareKey: String, cats: [Cat]) -> String? {
+        let id = spareKey.hasPrefix("spare:") ? String(spareKey.dropFirst("spare:".count)) : spareKey
+        guard id.hasPrefix("agent-"), let n = Int(id.dropFirst("agent-".count)), n >= 1, n <= cats.count else { return nil }
+        let i = n - 1
+        let role = cats[i].role.flatMap { roleCycle.contains($0) ? $0 : nil } ?? roleCycle[i % roleCycle.count]
+        return roleLabels[role]
+    }
+
     /// floors.ts LOUNGE_FLOOR.
     static let loungeFloor = 1
 

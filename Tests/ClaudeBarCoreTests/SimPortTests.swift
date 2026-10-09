@@ -142,6 +142,18 @@ struct SimFixture: Decodable {
         #expect(checked == 870)
     }
 
+    /// agent.types.ts ROLE_LABELS, for a spare cat's hover card ("spare:agent-N" is the roster's Nth cat).
+    @Test func spareRoleLabels() {
+        let cats = [SpareRoster.Cat(id: "a", name: "A", role: "qa"), SpareRoster.Cat(id: "b", name: "B", role: "devops"),
+                    SpareRoster.Cat(id: "c", name: "C")]
+        #expect(SpareRoster.roleLabel(spareKey: "spare:agent-1", cats: cats) == "QA Engineer")
+        #expect(SpareRoster.roleLabel(spareKey: "spare:agent-2", cats: cats) == "System Analyst", "not one of ours: the cycle")
+        #expect(SpareRoster.roleLabel(spareKey: "agent-3", cats: cats) == "UI/UX Designer")
+        #expect(SpareRoster.roleLabel(spareKey: "spare:agent-4", cats: cats) == nil, "no such cat")
+        #expect(SpareRoster.roleLabel(spareKey: "spare:x", cats: cats) == nil)
+        #expect(Set(SpareRoster.roleCycle) == Set(SpareRoster.roleLabels.keys))
+    }
+
     @Test func rosterMatches() throws {
         let floors = try floors()
         let cats = try JSONDecoder().decode(SpareRoster.Manifest.self, from: fixture("rooms/user/cats.json"))

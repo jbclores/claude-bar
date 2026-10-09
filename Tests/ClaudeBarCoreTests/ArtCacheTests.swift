@@ -49,6 +49,41 @@ import Testing
         #expect(real.cats == manifest.cats && !manifest.cats.isEmpty)
     }
 
+    /// A teammate's own character art: its canvas, feet and body height from cats.json (Cat Office's cat.sprite.ts).
+    @Test func catalogReadsTheCatCanvas() throws {
+        let json = #"{"canvas":{"width":200,"height":250},"feet":{"x":100,"y":220},"bodyHeight":180,"cats":[{"id":"a"}]}"#
+        let c = try #require(CatCatalog.parse(Data(json.utf8)))
+        #expect(c.frame == CatFrame(canvas: CGSize(width: 200, height: 250), feet: CGPoint(x: 100, y: 220), bodyHeight: 180))
+        // Missing or unusable values: Cat Office's standard cat.
+        let plain = try #require(CatCatalog.parse(Data(#"{"canvas":{"width":0,"height":5},"bodyHeight":0,"cats":[{"id":"a"}]}"#.utf8)))
+        #expect(plain.frame == .standard)
+        #expect(CatFrame.standard == CatFrame(canvas: CGSize(width: 360, height: 380), feet: CGPoint(x: 180, y: 300), bodyHeight: 210))
+        let real = try #require(CatCatalog.parse(fixture("rooms/user/cats.json")))
+        #expect(real.frame == .standard)
+    }
+
+    @Test func catFramePlacesTheCanvasByItsFeet() {
+        let f = CatFrame(canvas: CGSize(width: 200, height: 250), feet: CGPoint(x: 100, y: 220), bodyHeight: 160)
+        #expect(f.scale(catHeight: 80) == 0.5)
+        #expect(f.rect(feet: CGPoint(x: 10, y: 20), scale: 0.5) == CGRect(x: -40, y: -90, width: 100, height: 125))
+    }
+
+    /// cats.ts catWalkFrames: walkPath × walkFrames (at most 4) for a cat marked `walk`; others walk with the still sprite.
+    @Test func walkFramesFollowCatOffice() throws {
+        let json = #"{"path":"assets/cats/{cat}/{direction}/{gesture}.png","walkPath":"w/{cat}/{direction}/{frame}.png","walkFrames":["a","b","c","d","e"],"cats":[{"id":"x","walk":true},{"id":"y"}]}"#
+        let c = try #require(CatCatalog.parse(Data(json.utf8)))
+        #expect(c.walkFrames(cat: "x") == ["a", "b", "c", "d"])
+        #expect(c.walkFrames(cat: "y") == [])
+        #expect(c.walkFrames(cat: "unknown") == [])
+        #expect(c.walkPath(cat: "x", direction: "front-left", frame: 2) == "w/x/front-left/b.png")
+        #expect(c.walkPath(cat: "x", direction: "front-left", frame: 0) == "assets/cats/x/front-left/both-down.png")
+        #expect(c.walkPath(cat: "y", direction: "back-left", frame: 1) == "assets/cats/y/back-left/both-down.png")
+        let noPath = try #require(CatCatalog.parse(Data(#"{"walkFrames":["a"],"cats":[{"id":"x","walk":true}]}"#.utf8)))
+        #expect(noPath.walkFrames(cat: "x") == [])
+        let real = try #require(CatCatalog.parse(fixture("rooms/user/cats.json")))
+        #expect(real.walkPath(cat: "orange", direction: "front-right", frame: 3) == "assets/cats/orange/front-right/walk-3.png")
+    }
+
     @Test func shrinksImages() throws {
         let png = try #require(Self.png(width: 360, height: 380))
         let small = try #require(ArtCache.shrink(png, maxPixelSize: 128))
