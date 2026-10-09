@@ -49,6 +49,54 @@ import Testing
         #expect(all.filter { $0.kind != "elevator" }.allSatisfy { !$0.label.isEmpty })
     }
 
+    /// simulation-engine.ts slotFacing: each cat at a spot with seats (a snack table: back-left, front-left, front-right)
+    /// faces its own seat's way, not the spot's.
+    @Test func eachSlotFacesItsOwnWay() throws {
+        let all: [(Int, RoomSpot)] = rooms.flatMap { entry in entry.value.spots.map { (entry.key, $0) } }
+        let found = all.first { Set($0.1.slotFacings).count > 1 }
+        let (floorId, spot) = try #require(found, "a spot whose seats face different ways")
+        #expect(spot.slotFacings.count == spot.slots.count)
+        let sim = OfficeSim(seed: 5)
+        sim.setCats((0..<spot.capacity).map { SimCat(id: "agent-\($0 + 1)", isSpare: true, name: "C\($0)", catId: "cat-\($0)",
+                                                      floor: floorId, at: FloorPoint(u: 0.5, v: 0.5)) },
+                    building: building, rooms: only([floorId]) { _, s in s.id == spot.id }, grids: grids)
+        var seen: [Int: String] = [:]
+        for _ in 0..<(30 * 240) {
+            sim.step(minutes: 1.0 / 30)
+            for rt in sim.runtimes where rt.phase.label == "using" {
+                if let t = rt.target, t.spot.id == spot.id { seen[t.slot] = rt.direction }
+            }
+            if Set(seen.values).count > 1 { break }
+        }
+        #expect(Set(seen.values).count > 1, "cats in seats facing different ways")
+        for (slot, direction) in seen { #expect(direction == spot.slotFacings[slot], "slot \(slot)") }
+        let out = sim.output(showSpares: true)
+        for p in out.spares.compactMap({ $0 }) where p.spotId == spot.id && p.phase == "using" {
+            #expect(spot.slotFacings.contains(p.direction))
+        }
+    }
+
+    /// cat.sprite / simulation-engine.ts applyActivityPose: a nap in a seat facing front-right is the sleeping sprite
+    /// mirrored; facing front-left, or on a bed or rug (no seat), it isn't.
+    @Test func aNapInAFrontRightSeatIsMirrored() throws {
+        let all: [(Int, BuiltRoom, RoomSpot)] = rooms.flatMap { entry in
+            (entry.value.seats + entry.value.props.flatMap(\.spots)).map { (entry.key, entry.value, $0) }
+        }
+        let found = all.first { $0.2.pose == "sit" }
+        let (floorId, room, seat) = try #require(found)
+        let agent = OfficeAgent(id: "a", name: "A", owner: "me", status: .idle, cwd: "", cat: nil)
+        func nap(_ direction: String, at spot: String?) -> MirrorPlace {
+            MirrorPlace(floor: floorId, u: seat.standAt.u, v: seat.standAt.v, direction: direction, state: "resting", asleep: true,
+                        spotId: spot, phase: "using", at: 0)
+        }
+        #expect(SceneCast.mirroredCat(agent, nap("front-right", at: seat.id), in: room).sleepMirrored)
+        #expect(!SceneCast.mirroredCat(agent, nap("front-left", at: seat.id), in: room).sleepMirrored)
+        #expect(!SceneCast.mirroredCat(agent, nap("front-right", at: nil), in: room).sleepMirrored)
+        var awake = nap("front-right", at: seat.id)
+        awake.asleep = false
+        #expect(!SceneCast.mirroredCat(agent, awake, in: room).sleepMirrored)
+    }
+
     /// choose → walk (route length / walk speed) → use (a duration in the activity's range, gains applied) → choose again.
     @Test func oneCatsFullCycle() throws {
         let sim = OfficeSim(seed: 7)

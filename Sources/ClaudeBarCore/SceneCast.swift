@@ -57,6 +57,9 @@ public struct SceneCat: Equatable, Sendable {
     public let perch: String?
     /// The desk it works at (world px), for the screen's glow at night.
     public let desk: CGRect?
+    /// Asleep in a seat facing front-right: the sleeping sprite (drawn facing front-left) mirrored, as Cat Office's
+    /// applyActivityPose sleepMirror.
+    public var sleepMirrored = false
 
     /// Status ring and waiting glow: not for a cat asleep on a seat (the Lounge's, or a mirrored nap).
     public var showsRing: Bool { kind != .seat && kind != .spare && !(kind == .mirrored && pose == .sleeping) }
@@ -197,8 +200,10 @@ extension SceneCast {
         }
         let lift = spot.map { max(0, $0.lift) } ?? 0
         let desk = riding ? nil : place.spotId.flatMap { id in room.desks.first { $0.id == id }?.rect }
-        return SceneCat(agent: agent, kind: kind, at: at, lift: lift, size: 1, pose: CatPose(place),
-                        direction: place.direction, perch: lift > 0 ? spot?.owner : nil, desk: desk)
+        let pose = CatPose(place)
+        return SceneCat(agent: agent, kind: kind, at: at, lift: lift, size: 1, pose: pose,
+                        direction: place.direction, perch: lift > 0 ? spot?.owner : nil, desk: desk,
+                        sleepMirrored: pose == .sleeping && spot?.pose == "sit" && place.direction == "front-right")
     }
 }
 

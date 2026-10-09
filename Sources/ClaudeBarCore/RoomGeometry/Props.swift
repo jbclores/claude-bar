@@ -14,6 +14,8 @@ public struct RoomSpot: Equatable, Sendable {
     public var owner: String
     /// Where each further occupant stands (room.ts Spot.slots); empty for a single-cat spot.
     public var slots: [FloorPoint] = []
+    /// Which way the occupant of each slot faces (props.json slots[].facing, mirrored and turned with the prop).
+    public var slotFacings: [String] = []
     /// The spot's name (world.types.ts Spot.label: "Coffee counter"), for "Heading to the coffee counter".
     public var label: String = ""
     /// How many cats it takes at once (world.types.ts Spot.capacity).
@@ -230,6 +232,7 @@ public enum PropPlacer {
             return RoomSpot(id: propSpotId(placement, i, s.id), kind: s.kind, pose: s.pose, standAt: at, facing: facing,
                             lift: lift - drop > 0 ? lift - drop : 0, owner: placement.id,
                             slots: (s.slots ?? []).map { place($0.stand, $0.facing, lift).at },
+                            slotFacings: (s.slots ?? []).map { place($0.stand, $0.facing, lift).facing },
                             label: s.label ?? "", capacity: s.capacity ?? 1)
         }
     }

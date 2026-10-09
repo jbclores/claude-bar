@@ -489,6 +489,12 @@ public final class OfficeSim {
         rt.target = nil
     }
 
+    /// simulation-engine.ts slotFacing: which way the occupant of `slot` faces, the slot's own facing when the spot
+    /// lists slots.
+    static func slotFacing(_ spot: RoomSpot, _ slot: Int) -> String {
+        spot.slotFacings.indices.contains(slot) ? spot.slotFacings[slot] : spot.facing
+    }
+
     /// simulation-engine.ts slotPoint.
     func slotPoint(_ floorId: Int, _ spot: RoomSpot, _ slot: Int) -> FloorPoint {
         if spot.slots.indices.contains(slot) { return spot.slots[slot] }
@@ -633,9 +639,9 @@ public final class OfficeSim {
         let def = t.def
         let total = rng.range(def.duration.min, def.duration.max)
         rt.phase = .using(t: total, total: total)
-        // slotFacing: RoomSpot keeps no per-slot facing, so every occupant faces the spot's way.
-        rt.direction = t.spot.facing
-        applyActivityPose(rt, def, t.spot, facing: t.spot.facing)
+        let facing = Self.slotFacing(t.spot, t.slot)
+        rt.direction = facing
+        applyActivityPose(rt, def, t.spot, facing: facing)
         if t.spot.lift > 0 && t.spot.kind != "desk" {
             // perches: up onto the seat from the floor next to it.
             rt.perch = t.spot.id

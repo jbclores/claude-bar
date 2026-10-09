@@ -295,6 +295,9 @@ struct SceneCats: View {
                 await state.art.catImage(cat: cat, pose: pose, direction: direction)
             }
             .frame(width: r.width, height: r.height)
+            // A nap in a front-right seat: the sleeping sprite mirrored about the feet (CatCharacter.css .cat--mirror).
+            .scaleEffect(x: d.cat.sleepMirrored ? -1 : 1, y: 1,
+                         anchor: UnitPoint(x: d.frame.feet.x / d.frame.canvas.width, y: d.frame.feet.y / d.frame.canvas.height))
             .colorMultiply(!night ? .white : agent.status == .idle && !agent.isSpare ? Night.asleep : Night.furniture)
             .scaleEffect(motion.scale, anchor: .bottom)
             .offset(x: r.minX, y: r.minY + motion.offsetY * d.rel)
