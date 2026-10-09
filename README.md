@@ -1,18 +1,41 @@
 # ClaudeBar
 
-A macOS menu bar app: your Claude Code 5h / 7d usage at a glance, your pinned projects (branch, model,
-context, status), and a hover peek of Cat Office's cats. Design: `docs/superpowers/specs/2026-10-06-claude-bar-design.md`.
+A macOS menu bar companion for Claude Code and Cat Office: your usage limits, your projects, and a living office of
+cats, one click away.
 
-## Run it (no admin password needed)
+<img src="Resources/Help/images/office.png" alt="ClaudeBar's Office tab: usage at the top, the floor picker, and a project floor with a cat at its desk" width="480">
+
+## Features
+
+- **Usage in the menu bar:** your Claude Code 5-hour and 7-day limits, and how many sessions are working.
+- **Projects:** each project's branch, model, context and status.
+- **Your Cat Office, floor by floor:** every floor drawn exactly as your own Cat Office lays it out, with an elevator
+  between floors, Follow, and a hover peek from the menu bar.
+- **Cats that do what the browser shows:** while a Cat Office page is open, each cat is where the browser has it,
+  doing the same thing; with no page open, ClaudeBar runs Cat Office's own office rules, so idle cats nap, read and
+  snack in the Lounge.
+- **Cats walk around furniture,** on the same routes as Cat Office, and ride the elevator between floors.
+- **Name tags** on every cat, and a hover card with its project, branch, model and what it's doing in plain words.
+- **Spare cats** (optional): the office's own cats roaming the building.
+- **Sounds and lofi music,** generated from code (no recorded audio).
+- **Safe to try:** a short setup window, every change backed up, and one-click undo.
+
+## Requirements
+
+- A Mac on macOS 14 or newer, with Apple's Command Line Tools (Swift 6). You have them if `git` works; else
+  `xcode-select --install`, which may need IT on a company Mac.
+- [Cat Office](#cat-office-patch-same-cats-as-the-browser-found-wherever-it-lives) running locally for the office
+  (optional: without it you still get usage and projects).
+- Access to this private repo.
+
+## Getting started (no admin password needed)
 
 ```sh
-git clone <this repo> && cd claude-bar
+git clone git@github.com:jbclores/claude-bar.git && cd claude-bar
 scripts/run.sh             # checks the tools, builds, and opens ClaudeBar from this folder
 scripts/run.sh --install   # or: copy it to ~/Applications and run it from there
 ```
 
-- **Needs:** a Mac on macOS 14 or newer, and Apple's Command Line Tools with Swift 6 (you have them if `git` works;
-  else `xcode-select --install`, which may need IT on a company Mac).
 - **No IT credentials:** building happens in this folder, and `~/Applications` is your own folder, not the system
   `/Applications`. A ClaudeBar you build yourself doesn't get macOS's "unidentified developer" warning.
 - **First launch:** the Set up ClaudeBar window finds your Cat Office and turns on usage (see below).
@@ -110,7 +133,25 @@ shows their office. When Cat Office changes how rooms are laid out, re-run the f
 ## Tests
 
 ```sh
-swift test                                   # unit tests
+swift test                                   # unit tests (Core: geometry, walking grid, mirror, simulation, setup, undo)
+scripts/test-setup-scripts.sh <cat-office>   # the patch, undo and helper scripts, on temp copies (reads <cat-office> only)
 scripts/test-statusline.sh                   # status line output unchanged + snapshots
+scripts/test-undo-command.sh                 # ClaudeBar --undo against a temp folder (after scripts/build.sh)
 CLAUDEBAR_LIVE=1 swift test                  # also against the running Cat Office
 ```
+
+Click tests run offscreen from the built app: `build/ClaudeBar.app/Contents/MacOS/ClaudeBar --test-tabs`,
+`--test-zoom`, `--test-setup`, `--test-undo`.
+
+Some tests compare ClaudeBar with Cat Office's own code. When Cat Office changes, regenerate their fixtures from the Cat
+Office folder (it is only read):
+
+```sh
+npx tsx <claude-bar>/scripts/room-fixtures.ts <in-dir> <out.json>   # floors, walking grids and routes
+npx tsx <claude-bar>/scripts/sim-fixtures.ts <in-dir> <out.json>    # the office simulation's rules
+```
+
+## Design docs
+
+How each part was designed and why: `docs/superpowers/specs/` (start with `2026-10-06-claude-bar-design.md`), and the
+step-by-step plans in `docs/superpowers/plans/`.
