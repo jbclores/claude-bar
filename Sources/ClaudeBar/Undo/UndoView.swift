@@ -12,7 +12,7 @@ struct UndoView: View {
             Text(model.phase == .done ? "Done" : UndoText.title).font(.title3.weight(.semibold))
             switch model.phase {
             case .loading:
-                HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Checking what ClaudeBar changed…").foregroundStyle(.secondary) }
+                HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Checking what ClaudeBar changed…").foregroundStyle(Theme.secondaryText) }
                 Spacer()
             case .choose: choose
             case .done: done
@@ -25,7 +25,7 @@ struct UndoView: View {
 
     private var choose: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(UndoText.intro).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(UndoText.intro).font(.callout).foregroundStyle(Theme.secondaryText).fixedSize(horizontal: false, vertical: true)
             ForEach(model.rows) { row in rowView(row) }
             if let warning = model.warning {
                 Text(warning).font(.caption).foregroundStyle(Theme.waiting).fixedSize(horizontal: false, vertical: true)
@@ -44,7 +44,7 @@ struct UndoView: View {
                         Text("Undo selected")
                     }
                 }
-                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
                 .disabled(model.working || model.ticked.isEmpty)
                 .setupTarget("undo-run")
             }
@@ -59,7 +59,7 @@ struct UndoView: View {
             }
             .toggleStyle(.checkbox)
             .disabled(!row.available)
-            Text(row.detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(row.detail).font(.caption).foregroundStyle(Theme.secondaryText).fixedSize(horizontal: false, vertical: true)
                 .padding(.leading, 20)
             if !row.available {
                 Button("How to do it by hand ↗") { state.openChangesPage() }
@@ -81,7 +81,7 @@ struct UndoView: View {
                 }
             }
             ForEach(model.doneLines, id: \.self) { line in
-                Text(line).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(line).font(.callout).foregroundStyle(Theme.secondaryText).fixedSize(horizontal: false, vertical: true)
             }
             if model.needsRestart {
                 Button {
@@ -103,9 +103,9 @@ struct UndoView: View {
                 Button("What ClaudeBar changes ↗") { state.openChangesPage() }.buttonStyle(.link)
                 Spacer()
                 if model.removed {
-                    Button("Quit ClaudeBar") { model.quit() }.keyboardShortcut(.defaultAction).setupTarget("undo-quit")
+                    Button("Quit ClaudeBar") { model.quit() }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction).setupTarget("undo-quit")
                 } else {
-                    Button("Done") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.working).setupTarget("undo-done")
+                    Button("Done") { model.close() }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction).disabled(model.working).setupTarget("undo-done")
                 }
             }
         }

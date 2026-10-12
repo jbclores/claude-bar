@@ -49,17 +49,19 @@ extension CatHit {
     init(frame: CGRect) { self.init(frame: frame, z: 0, feet: CGPoint(x: frame.midX, y: frame.maxY)) }
 }
 
-/// "· 2 cats · Claude OK" (or hindered) after the peek's floor name: the cats on that floor, as the Office tab's floor
-/// menu counts them (not the whole office, which read as if they were all on the floor shown).
+/// "2 cats" after the peek's floor name: the cats on that floor, as the Office tab's floor menu counts them (not the
+/// whole office). While Claude is in trouble, says so too.
 struct OfficeSummary: View {
     let office: OfficeSnapshot
     let count: Int
 
     var body: some View {
-        HStack(spacing: 4) {
-            Text("· \(count) cat\(count == 1 ? "" : "s") ·").foregroundStyle(.secondary)
-            Text(office.claudeHindered ? "Claude hindered" : "Claude OK")
-                .foregroundStyle(office.claudeHindered ? Theme.waiting : .secondary)
+        HStack(spacing: 8) {
+            Text("\(count) cat\(count == 1 ? "" : "s")").foregroundStyle(Theme.secondaryText)
+            if office.claudeHindered {
+                Label("Claude is having trouble", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Theme.waiting).lineLimit(1)
+            }
         }
     }
 }
@@ -451,7 +453,7 @@ struct OfficeRoomView: View {
                 SpriteImage(key: "\(cat)-sleeping", fallback: Theme.idle) { await state.art.catImage(cat: cat, pose: .sleeping) }
                     .frame(width: 70, height: 74)
             } else {
-                Image(systemName: "cat.fill").font(.system(size: 34)).foregroundStyle(.secondary)
+                Image(systemName: "cat.fill").font(.system(size: 34)).foregroundStyle(Theme.secondaryText)
             }
             if state.officeAnswers {
                 // It's up; the feed is reconnecting (checkCopies asked it to, at once).
@@ -811,9 +813,9 @@ struct OfficePeekView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Text("Cat Office").font(.headline)
+                // The floor shown, as the Office tab's floor menu names it.
                 let f = state.building.floor(id: state.followFloor)
-                Text("· \(f?.id ?? 1) \(f?.name ?? "Lounge")").font(.callout.weight(.semibold))
+                Text("\(f?.id ?? 1) \(f?.name ?? "Lounge")").font(.headline).lineLimit(1)
                 if let office = state.office {
                     OfficeSummary(office: office, count: FloorPlan.cats(on: f?.id ?? 1, agents: office.agents, in: state.building, mirror: state.mirror).count)
                         .font(.callout)
@@ -1195,9 +1197,9 @@ struct CatCard: View {
     private var spareCard: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(agent.name).font(.callout.weight(.semibold)).lineLimit(1)
-            if let role = state.spareRole(agent) { Text(role).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+            if let role = state.spareRole(agent) { Text(role).font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1) }
             if let p = agent.place, let key = p.key {
-                ActivityLine(place: p, key: key, clock: state.minutesLeft).foregroundStyle(.secondary)
+                ActivityLine(place: p, key: key, clock: state.minutesLeft).foregroundStyle(Theme.secondaryText)
             }
         }
         .padding(8)
@@ -1217,7 +1219,7 @@ struct CatCard: View {
             }
             let place = [agent.name, agent.repoName, agent.branch, agent.model.map(Format.modelName)]
                 .compactMap { $0 }.filter { !$0.isEmpty }
-            Text(place.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(place.joined(separator: " · ")).font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1)
             // What the cat is doing: the browser's while the mirror is live, else the office's own life (OfficeSim).
             if let p = state.mirror.places[agent.id] { ActivityLine(place: p, key: agent.id, clock: state.minutesLeft) }
             if let reason = agent.waitReason { Text(reason).font(.caption).foregroundStyle(Theme.waiting) }
@@ -1225,7 +1227,7 @@ struct CatCard: View {
             if let last = agent.lastAction, !last.isEmpty {
                 // Plain words, as in the session list (the raw action is on the list row's hover).
                 Text("Last: \(ActionSummary.calm(last, working: agent.status == .working))")
-                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    .font(.caption2).foregroundStyle(Theme.secondaryText).lineLimit(1)
             }
         }
         .padding(8)

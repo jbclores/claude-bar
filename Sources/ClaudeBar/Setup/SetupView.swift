@@ -48,7 +48,7 @@ struct SetupView: View {
                 }
             }
             Text("Step \(model.step.rawValue + 1) of \(SetupModel.Step.allCases.count) · \(title(model.step))")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(Theme.secondaryText)
         }
     }
 
@@ -79,7 +79,7 @@ struct SetupView: View {
                     Text("Continue")
                 }
             }
-            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
             .disabled(!canContinue)
             .setupTarget("setup-continue")
         }
@@ -114,17 +114,23 @@ struct SetupView: View {
     private var welcome: some View {
         VStack(spacing: 14) {
             Spacer()
-            Image(systemName: "cat.fill")
-                .font(.system(size: 64, weight: .regular))
-                .foregroundStyle(Color.accentColor)
+            // One of the office's own cats waving hello, once Cat Office's cats are known; else a plain cat.
+            if let cat = state.catIds.first {
+                SpriteImage(key: "\(cat)-waving-front-left", fallback: nil) { await state.art.catImage(cat: cat, pose: .waving) }
+                    .frame(width: 96, height: 101)
+            } else {
+                Image(systemName: "cat.fill")
+                    .font(.system(size: 64, weight: .regular))
+                    .foregroundStyle(Theme.working)
+            }
             Text("Welcome to ClaudeBar").font(.title2.weight(.semibold))
             Text("ClaudeBar shows your Claude usage, your projects and your Cat Office in the menu bar.")
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 340)
             Text("Setup takes about a minute, and you're in control.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(Theme.secondaryText)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 340)
             Spacer()
@@ -134,14 +140,14 @@ struct SetupView: View {
                 Text("Set up").frame(minWidth: 120)
             }
             .controlSize(.large)
-            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
             .setupTarget("setup-setup")
             Button("Skip for now") { model.skip() }
                 .buttonStyle(.link)
                 .setupTarget("setup-skip-welcome")
             VStack(spacing: 2) {
                 Text("Nothing changes until you say so, and you can undo everything later.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Theme.secondaryText)
                 Button("What will ClaudeBar change?") { state.openChangesPage() }
                     .buttonStyle(.link).font(.caption)
                     .setupTarget("setup-changes")
@@ -162,13 +168,13 @@ struct SetupView: View {
                     Text("Looking for your Cat Office… this only takes a moment.")
                 }
                 Text("macOS may ask to let ClaudeBar look in your Documents, Desktop or Downloads folders — that's for finding Cat Office.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Theme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             } else if model.candidates.isEmpty {
                 Text("ClaudeBar couldn't find Cat Office on its own. No problem: you can point to its folder, or carry on without it.")
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Its folder is the one with package.json and server/agent-bridge.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.callout).foregroundStyle(Theme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 10) {
                     Button("Choose folder…") { chooseFolder() }
@@ -205,7 +211,7 @@ struct SetupView: View {
                 Text(name(candidate.path)).font(.callout.weight(.medium))
                 if candidate.running { runningBadge }
             }
-            Text(abbreviated(candidate.path)).font(.caption).foregroundStyle(.secondary)
+            Text(abbreviated(candidate.path)).font(.caption).foregroundStyle(Theme.secondaryText)
                 .lineLimit(1).truncationMode(.middle)
         }
         .padding(12)
@@ -226,7 +232,7 @@ struct SetupView: View {
                         Text(name(candidate.path)).font(.callout.weight(.medium))
                         if candidate.running { runningBadge }
                     }
-                    Text(abbreviated(candidate.path)).font(.caption).foregroundStyle(.secondary)
+                    Text(abbreviated(candidate.path)).font(.caption).foregroundStyle(Theme.secondaryText)
                         .lineLimit(1).truncationMode(.middle)
                 }
                 Spacer(minLength: 0)
@@ -284,7 +290,7 @@ struct SetupView: View {
             }
             if model.chosen == nil {
                 Text("That's completely fine: ClaudeBar works without it and still shows your usage and projects. Whenever you'd like the cats, Settings → Set up ClaudeBar… brings Cat Office in.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.callout).foregroundStyle(Theme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -297,7 +303,7 @@ struct SetupView: View {
             Toggle(isOn: isOn) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title).font(.body.weight(.medium))
-                    Text(line).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(line).font(.caption).foregroundStyle(Theme.secondaryText).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .toggleStyle(.checkbox)
@@ -310,7 +316,7 @@ struct SetupView: View {
         switch model.statusLine {
         case .own(let command):
             VStack(alignment: .leading, spacing: 4) {
-                Text("You have your own status line (\(command)).").font(.caption).foregroundStyle(.secondary)
+                Text("You have your own status line (\(command)).").font(.caption).foregroundStyle(Theme.secondaryText)
                     .lineLimit(1).truncationMode(.tail)
                 Picker("", selection: $model.keepOwnStatusLine) {
                     Text("Keep your status line (ClaudeBar reads its data quietly)").tag(true)
@@ -321,13 +327,13 @@ struct SetupView: View {
                 .font(.callout)
             }
         case .claudeBar:
-            Text("ClaudeBar's status line is already set up.").font(.caption).foregroundStyle(.secondary)
+            Text("ClaudeBar's status line is already set up.").font(.caption).foregroundStyle(Theme.secondaryText)
         case .wrapped:
-            Text("Your status line is already kept, with ClaudeBar reading its data.").font(.caption).foregroundStyle(.secondary)
+            Text("Your status line is already kept, with ClaudeBar reading its data.").font(.caption).foregroundStyle(Theme.secondaryText)
         case .unreadable:
             Text("~/.claude/settings.json isn't valid JSON, so it will be left alone.").font(.caption).foregroundStyle(Theme.waiting)
         case .none:
-            Text("Installs ClaudeBar's status line; settings.json is backed up first.").font(.caption).foregroundStyle(.secondary)
+            Text("Installs ClaudeBar's status line; settings.json is backed up first.").font(.caption).foregroundStyle(Theme.secondaryText)
         }
     }
 
@@ -344,7 +350,7 @@ struct SetupView: View {
             Text(allGood ? "You're all set! 🐈" : "Almost there").font(.title3.weight(.semibold))
             Text(allGood ? "Welcome aboard. Your cats are ready when you are."
                          : "Everything that worked is ready to use. The lines below say how to finish the rest, whenever you like.")
-                .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                .font(.callout).foregroundStyle(Theme.secondaryText).fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(model.summary.enumerated()), id: \.offset) { _, line in
                     HStack(alignment: .top, spacing: 8) {
@@ -358,7 +364,7 @@ struct SetupView: View {
             }
             if model.results["usage"]?.ok == true {
                 Text("Usage appears after your next message in Claude Code.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.callout).foregroundStyle(Theme.secondaryText)
             }
             if model.needsRestart {
                 VStack(alignment: .leading, spacing: 4) {
@@ -373,20 +379,20 @@ struct SetupView: View {
                     .disabled(model.working)
                     .help(Self.restartWarning)
                     .setupTarget("setup-restart")
-                    Text(Self.restartWarning).font(.caption).foregroundStyle(.secondary)
+                    Text(Self.restartWarning).font(.caption).foregroundStyle(Theme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer()
             Text("Changed your mind? Settings → Undo ClaudeBar's changes… puts everything back.")
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                .font(.caption).foregroundStyle(Theme.secondaryText).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button("Full guide ↗") { state.openHelpGuide() }
                     .buttonStyle(.link)
                     .setupTarget("setup-guide")
                 Spacer()
                 Button("Open the office") { model.openOffice() }
-                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
                     .disabled(model.working)
                     .setupTarget("setup-open-office")
             }

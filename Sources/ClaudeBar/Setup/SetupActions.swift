@@ -14,7 +14,7 @@ struct SetupEnvironment: Sendable {
     /// Something answers HTTP at Cat Office's address (injected so tests and renders never reach a real Cat Office).
     var answers: @Sendable (URL) async -> Bool = { await CatOfficeLauncher.answers($0) }
 
-    /// "Also remove ClaudeBar" turns Launch at Login off (injected so tests never touch the real login item).
+    /// "Also remove ClaudeBar" turns Open at login off (injected so tests never touch the real login item).
     /// Returns true when it is off afterwards.
     var launchAtLoginOff: @Sendable () -> Bool = {
         if SMAppService.mainApp.status == .enabled { try? SMAppService.mainApp.unregister() }

@@ -59,18 +59,22 @@ import Testing
     }
 }
 
-/// Settings' connection line: where ClaudeBar reads Cat Office from, how fresh, and whether a browser page is shared.
+/// Settings' connection line: a plain sentence; the address and how fresh it is on hover.
 @Suite struct ConnectionLineTests {
     let now = Date(timeIntervalSince1970: 1_800_000_000)
 
     @Test func connectedWithAndWithoutABrowserPage() {
         let url = URL(string: "http://localhost:5173")!
-        #expect(ConnectionLine.text(url: url, lastUpdate: now.addingTimeInterval(-2), placesLive: true, copies: 1, now: now)
-                == "Connected to localhost:5173 · updated 2 s ago · copying your browser page")
-        #expect(ConnectionLine.text(url: url, lastUpdate: now.addingTimeInterval(-90), placesLive: false, copies: 1, now: now)
-                == "Connected to localhost:5173 · updated 1 min ago · no browser page open, so ClaudeBar keeps the office itself")
-        #expect(ConnectionLine.text(url: url, lastUpdate: now, placesLive: true, copies: 2, now: now)
-                == "Connected to localhost:5173 · updated just now · copying your browser page · 2 copies running")
-        #expect(ConnectionLine.text(url: nil, lastUpdate: nil, placesLive: false, copies: 0, now: now) == "Not connected to Cat Office")
+        let live = ConnectionLine.text(url: url, lastUpdate: now.addingTimeInterval(-2), placesLive: true, copies: 1, now: now)
+        #expect(live.line == "Connected, copying your browser page")
+        #expect(live.detail == "localhost:5173, updated 2 s ago")
+        let noPage = ConnectionLine.text(url: url, lastUpdate: now.addingTimeInterval(-90), placesLive: false, copies: 1, now: now)
+        #expect(noPage.line == "Connected. No browser page is open, so ClaudeBar runs the office itself")
+        #expect(noPage.detail == "localhost:5173, updated 1 min ago")
+        #expect(ConnectionLine.text(url: url, lastUpdate: now, placesLive: true, copies: 2, now: now).line
+                == "Connected, but two copies of Cat Office are running")
+        #expect(ConnectionLine.text(url: url, lastUpdate: now, placesLive: true, copies: 1, now: now).detail == "localhost:5173, updated just now")
+        let off = ConnectionLine.text(url: nil, lastUpdate: nil, placesLive: false, copies: 0, now: now)
+        #expect(off.line == "Not connected to Cat Office" && off.detail == nil)
     }
 }

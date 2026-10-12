@@ -8,6 +8,8 @@ enum Theme {
     static let waiting = Color(hex: 0xF2B53A)
     static let idle = Color(hex: 0x6F7A86)
     static let ended = Color(hex: 0x6AA5FF)
+    /// Secondary text: a step darker than the system's, which faded on the light popover's grey.
+    static let secondaryText = Color.primary.opacity(0.68)
 
     static func color(_ status: AgentStatus) -> Color {
         switch status {

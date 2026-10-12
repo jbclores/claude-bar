@@ -95,7 +95,7 @@ public enum UndoText {
     public static let title = "Undo ClaudeBar's changes"
     public static let intro = "Pick what to undo. Everything is backed up first, and nothing of yours is deleted."
     public static let promise = "Everything is backed up first, and nothing of yours is deleted."
-    public static let removeDetail = "Turns off Launch at Login, then ClaudeBar quits (drag the app to the Trash yourself). "
+    public static let removeDetail = "Turns off Open at login, then ClaudeBar quits (drag the app to the Trash yourself). "
         + "Its own files go to the Trash, so you can still get them back."
     public static let noRecord = "ClaudeBar has no record of your earlier status line, so it won't guess. Here's how to change it by hand."
     public static let cannotUnpatch = "ClaudeBar can't take its patch out cleanly (this Cat Office changed since ClaudeBar patched it), so it won't guess. "

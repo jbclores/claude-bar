@@ -260,7 +260,7 @@ private func undoModel(mode: String, state: AppState) -> UndoModel? {
         model.phase = .done
     case "done-removed":
         model.results = [.statusLine: StepResult(ok: true, text: "Your old status line is back."),
-                         .remove: StepResult(ok: true, text: "Launch at Login is off, and ClaudeBar's files are in the Trash.")]
+                         .remove: StepResult(ok: true, text: "Open at login is off, and ClaudeBar's files are in the Trash.")]
         model.doneLines = UndoText.doneLines(results: [.statusLine: true, .remove: true], leftOut: false)
         model.phase = .done
     default: return nil

@@ -9,17 +9,17 @@ struct OfficeCatList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if rows.isEmpty {
-                Text("No office cats right now").font(.caption).foregroundStyle(.secondary)
+                Text("No office cats right now").font(.caption).foregroundStyle(Theme.secondaryText)
             }
             ForEach(rows) { row in
                 HStack(spacing: 8) {
                     if row.isSubagent {
                         // A helper its parent started, listed under it.
-                        Text("↳").font(.caption).foregroundStyle(.secondary).padding(.leading, 10)
+                        Text("↳").font(.caption).foregroundStyle(Theme.secondaryText).padding(.leading, 10)
                     }
                     Circle().fill(row.needsAttention ? Theme.waiting : Theme.color(row.status)).frame(width: 7, height: 7)
                     if row.isSubagent, let type = row.agentType {
-                        Text(type).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        Text(type).font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
                             .padding(.horizontal, 5).padding(.vertical, 1)
                             .background(Capsule().fill(Color.primary.opacity(0.08)))
                     }
@@ -28,14 +28,15 @@ struct OfficeCatList: View {
                         .foregroundStyle(row.needsAttention ? Theme.waiting : Theme.color(row.status))
                         .fixedSize()
                     Spacer(minLength: 8)
-                    // Plain words (no commands, paths or search text); the raw action is on hover.
-                    Text(row.lastAction.map { ActionSummary.calm($0, working: row.status == .working) } ?? row.branch ?? "")
-                        .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
+                    // What it's doing in two or three words; the file or program, and the raw action, are on hover.
+                    Text(row.lastAction.map { ActionSummary.short($0, working: row.status == .working) } ?? row.branch ?? "")
+                        .font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1).fixedSize()
                 }
                 .contentShape(Rectangle())
                 .onTapGesture(perform: openOffice)
-                .help(([row.name, row.detail] + [row.lastAction == row.detail ? nil : row.lastAction])
-                    .compactMap { $0 }.joined(separator: " — "))
+                .help(([row.name, row.lastAction.map { ActionSummary.calm($0, working: row.status == .working) }, row.detail]
+                    + [row.lastAction == row.detail ? nil : row.lastAction])
+                    .compactMap { $0 }.joined(separator: "\n"))
             }
         }
     }
@@ -58,11 +59,11 @@ struct OfficeStarter: View {
                 Button("Start Cat Office", action: start)
             case .starting:
                 ProgressView().controlSize(.small)
-                Text("Starting Cat Office…").font(.caption).foregroundStyle(.secondary)
+                Text("Starting Cat Office…").font(.caption).foregroundStyle(Theme.secondaryText)
             case .failed(let message):
                 Text(message).font(.caption).foregroundStyle(Theme.waiting)
-                Button("Try Again", action: start).buttonStyle(.link).font(.caption)
-                Button("Open Log", action: openLog).buttonStyle(.link).font(.caption)
+                Button("Try again", action: start).buttonStyle(.link).font(.caption)
+                Button("Open log", action: openLog).buttonStyle(.link).font(.caption)
             }
         }
     }

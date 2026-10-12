@@ -312,7 +312,7 @@ struct CatOfficeInvite: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Your sessions could be cats in a little office").font(.callout.weight(.semibold))
                 Text("Cat Office shows each Claude session as a cat at its desk: napping when it's idle, snacking now and then, and waving when it needs you. It's a cosy way to keep an eye on your work.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Theme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 14) {
                     Button("See how") { state.openHelpGuide(section: "cat-office") }
@@ -335,14 +335,14 @@ struct ProjectsTabView: View {
         VStack(alignment: .leading, spacing: 10) {
             if state.invitesToCatOffice { CatOfficeInvite() }
             if state.output.projects.isEmpty {
-                Text("No projects yet").font(.callout).foregroundStyle(.secondary)
+                Text("No projects yet").font(.callout).foregroundStyle(Theme.secondaryText)
             }
             ForEach(state.output.projects) { row in
                 ProjectRowView(row: row,
                                onOpen: { NSWorkspace.shared.open(URL(fileURLWithPath: row.path)) },
                                onRemove: { state.remove(row) })
             }
-            Button { chooseFolders() } label: { Label("Add Folder…", systemImage: "plus") }
+            Button { chooseFolders() } label: { Label("Add folder…", systemImage: "plus") }
                 .buttonStyle(.link)
                 .font(.caption)
         }
@@ -363,7 +363,7 @@ struct SettingsTabView: View {
     @EnvironmentObject var state: AppState
     /// What "Restore my old status line" did (its error, or that it worked).
     @State private var restoreMessage: String?
-    /// The two folded sections: the four separate sounds, and Advanced (Refresh office art, Edit Config, Open Log).
+    /// The two folded sections: the four separate sounds, and Advanced (Refresh office art, Edit config file, Open log).
     @State private var soundsOpen = SettingsTabView.startOpen
     @State private var advancedOpen = SettingsTabView.startOpen
     /// Renders only: draw both folded sections open (`CLAUDEBAR_RENDER_SETTINGS_OPEN=1`).
@@ -372,7 +372,7 @@ struct SettingsTabView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             heading("General")
-            setting("Launch at Login", state.launchAtLogin) { state.setLaunchAtLogin($0) }
+            setting("Open at login", state.launchAtLogin) { state.setLaunchAtLogin($0) }
             setting("Notify when a cat finishes", state.settings.notifications) { state.setNotifications($0) }
             // Cat Office's switches: not for "I don't use Cat Office" (they come back with the Office tab).
             if state.officeShown {
@@ -391,8 +391,8 @@ struct SettingsTabView: View {
                 HStack(spacing: 14) {
                     Button("Refresh office art") { state.refreshArt() }
                         .help("Check Cat Office now for changed floors, furniture and characters")
-                    Button("Edit Config") { state.editConfig() }
-                    Button("Open Log") { state.openLauncherLog() }
+                    Button("Edit config file") { state.editConfig() }
+                    Button("Open log") { state.openLauncherLog() }
                 }
                 .buttonStyle(.link)
                 .font(.caption)
@@ -410,11 +410,11 @@ struct SettingsTabView: View {
         if s.on {
             HStack(spacing: 8) {
                 Text("Volume")
-                Image(systemName: "speaker.fill").font(.caption).foregroundStyle(.secondary)
+                Image(systemName: "speaker.fill").font(.caption).foregroundStyle(Theme.secondaryText)
                 Slider(value: Binding(get: { state.settings.sounds.volume }, set: { state.setSoundVolume($0) }),
                        in: 0...1) { editing in if !editing { state.previewSound() } }
                     .controlSize(.small)
-                Image(systemName: "speaker.wave.3.fill").font(.caption).foregroundStyle(.secondary)
+                Image(systemName: "speaker.wave.3.fill").font(.caption).foregroundStyle(Theme.secondaryText)
             }
             fold("Choose sounds", note: "\(s.chosenCount) of \(SoundSettings.chosenTotal) on", open: $soundsOpen)
             if soundsOpen {
@@ -439,18 +439,19 @@ struct SettingsTabView: View {
                 Image(systemName: "checkmark").font(.caption.weight(.bold)).foregroundStyle(Theme.working)
             }
             Text(setup.line(catOfficeDir: state.settings.catOffice.dir, runningDir: running, home: NSHomeDirectory()))
-                .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                .font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1).truncationMode(.middle)
         }
         .help(SetupSettings.folderPath(catOfficeDir: state.settings.catOffice.dir, runningDir: running,
                                        home: NSHomeDirectory()) ?? "")
         if state.officeShown {
             // How ClaudeBar reads Cat Office right now, ticking each second.
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text(ConnectionLine.text(url: state.office == nil ? nil : state.officeClient.baseURL, lastUpdate: state.lastOfficeUpdate,
-                                         placesLive: MirrorPlaces.isLive(placesAt: state.office?.placesAt, now: context.date),
-                                         copies: state.officeCopies.count, now: context.date))
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                let c = ConnectionLine.text(url: state.office == nil ? nil : state.officeClient.baseURL, lastUpdate: state.lastOfficeUpdate,
+                                            placesLive: MirrorPlaces.isLive(placesAt: state.office?.placesAt, now: context.date),
+                                            copies: state.officeCopies.count, now: context.date)
+                Text(c.line).font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(c.detail ?? "")
             }
         }
         HStack(spacing: 14) {
@@ -471,12 +472,12 @@ struct SettingsTabView: View {
             .buttonStyle(.link).font(.caption)
         }
         if let restoreMessage {
-            Text(restoreMessage).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(restoreMessage).font(.caption).foregroundStyle(Theme.secondaryText).fixedSize(horizontal: false, vertical: true)
         }
     }
 
     private func heading(_ title: String) -> some View {
-        Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+        Text(title).font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
     }
 
     /// A folded section's header: a chevron, the title and an optional note ("3 of 4 on").
@@ -486,9 +487,9 @@ struct SettingsTabView: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: open.wrappedValue ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary).frame(width: 10)
+                    .font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.secondaryText).frame(width: 10)
                 Text(title)
-                if let note { Text("· \(note)").font(.caption).foregroundStyle(.secondary) }
+                if let note { Text("· \(note)").font(.caption).foregroundStyle(Theme.secondaryText) }
                 Spacer()
             }
             .contentShape(Rectangle())
@@ -520,7 +521,7 @@ struct TitleRow: View {
                 }
                 .frame(width: 20, height: 18)
             } else {
-                Image(systemName: "cat.fill").font(.system(size: 13)).foregroundStyle(.secondary)
+                Image(systemName: "cat.fill").font(.system(size: 13)).foregroundStyle(Theme.secondaryText)
             }
             Text("ClaudeBar").font(.headline)
             Spacer()
@@ -558,7 +559,7 @@ struct UsageHeader: View {
                 Text("Usage").font(.subheadline.weight(.semibold))
                 Spacer()
                 if let asOf = usage.asOf {
-                    Text("as of \(Format.age(asOf, now: Date()))").font(.caption).foregroundStyle(.secondary)
+                    Text("as of \(Format.age(asOf, now: Date()))").font(.caption).foregroundStyle(Theme.secondaryText)
                 }
             }
             row("5h", usage.fiveHourPct, usage.fiveHourResetsAt,
@@ -574,7 +575,7 @@ struct UsageHeader: View {
             Text(pct.map(Format.percent) ?? "—").font(.caption.monospacedDigit()).frame(width: 36, alignment: .trailing)
             if let extra { Text(extra).font(.caption).foregroundStyle(Theme.working) }
             Spacer()
-            if let resets { Text(Format.resets(resets, now: Date())).font(.caption).foregroundStyle(.secondary) }
+            if let resets { Text(Format.resets(resets, now: Date())).font(.caption).foregroundStyle(Theme.secondaryText) }
         }
     }
 }
@@ -592,24 +593,24 @@ struct ProjectRowView: View {
                 HStack(spacing: 6) {
                     Text(row.name).font(.body.weight(.medium)).lineLimit(1)
                     if case .live(let status, _) = row.state {
-                        Text(row.needsAttention && status != .waiting ? "your turn" : status.rawValue)
+                        Text(row.needsAttention || status == .waiting ? "needs you" : status.rawValue)
                             .font(.caption).foregroundStyle(row.needsAttention ? Theme.waiting : Theme.color(status))
                     }
                     if row.helpers > 0 {
                         Text("+\(row.helpers) helper\(row.helpers == 1 ? "" : "s")")
-                            .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                            .font(.caption2.weight(.semibold)).foregroundStyle(Theme.secondaryText)
                             .padding(.horizontal, 6).padding(.vertical, 1)
                             .background(Capsule().fill(Color.primary.opacity(0.08)))
                             .help("Sub-agents working in this project")
                     }
                     Spacer()
-                    trailing.font(.caption).foregroundStyle(.secondary)
+                    trailing.font(.caption).foregroundStyle(Theme.secondaryText)
                     if hovering {
                         Button(action: onRemove) { Image(systemName: "xmark.circle.fill") }
-                            .buttonStyle(.plain).foregroundStyle(.secondary).help("Remove from list")
+                            .buttonStyle(.plain).foregroundStyle(Theme.secondaryText).help("Remove from list")
                     }
                 }
-                detail.font(.caption).foregroundStyle(.secondary)
+                detail.font(.caption).foregroundStyle(Theme.secondaryText)
             }
         }
         .opacity(isDimmed ? 0.55 : 1)
@@ -648,12 +649,13 @@ struct ProjectRowView: View {
         case .missing:
             Text("missing")
         case .noSessions:
-            Text([row.branch, "no sessions yet"].compactMap { $0 }.joined(separator: " · "))
+            Text(row.branch.map { "\($0), no sessions yet" } ?? "No sessions yet")
         default:
             HStack(spacing: 6) {
                 Text([row.branch, row.model].compactMap { $0 }.joined(separator: " · ")).lineLimit(1)
                 if let ctx = row.contextPct {
-                    Text("· ctx")
+                    // How full the session's context is.
+                    Text("context").padding(.leading, 4)
                     UsageBar(percent: ctx, segmentWidth: 5)
                     Text(Format.percent(ctx)).monospacedDigit()
                 }

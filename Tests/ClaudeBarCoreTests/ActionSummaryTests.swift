@@ -41,4 +41,12 @@ import Testing
         #expect(calm("TodoWrite") == "TodoWrite")
         #expect(calm("") == "")
     }
+
+    /// The office list's short form: what the cat is doing, without the file or program (the full line is on hover).
+    @Test func shortKeepsJustWhatItsDoing() {
+        #expect(ActionSummary.short("Read a/b/clo-tailfix3.png", working: false) == "Read a file")
+        #expect(ActionSummary.short("Bash: mkdir -p x", working: true) == "Running a command")
+        #expect(ActionSummary.short("Asked a question", working: false) == "Asked a question")
+        #expect(ActionSummary.short("", working: false) == "")
+    }
 }

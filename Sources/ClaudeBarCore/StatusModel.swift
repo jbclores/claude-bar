@@ -159,6 +159,9 @@ public enum StatusModel {
         projects.filter { Paths.isInside(path, $0.path) }.max { $0.path.count < $1.path.count }
     }
 
+    /// The office list's titles are cut at this many characters (name tags and cards keep OfficeAgent.label's 28).
+    public static let listTitleLength = 52
+
     public static func build(_ input: StatusInput) -> StatusOutput {
         let live = liveSessions(fallback: input.fallbackSessions, office: input.office)
 
@@ -225,7 +228,7 @@ public enum StatusModel {
             return ordered
                 .map { a in
                     OfficeRow(
-                        id: a.key, name: a.name, label: a.label, status: a.status,
+                        id: a.key, name: a.name, label: a.label(max: Self.listTitleLength), status: a.status,
                         since: a.statusSince(tracked: input.statusSince[a.key]),
                         place: a.repoName ?? (a.cwd as NSString).lastPathComponent,
                         branch: a.branch, detail: a.task ?? a.lastAction, lastAction: a.lastAction,

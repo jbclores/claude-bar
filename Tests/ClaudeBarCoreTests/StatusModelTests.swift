@@ -159,6 +159,16 @@ import Testing
         #expect(decoded.updatedAt == Date(timeIntervalSince1970: 1_800_000_000))
     }
 
+    /// The office list has room for longer titles than the name tags.
+    @Test func officeListShowsLongerTitles() throws {
+        var a = OfficeAgent(id: "1", name: "office-a", owner: "office", status: .idle, cwd: "/w/app",
+                            task: "Fix the bug in Build a cat where the preview stays blank")
+        a.titleSource = "ai"
+        let row = try #require(StatusModel.build(input([], office: OfficeSnapshot(agents: [a]))).office?.first)
+        #expect(row.label.count > a.label.count)
+        #expect(row.label.hasPrefix("Fix the bug in Build a cat where"))
+    }
+
     @Test func trackedSessionsPreferOfficeAndKeepEnded() {
         let tracked = StatusModel.trackedSessions(
             fallback: [LiveSession(key: "s1", cwd: "/", status: .idle, name: "x"), LiveSession(key: "t", cwd: "/", status: .working, name: "t")],

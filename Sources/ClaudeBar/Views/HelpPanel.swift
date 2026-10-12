@@ -52,11 +52,11 @@ struct HelpPanel: View {
 
     private func section(_ title: String, _ items: [(String, String)]) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
             ForEach(items, id: \.0) { item in
                 VStack(alignment: .leading, spacing: 1) {
                     Text(item.0).font(.callout.weight(.medium))
-                    Text(item.1).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(item.1).font(.caption).foregroundStyle(Theme.secondaryText).fixedSize(horizontal: false, vertical: true)
                 }
             }
         }

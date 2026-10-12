@@ -61,14 +61,14 @@ enum UndoActions {
             let loginHelp = "turn it off in System Settings → General → Login Items."
             switch (removal.failures.isEmpty, loginOff) {
             case (true, true):
-                results[.remove] = StepResult(ok: true, text: "Launch at Login is off, and ClaudeBar's files are in the Trash.")
+                results[.remove] = StepResult(ok: true, text: "Open at login is off, and ClaudeBar's files are in the Trash.")
             case (true, false):
-                results[.remove] = StepResult(ok: false, text: "ClaudeBar's files are in the Trash, but Launch at Login is still on: " + loginHelp)
+                results[.remove] = StepResult(ok: false, text: "ClaudeBar's files are in the Trash, but Open at login is still on: " + loginHelp)
             case (false, true):
                 results[.remove] = StepResult(ok: false, text: "Some of ClaudeBar's files couldn't go to the Trash: " + removal.failures.joined(separator: "; "))
             case (false, false):
                 results[.remove] = StepResult(ok: false, text: "Some of ClaudeBar's files couldn't go to the Trash: "
-                    + removal.failures.joined(separator: "; ") + ". Launch at Login is still on: " + loginHelp)
+                    + removal.failures.joined(separator: "; ") + ". Open at login is still on: " + loginHelp)
             }
         }
         return results

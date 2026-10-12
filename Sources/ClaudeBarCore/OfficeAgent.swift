@@ -54,11 +54,14 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
 
     /// What to call the agent: a custom or AI title, else its project, else the first words of its task, else
     /// its name.
-    public var label: String {
-        if isSubagent, let d = agentDescription, !d.isEmpty { return Format.shortTitle(d, max: 28) }
-        if let task, !task.isEmpty, let source = titleSource, source != "prompt" { return Format.shortTitle(task, max: 28) }
+    public var label: String { label(max: 28) }
+
+    /// `label` with titles cut at `max` characters (a first message at `max` − 4): longer where there's room (the office list).
+    public func label(max: Int) -> String {
+        if isSubagent, let d = agentDescription, !d.isEmpty { return Format.shortTitle(d, max: max) }
+        if let task, !task.isEmpty, let source = titleSource, source != "prompt" { return Format.shortTitle(task, max: max) }
         if let repoName, !repoName.isEmpty { return repoName }
-        if let task, !task.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return Format.shortTitle(task, max: 24) }
+        if let task, !task.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return Format.shortTitle(task, max: max - 4) }
         return name
     }
 

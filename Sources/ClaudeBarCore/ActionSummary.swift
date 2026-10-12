@@ -4,6 +4,12 @@ import Foundation
 /// in plain words ("Running a command · grep", "Read a file · c.md"). Commands show only the program, files only their
 /// name, searches and web pages nothing typed, so private text stays off the screen. The raw label is for hovering.
 public enum ActionSummary {
+    /// Just what the cat is doing ("Read a file", "Running a command"), for the office list; `calm` is on hover.
+    public static func short(_ label: String, working: Bool) -> String {
+        let line = calm(label, working: working)
+        return line.components(separatedBy: " · ").first ?? line
+    }
+
     public static func calm(_ label: String, working: Bool) -> String {
         let label = label.trimmingCharacters(in: .whitespaces)
         guard !label.isEmpty else { return "" }

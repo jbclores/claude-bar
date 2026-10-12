@@ -78,17 +78,17 @@ public enum CatOfficeServers {
     }
 }
 
-/// Settings' line on ClaudeBar's link to Cat Office: "Connected to localhost:5173 · updated 2 s ago · copying your browser
-/// page", "… · no browser page open, so ClaudeBar keeps the office itself", or "Not connected to Cat Office".
+/// Settings' line on ClaudeBar's link to Cat Office, in plain words ("Connected, copying your browser page"), and the
+/// address and how fresh it is for hovering ("localhost:5173, updated 2 s ago").
 public enum ConnectionLine {
-    public static func text(url: URL?, lastUpdate: Date?, placesLive: Bool, copies: Int, now: Date) -> String {
-        guard let url, let lastUpdate else { return "Not connected to Cat Office" }
+    public static func text(url: URL?, lastUpdate: Date?, placesLive: Bool, copies: Int, now: Date) -> (line: String, detail: String?) {
+        guard let url, let lastUpdate else { return ("Not connected to Cat Office", nil) }
         let host = url.host.map { h in url.port.map { "\(h):\($0)" } ?? h } ?? url.absoluteString
         let age = now.timeIntervalSince(lastUpdate)
         let updated = age < 1 ? "just now" : age < 60 ? "\(Int(age)) s ago" : "\(Int(age / 60)) min ago"
-        var parts = ["Connected to \(host)", "updated \(updated)",
-                     placesLive ? "copying your browser page" : "no browser page open, so ClaudeBar keeps the office itself"]
-        if copies > 1 { parts.append("\(copies) copies running") }
-        return parts.joined(separator: " · ")
+        let line = copies > 1 ? "Connected, but two copies of Cat Office are running"
+            : placesLive ? "Connected, copying your browser page"
+            : "Connected. No browser page is open, so ClaudeBar runs the office itself"
+        return (line, "\(host), updated \(updated)")
     }
 }

@@ -40,12 +40,12 @@ scripts/run.sh --install   # or: copy it to ~/Applications and run it from there
   `/Applications`. A ClaudeBar you build yourself doesn't get macOS's "unidentified developer" warning.
 - **First launch:** the Set up ClaudeBar window finds your Cat Office and turns on usage (see below).
 - **Updating:** `git pull`, then `scripts/run.sh` again (with `--install` if you installed); it quits the old one.
-- **Start at login:** tick Launch at Login in Settings. Use `--install` first, so it doesn't point into this folder.
+- **Start at login:** tick Open at login in Settings. Use `--install` first, so it doesn't point into this folder.
 - **Don't use `swift run`:** it leaves out the setup scripts, sounds and guide that `scripts/build.sh` bundles.
 
 Doing it by hand: `scripts/build.sh` builds `build/ClaudeBar.app`; copy it to `~/Applications` and open it.
 
-Config: `~/.config/claude-bar/projects.json` (Add Folder… / Edit Config in the dropdown).
+Config: `~/.config/claude-bar/projects.json` (Add folder… / Edit config file in the dropdown).
 
 ## What ClaudeBar changes (and how to undo it)
 
