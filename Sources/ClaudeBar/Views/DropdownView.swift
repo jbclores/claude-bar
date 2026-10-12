@@ -239,6 +239,7 @@ struct OfficeTabView: View {
             if let card = state.settings.setup.card(catOfficeKnown: known || state.office != nil) {
                 SetupCard(reduced: card == .reduced) { SetupWindow.shared.open(state: state) }
             }
+            if state.officeCopies.count > 1 { TwoCopiesCard() }
             FloorPicker()
             OfficeRoomView()
             if let rows = state.output.office {
@@ -252,6 +253,35 @@ struct OfficeTabView: View {
             case .active(let point): pointer.location = point
             case .ended: pointer.location = nil
             }
+        }
+    }
+}
+
+/// Two copies of Cat Office run from one folder: each runs its own office, so ClaudeBar and the browser may disagree.
+/// "Stop the extra one" stops the copies ClaudeBar doesn't read, after a warning.
+struct TwoCopiesCard: View {
+    @EnvironmentObject var state: AppState
+    @State private var confirming = false
+
+    var body: some View {
+        let kept = state.officePortKept.map { "localhost:\($0)" } ?? "the first one"
+        let extra = state.extraOfficeCopies.map { "\($0.port)" }.joined(separator: ", ")
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.waiting)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Two copies of Cat Office are running, so the cats may not match").font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Stop the extra one") { confirming = true }.buttonStyle(.link).font(.caption)
+            }
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.waiting.opacity(0.1)))
+        .alert("Stop the copy on port \(extra)?", isPresented: $confirming) {
+            Button("Stop it", role: .destructive) { state.stopExtraCopies() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Claude sessions running inside that copy will end. ClaudeBar keeps the one at \(kept): open that address in your browser.")
         }
     }
 }
@@ -413,6 +443,16 @@ struct SettingsTabView: View {
         }
         .help(SetupSettings.folderPath(catOfficeDir: state.settings.catOffice.dir, runningDir: running,
                                        home: NSHomeDirectory()) ?? "")
+        if state.officeShown {
+            // How ClaudeBar reads Cat Office right now, ticking each second.
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(ConnectionLine.text(url: state.office == nil ? nil : state.officeClient.baseURL, lastUpdate: state.lastOfficeUpdate,
+                                         placesLive: MirrorPlaces.isLive(placesAt: state.office?.placesAt, now: context.date),
+                                         copies: state.officeCopies.count, now: context.date))
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
         HStack(spacing: 14) {
             Button("Set up ClaudeBar…") { SetupWindow.shared.open(state: state) }
             Button("Undo ClaudeBar's changes…") { UndoWindow.shared.open(state: state) }

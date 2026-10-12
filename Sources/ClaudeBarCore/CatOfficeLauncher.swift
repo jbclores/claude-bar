@@ -23,6 +23,8 @@ public struct CatOfficeLauncher: Sendable {
             return .notConfigured
         }
         if await Self.answers(settings.url) { return .alreadyRunning }
+        // Already running from this folder on another port: never a second copy (each runs its own office).
+        if !CatOfficeServers.find(folder: dir).isEmpty { return .alreadyRunning }
         guard let bin = Self.nodeBinDir(home: NSHomeDirectory()) else { return .npmNotFound }
         do {
             try FileManager.default.createDirectory(at: log.deletingLastPathComponent(), withIntermediateDirectories: true)

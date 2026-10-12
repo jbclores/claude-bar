@@ -453,11 +453,16 @@ struct OfficeRoomView: View {
             } else {
                 Image(systemName: "cat.fill").font(.system(size: 34)).foregroundStyle(.secondary)
             }
-            RoomPill(text: "Cat Office isn't running")
-            OfficeStarter(launch: state.officeLaunch, start: { state.startCatOffice() }, openLog: { state.openLauncherLog() })
-                .target("office-start", in: floors)
-                .padding(.horizontal, 8).padding(.vertical, 3)
-                .background(Capsule().fill(.regularMaterial))
+            if state.officeAnswers {
+                // It's up; the feed is reconnecting (checkCopies asked it to, at once).
+                RoomPill(text: "Connecting to Cat Office…")
+            } else {
+                RoomPill(text: "Cat Office isn't running")
+                OfficeStarter(launch: state.officeLaunch, start: { state.startCatOffice() }, openLog: { state.openLauncherLog() })
+                    .target("office-start", in: floors)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Capsule().fill(.regularMaterial))
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity)

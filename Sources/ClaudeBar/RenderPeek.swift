@@ -21,6 +21,8 @@ enum RenderPeek {
         }
         if let tab = flag("--render-dropdown").flatMap({ DropdownTab(rawValue: $0.1 ?? "") }), let out = flag("--render-dropdown")?.0 {
             SettingsTabView.startOpen = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_SETTINGS_OPEN"] == "1"
+            // The copies / connecting seams (CLAUDEBAR_RENDER_TWO_COPIES, CLAUDEBAR_RENDER_CONNECTING), once side effects are off.
+            DispatchQueue.main.async { state.checkCopies(force: true) }
             renderWindow(DropdownView(forcedTab: tab).environmentObject(state).environmentObject(PeekPointer()), width: 500, to: out)
             return true
         }

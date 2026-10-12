@@ -220,6 +220,58 @@ final class AppState: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
+    /// When the last snapshot from Cat Office arrived (the feed sends one at least every 5 s), for Settings' connection line.
+    @Published private(set) var lastOfficeUpdate: Date?
+    /// Cat Office's dev servers running from its folder (CatOfficeServers): more than one means two offices that disagree.
+    @Published private(set) var officeCopies: [CatOfficeServers.Server] = []
+    /// Cat Office answers at its address though the feed isn't connected yet: "Connecting…", not "isn't running".
+    @Published private(set) var officeAnswers = false
+    private var copiesCheckedAt = Date.distantPast
+    private var checkingCopies = false
+
+    /// Looks for running copies of Cat Office (every 15 s at most), and whether one answers while the feed is down (then
+    /// reconnects at once instead of waiting out the backoff).
+    func checkCopies(force: Bool = false) {
+        guard !checkingCopies, force || Date().timeIntervalSince(copiesCheckedAt) >= 15 else { return }
+        if !sideEffects { renderCopies(); return }
+        checkingCopies = true
+        copiesCheckedAt = Date()
+        let folder = CatOfficeDiscovery.folderToStart(configured: settings.catOffice.dir,
+                                                      remembered: UserDefaults.standard.string(forKey: Self.rememberedDirKey))
+        let offline = office == nil, url = officeClient.baseURL
+        Task.detached(priority: .utility) {
+            let copies = folder.map { CatOfficeServers.find(folder: $0) } ?? []
+            let answers = offline ? await CatOfficeLauncher.answers(url) : false
+            await MainActor.run {
+                self.checkingCopies = false
+                if copies != self.officeCopies { self.officeCopies = copies }
+                let was = self.officeAnswers
+                self.officeAnswers = answers && self.office == nil
+                if self.officeAnswers, !was { self.officeClient.reconnectNow() }
+            }
+        }
+    }
+
+    /// Renders only: CLAUDEBAR_RENDER_TWO_COPIES=1 (two copies running), CLAUDEBAR_RENDER_CONNECTING=1 (one answers).
+    private func renderCopies() {
+        let env = ProcessInfo.processInfo.environment
+        if env["CLAUDEBAR_RENDER_TWO_COPIES"] == "1" {
+            officeCopies = [CatOfficeServers.Server(pid: 1, port: 5173), CatOfficeServers.Server(pid: 2, port: 5174)]
+        }
+        officeAnswers = env["CLAUDEBAR_RENDER_CONNECTING"] == "1" && office == nil
+    }
+
+    /// The copy ClaudeBar keeps (the one it reads), and the ones "Stop the extra one" stops.
+    var officePortKept: Int? { officeClient.baseURL.port }
+    var extraOfficeCopies: [CatOfficeServers.Server] { CatOfficeServers.extra(officeCopies, connectedPort: officePortKept) }
+
+    /// Stops the copies of Cat Office ClaudeBar doesn't read, then looks again.
+    func stopExtraCopies() {
+        guard sideEffects else { return }
+        for copy in extraOfficeCopies { CatOfficeServers.stop(copy) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.checkCopies(force: true) }
+    }
+
     /// The guide, at `section` (an id in guide.html) when given.
     func openHelpGuide(section: String? = nil) {
         guard let url = helpGuide else { return }
@@ -347,6 +399,7 @@ final class AppState: ObservableObject {
             updateMirror()
         }
         officeSettings.set(config.config.catOffice)
+        checkCopies()
         let projects = config.config.projects
         let snapshots = snapshots, sessions = sessions, git = git
         Task.detached(priority: .utility) {
@@ -427,6 +480,10 @@ final class AppState: ObservableObject {
             let index = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_FLIP_TO"] == "places"
                 ? after.map { a in elapsed > a ? min(files.count - 1, 1 + Int((elapsed - a) / step)) : 0 } ?? 0 : 0
             if let file = files.indices.contains(index) ? files[index] : files.first { Self.renderPlaces(file: file, into: &snapshot!) }
+        }
+        if snapshot != nil {
+            lastOfficeUpdate = Date()
+            if officeAnswers { officeAnswers = false }
         }
         guard snapshot != office else { updateMirror(); return }
         let cameOnline = office == nil && snapshot != nil
