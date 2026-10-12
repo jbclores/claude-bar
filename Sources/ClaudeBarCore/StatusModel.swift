@@ -226,7 +226,7 @@ public enum StatusModel {
                 .map { a in
                     OfficeRow(
                         id: a.key, name: a.name, label: a.label, status: a.status,
-                        since: a.status == .waiting ? (a.waitingSince ?? input.statusSince[a.key]) : input.statusSince[a.key],
+                        since: a.statusSince(tracked: input.statusSince[a.key]),
                         place: a.repoName ?? (a.cwd as NSString).lastPathComponent,
                         branch: a.branch, detail: a.task ?? a.lastAction, lastAction: a.lastAction,
                         isSubagent: a.isSubagent, parentName: a.parentName, agentType: a.agentType,

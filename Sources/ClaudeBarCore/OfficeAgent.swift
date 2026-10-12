@@ -31,6 +31,8 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
     public var task: String?
     public var lastAction: String?
     public var waitingSince: Date?
+    /// When Cat Office last saw anything from the session (its updatedAt), if it says.
+    public var updatedAt: Date?
     public var sessionId: String?
     /// The cat the browser shows for this agent (sent by the patched Cat Office).
     public var cat: String?
@@ -66,6 +68,17 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
     /// The key this agent shares with snapshots and Claude Code's session files.
     public var key: String { sessionId ?? id }
 
+    /// Since when it has had its status, for "idle 3h": an idle or ended session's last activity in Cat Office (ClaudeBar's
+    /// own clock, `tracked`, restarts whenever it reconnects); waiting since its waitingSince; working since ClaudeBar saw
+    /// it start (Cat Office has no time for that).
+    public func statusSince(tracked: Date?) -> Date? {
+        switch status {
+        case .idle, .ended: updatedAt ?? tracked
+        case .waiting: waitingSince ?? tracked
+        case .working: tracked
+        }
+    }
+
     public init(id: String, name: String, owner: String = "external", status: AgentStatus, waitReason: String? = nil,
                 cwd: String, repoName: String? = nil, repoRoot: String? = nil, branch: String? = nil, model: String? = nil, task: String? = nil,
                 lastAction: String? = nil, waitingSince: Date? = nil, sessionId: String? = nil, cat: String? = nil) {
@@ -96,7 +109,7 @@ extension OfficeAgent: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case id, name, owner, status, waitReason, cwd, repo, branch, model, task, lastAction, waitingSince, sessionId, cat
-        case titleSource, desk, kind, parentName, agentType, description, place
+        case titleSource, desk, kind, parentName, agentType, description, place, updatedAt
     }
 
     public init(from decoder: Decoder) throws {
@@ -127,6 +140,7 @@ extension OfficeAgent: Decodable {
         agentType = try? c.decodeIfPresent(String.self, forKey: .agentType)
         agentDescription = try? c.decodeIfPresent(String.self, forKey: .description)
         place = (try? c.decodeIfPresent(MirrorPlace.self, forKey: .place)) ?? nil
+        updatedAt = (try? c.decodeIfPresent(Double.self, forKey: .updatedAt)).flatMap { $0 }.flatMap { $0.isFinite && $0 > 0 ? Date(timeIntervalSince1970: $0 / 1000) : nil }
     }
 }
 

@@ -233,7 +233,7 @@ struct OfficeRoomView: View {
                     .padding(8)
                     .help("Show the whole room (or double-click)")
             }
-            if let agent = hovered { CatCard(agent: agent, since: state.statusSince[agent.key]).padding(6) }
+            if let agent = hovered { CatCard(agent: agent, since: agent.statusSince(tracked: state.statusSince[agent.key])).padding(6) }
         }
         .frame(height: Self.height)
         .background(GeometryReader { proxy in
@@ -892,7 +892,7 @@ struct CatView: View {
                 let needsYou = agent.status == .waiting || state.attention.contains(agent.key)
                 RoomPill(text: agent.label,
                          detail: Format.statusText(agent.status, needsYou: needsYou,
-                                                   since: agent.waitingSince ?? state.statusSince[agent.key]),
+                                                   since: agent.statusSince(tracked: state.statusSince[agent.key])),
                          detailColor: needsYou ? Theme.waiting : Theme.color(agent.status))
                     .frame(maxWidth: 84)
             }

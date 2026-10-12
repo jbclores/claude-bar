@@ -137,6 +137,28 @@ import Testing
         #expect(StatusModel.build(input([])).office == nil)
     }
 
+    /// "idle 3h" is how long Cat Office has seen nothing from the session (its updatedAt), not how long ClaudeBar has
+    /// watched it: ClaudeBar's own clock restarts on every reconnect. Working keeps ClaudeBar's clock (Cat Office has
+    /// none for it); waiting keeps waitingSince.
+    @Test func idleTimesComeFromCatOfficesLastActivity() throws {
+        let quiet = t0.addingTimeInterval(-3 * 3600), watched = t0.addingTimeInterval(-60)
+        var idle = OfficeAgent(id: "1", name: "office-a", owner: "office", status: .idle, cwd: "/w/app")
+        idle.updatedAt = quiet
+        var working = OfficeAgent(id: "2", name: "office-b", owner: "office", status: .working, cwd: "/w/app")
+        working.updatedAt = quiet
+        let noTime = OfficeAgent(id: "3", name: "office-c", owner: "office", status: .idle, cwd: "/w/app")
+        #expect(idle.statusSince(tracked: watched) == quiet)
+        #expect(working.statusSince(tracked: watched) == watched)
+        #expect(noTime.statusSince(tracked: watched) == watched, "an older Cat Office without updatedAt")
+        var since = input([], office: OfficeSnapshot(agents: [idle, working]))
+        since.statusSince = ["1": watched, "2": watched]
+        let rows = try #require(StatusModel.build(since).office)
+        #expect(rows.first { $0.name == "office-a" }?.since == quiet)
+        #expect(rows.first { $0.name == "office-b" }?.since == watched)
+        let decoded = try JSONDecoder().decode(OfficeAgent.self, from: Data(#"{"id":"x","status":"idle","updatedAt":1800000000000}"#.utf8))
+        #expect(decoded.updatedAt == Date(timeIntervalSince1970: 1_800_000_000))
+    }
+
     @Test func trackedSessionsPreferOfficeAndKeepEnded() {
         let tracked = StatusModel.trackedSessions(
             fallback: [LiveSession(key: "s1", cwd: "/", status: .idle, name: "x"), LiveSession(key: "t", cwd: "/", status: .working, name: "t")],
