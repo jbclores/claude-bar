@@ -75,14 +75,38 @@ import Testing
         let (dir, file) = tempFile()
         defer { try? FileManager.default.removeItem(at: dir) }
         try log.save(file)
-        // A quick restart (within 2 minutes of the log's last event) continues the span.
-        var reloaded = SessionLog.load(file)
-        let added = reloaded.update([("a", "p", .working)], now: at(1))
+        // ClaudeBar watched until t+60m (the heartbeat), then restarted: the span continues.
+        var reloaded = SessionLog.load(file, lastUpdate: at(60))
+        let added = reloaded.update([("a", "p", .working)], now: at(61))
         #expect(added == false)
         #expect(reloaded.events.count == 1)
-        play(&reloaded, [(2, [("a", "p", .working)]), (90, [("a", "p", .working)])])
-        #expect(reloaded.events.count == 1)
         #expect(TodayRecap.of(reloaded, now: at(90), calendar: utc).working == 90 * 60)
+    }
+
+    @Test func restartAfterAGapCountsOnlyUpToTheLastHeartbeat() throws {
+        var log = SessionLog()
+        _ = log.update([("a", "p", .working)], now: at(0))
+        let (dir, file) = tempFile()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try log.save(file)
+        var reloaded = SessionLog.load(file, lastUpdate: at(120))
+        let added = reloaded.update([("a", "p", .working)], now: at(300))
+        #expect(added)
+        #expect(reloaded.events.map(\.at) == [at(0), at(120), at(300)])
+        #expect(reloaded.events.map(\.working) == [true, false, true])
+        #expect(TodayRecap.of(reloaded, now: at(310), calendar: utc).working == 130 * 60)
+    }
+
+    @Test func restartWithoutAHeartbeatUsesTheLastEvent() throws {
+        var log = SessionLog()
+        _ = log.update([("a", "p", .working)], now: at(0))
+        let (dir, file) = tempFile()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try log.save(file)
+        var reloaded = SessionLog.load(file, lastUpdate: nil)
+        _ = reloaded.update([("a", "p", .working)], now: at(300))
+        #expect(reloaded.events.map(\.at) == [at(0), at(0), at(300)])
+        #expect(TodayRecap.of(reloaded, now: at(310), calendar: utc).working == 10 * 60)
     }
 
     @Test func reloadThenGoneClosesTheSpan() throws {

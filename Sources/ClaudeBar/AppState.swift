@@ -1024,6 +1024,8 @@ final class AppState: ObservableObject {
     @Published private(set) var sessionLog = SessionLog()
     private var sessionLogWorking = SessionLog()
     private var sessionLogLoaded = false
+    static let sessionLogSeenKey = "sessionLogLastSeen"
+    private var sessionLogSeenWritten: Date?
 
     /// Today so far, for the top of Projects.
     var todayRecap: TodayRecap { TodayRecap.of(sessionLog, now: Date(), calendar: .current) }
@@ -1034,14 +1036,23 @@ final class AppState: ObservableObject {
         if !sessionLogLoaded {
             sessionLogLoaded = true
             if sideEffects {
-                sessionLogWorking = SessionLog.load(SessionLog.defaultFile)
+                let seen = UserDefaults.standard.object(forKey: Self.sessionLogSeenKey) as? Date
+                sessionLogWorking = SessionLog.load(SessionLog.defaultFile, lastUpdate: seen)
             } else if let file = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_SESSIONS"] {
                 sessionLogWorking = SessionLog.load(URL(fileURLWithPath: file))
             }
             sessionLog = sessionLogWorking
         }
         let entries = SessionLog.entries(tracked: tracked, agents: office?.agents ?? [], fallback: fallback)
-        guard sessionLogWorking.update(entries, now: Date()) else { return }
+        let changed = sessionLogWorking.update(entries, now: Date())
+        // Heartbeat: when ClaudeBar last watched, so a restart after a long quiet stretch still counts it (at most
+        // every 30 s; no file write).
+        if sideEffects, let seen = sessionLogWorking.lastUpdate,
+           sessionLogSeenWritten.map({ seen.timeIntervalSince($0) >= 30 }) ?? true {
+            sessionLogSeenWritten = seen
+            UserDefaults.standard.set(seen, forKey: Self.sessionLogSeenKey)
+        }
+        guard changed else { return }
         sessionLog = sessionLogWorking
         if sideEffects { try? sessionLogWorking.save(SessionLog.defaultFile) }
     }

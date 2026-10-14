@@ -14,17 +14,18 @@ public struct SessionEvent: Codable, Equatable, Sendable {
 public struct SessionLog: Equatable, Sendable {
     public private(set) var events: [SessionEvent] = []
     private var last: [String: (status: AgentStatus, project: String)] = [:]
-    /// When `update` last ran (after a restart: the log's last event).
-    private var lastUpdate: Date?
+    /// When ClaudeBar last watched: `update` last ran, or after a restart the later of the saved heartbeat and the
+    /// log's last event (the log is only saved when an event is added, so the heartbeat is kept apart).
+    public private(set) var lastUpdate: Date?
     static let keepFor: TimeInterval = 2 * 86_400
     /// Longer than this between updates (the Mac slept, ClaudeBar was off): nobody was seen working in between.
     static let maxGap: TimeInterval = 120
 
     /// Keys whose last event is "started working" are seeded as working, so a restart continues their span (closed at
-    /// the log's last event instead when the restart comes after a gap; see `update`).
-    public init(events: [SessionEvent] = []) {
+    /// the last time ClaudeBar watched instead when the restart comes after a gap; see `update`).
+    public init(events: [SessionEvent] = [], lastUpdate: Date? = nil) {
         self.events = events
-        lastUpdate = events.map(\.at).max()
+        self.lastUpdate = [lastUpdate, events.map(\.at).max()].compactMap { $0 }.max()
         var lastEvent: [String: SessionEvent] = [:]
         for e in events { lastEvent[e.key] = e }
         for (key, e) in lastEvent where e.working { last[key] = (.working, e.project) }
@@ -69,10 +70,11 @@ public struct SessionLog: Equatable, Sendable {
         return events.count != before
     }
 
-    public static func load(_ file: URL) -> SessionLog {
-        guard let data = try? Data(contentsOf: file) else { return SessionLog() }
+    public static func load(_ file: URL, lastUpdate: Date? = nil) -> SessionLog {
+        guard let data = try? Data(contentsOf: file) else { return SessionLog(lastUpdate: lastUpdate) }
         let d = JSONDecoder(); d.dateDecodingStrategy = .millisecondsSince1970
-        return SessionLog(events: data.split(separator: UInt8(ascii: "\n")).compactMap { try? d.decode(SessionEvent.self, from: Data($0)) })
+        return SessionLog(events: data.split(separator: UInt8(ascii: "\n")).compactMap { try? d.decode(SessionEvent.self, from: Data($0)) },
+                          lastUpdate: lastUpdate)
     }
 
     public func save(_ file: URL) throws {
