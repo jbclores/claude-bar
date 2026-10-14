@@ -16,7 +16,13 @@ public struct SessionLog: Equatable, Sendable {
     private var last: [String: (status: AgentStatus, project: String)] = [:]
     static let keepFor: TimeInterval = 2 * 86_400
 
-    public init(events: [SessionEvent] = []) { self.events = events }
+    /// Keys whose last event is "started working" are seeded as working, so a restart continues their span.
+    public init(events: [SessionEvent] = []) {
+        self.events = events
+        var lastEvent: [String: SessionEvent] = [:]
+        for e in events { lastEvent[e.key] = e }
+        for (key, e) in lastEvent where e.working { last[key] = (.working, e.project) }
+    }
     public static func == (a: SessionLog, b: SessionLog) -> Bool { a.events == b.events }
 
     public static var defaultFile: URL { Paths.home.appendingPathComponent(".claude/claude-bar/sessions-today.jsonl") }
@@ -78,7 +84,10 @@ public struct TodayRecap: Equatable, Sendable {
             byProject[project, default: 0] += span
         }
         for e in log.events where e.at <= now {
-            if e.working { open[e.key] = (e.at, e.project) } else {
+            if e.working {
+                close(e.key, at: e.at)
+                open[e.key] = (e.at, e.project)
+            } else {
                 close(e.key, at: e.at)
                 if e.finished, e.at >= midnight { finished += 1 }
             }

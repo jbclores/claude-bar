@@ -50,4 +50,44 @@ import Testing
         try log.save(file)
         #expect(SessionLog.load(file).events == log.events)
     }
+
+    func tempFile() -> (URL, URL) {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("cb-sess-\(UUID().uuidString)")
+        return (dir, dir.appendingPathComponent("sessions-today.jsonl"))
+    }
+
+    @Test func reloadingWhileWorkingKeepsOneSpan() throws {
+        var log = SessionLog()
+        _ = log.update([("a", "p", .working)], now: at(0))
+        let (dir, file) = tempFile()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try log.save(file)
+        var reloaded = SessionLog.load(file)
+        let added = reloaded.update([("a", "p", .working)], now: at(60))
+        #expect(added == false)
+        #expect(reloaded.events.count == 1)
+        #expect(TodayRecap.of(reloaded, now: at(90), calendar: utc).working == 90 * 60)
+    }
+
+    @Test func reloadThenGoneClosesTheSpan() throws {
+        var log = SessionLog()
+        _ = log.update([("a", "p", .working)], now: at(0))
+        let (dir, file) = tempFile()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try log.save(file)
+        var reloaded = SessionLog.load(file)
+        let added = reloaded.update([], now: at(30))
+        #expect(added)
+        #expect(reloaded.events.last?.working == false && reloaded.events.last?.finished == false)
+        #expect(reloaded.events.last?.at == at(30))
+        #expect(TodayRecap.of(reloaded, now: at(120), calendar: utc).working == 30 * 60)
+    }
+
+    @Test func aSessionDisappearingWhileWorkingStopsCounting() {
+        var log = SessionLog()
+        _ = log.update([("a", "p", .working)], now: at(0))
+        _ = log.update([], now: at(20))
+        let r = TodayRecap.of(log, now: at(60), calendar: utc)
+        #expect(r.working == 20 * 60 && r.finished == 0)
+    }
 }
