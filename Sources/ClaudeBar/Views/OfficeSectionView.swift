@@ -18,7 +18,9 @@ struct OfficeCatList: View {
             if rows.isEmpty {
                 Text("No office cats right now").font(.caption).foregroundStyle(Theme.secondaryText)
             }
-            ForEach(rows) { row in
+            // At most 5 rows (one that needs you always among them); the rest in Cat Office.
+            let cut = OfficeRow.shown(rows, max: 5)
+            ForEach(cut.rows) { row in
                 rowView(row)
                 if let agent = agent(row), AnswerPanel.shows(agent) {
                     // Under the title: past the dot (and a helper's ↳).
@@ -26,6 +28,10 @@ struct OfficeCatList: View {
                         .padding(.leading, row.isSubagent ? 37 : 15)
                         .padding(.bottom, 4)
                 }
+            }
+            if cut.more > 0 {
+                Button("+\(cut.more) more in Cat Office") { state.openCatOffice() }
+                    .buttonStyle(.link).font(.caption).padding(.leading, 15)
             }
         }
     }

@@ -129,11 +129,14 @@ public struct TodayRecap: Equatable, Sendable {
     }
 
     /// "4 sessions finished · 2h 10m working · busiest: claude-bar"; nil when nothing happened today.
+    /// "Today: 2 sessions finished, 1h 30m of work, mostly claude-bar"; nil when nothing happened today.
     public var line: String? {
         guard finished > 0 || working >= 60 else { return nil }
         let m = Int(working / 60), time = m >= 60 ? (m % 60 == 0 ? "\(m / 60)h" : "\(m / 60)h \(m % 60)m") : "\(m)m"
-        var parts = ["\(finished) session\(finished == 1 ? "" : "s") finished", "\(time) working"]
-        if let busiest { parts.append("busiest: \(busiest)") }
-        return parts.joined(separator: " · ")
+        var parts: [String] = []
+        if finished > 0 { parts.append("\(finished) session\(finished == 1 ? "" : "s") finished") }
+        if working >= 60 { parts.append("\(time) of work") }
+        if let busiest { parts.append("mostly \(busiest)") }
+        return "Today: " + parts.joined(separator: ", ")
     }
 }

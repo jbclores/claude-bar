@@ -85,3 +85,40 @@ import Testing
         #expect(log.events.count == 1, "still one working span")
     }
 }
+
+
+/// The forecast line is amber only when it's urgent: the limit is reached, or will be within the hour.
+@Suite struct ForecastUrgencyTests {
+    let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+    func f(hit minutes: Double?, reached: Bool = false) -> UsageForecast {
+        var f = UsageForecast(window: .fiveHour, projected: 100, hitAt: minutes.map { t0.addingTimeInterval($0 * 60) },
+                              resetsAt: t0.addingTimeInterval(4 * 3600))
+        f.reached = reached
+        return f
+    }
+
+    @Test func urgentWithinTheHour() {
+        #expect(f(hit: 40).isUrgent(now: t0))
+        #expect(f(hit: 60).isUrgent(now: t0))
+        #expect(!f(hit: 61).isUrgent(now: t0))
+        #expect(!f(hit: nil).isUrgent(now: t0))
+        #expect(f(hit: 0, reached: true).isUrgent(now: t0))
+    }
+}
+
+/// The list under the office shows at most 5 rows; a session that needs you is always among them.
+@Suite struct OfficeListCapTests {
+    func row(_ i: Int, needs: Bool = false) -> OfficeRow {
+        OfficeRow(id: "r\(i)", name: "r\(i)", label: "r\(i)", status: needs ? .waiting : .idle, since: nil, place: "p", branch: nil,
+                  detail: nil, lastAction: nil, isSubagent: false, parentName: nil, agentType: nil, needsAttention: needs)
+    }
+
+    @Test func fiveRowsAndTheOneThatNeedsYou() {
+        let rows = (0..<8).map { row($0, needs: $0 == 7) }
+        let cut = OfficeRow.shown(rows, max: 5)
+        #expect(cut.rows.map(\.id) == ["r0", "r1", "r2", "r3", "r7"])
+        #expect(cut.more == 3)
+        let few = OfficeRow.shown(Array(rows.prefix(3)), max: 5)
+        #expect(few.rows.count == 3 && few.more == 0)
+    }
+}

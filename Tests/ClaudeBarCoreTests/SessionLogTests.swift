@@ -31,7 +31,7 @@ import Testing
         #expect(r.finished == 2)
         #expect(r.working == (30 + 15 + 10) * 60)
         #expect(r.busiest == "claude-bar")
-        #expect(r.line == "2 sessions finished · 55m working · busiest: claude-bar")
+        #expect(r.line == "Today: 2 sessions finished, 55m of work, mostly claude-bar")
     }
 
     @Test func spansAcrossMidnightCountFromMidnight() {
@@ -40,13 +40,13 @@ import Testing
                     (-7 * 60, [("a", "p", .idle)])])     // today 01:00
         let r = TodayRecap.of(log, now: at(0), calendar: utc)
         #expect(r.working == 3600 && r.finished == 1 && r.busiest == nil)
-        #expect(r.line == "1 session finished · 1h working")
+        #expect(r.line == "Today: 1 session finished, 1h of work")
     }
 
     @Test func anOpenSpanCountsToNowAndNothingHidesTheLine() {
         var log = SessionLog()
         _ = log.update([("a", "p", .working)], now: at(0))
-        #expect(TodayRecap.of(log, now: at(130), calendar: utc).line == "0 sessions finished · 2h 10m working")
+        #expect(TodayRecap.of(log, now: at(130), calendar: utc).line == "Today: 2h 10m of work")
         #expect(TodayRecap.of(SessionLog(), now: at(0), calendar: utc).line == nil)
     }
 

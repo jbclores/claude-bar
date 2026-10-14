@@ -8,24 +8,27 @@ struct UsageForecastLine: View {
     var body: some View {
         Text(forecast.line(time: AppState.usageTime))
             .font(.caption)
-            .foregroundStyle(forecast.atRisk ? Theme.waitingText : Theme.secondaryText)
+            // Amber only when it's urgent: reached, or within the hour.
+            .foregroundStyle(forecast.isUrgent(now: Date()) ? Theme.waitingText : Theme.secondaryText)
             .lineLimit(1)
     }
 }
 
-/// Today's 5-hour usage as a thin step line, 0–100%, from midnight (left) to now (right).
+/// Today's 5-hour usage as a small step line, 0–100%, over the last 5 hours (left) to now (right).
 struct UsageSparkline: View {
     let samples: [UsageSample]
 
     var body: some View {
         GeometryReader { geo in
-            let start = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
-            let span = max(3600, Date().timeIntervalSince1970 - start)
+            // The last 5 hours (the 5-hour window's length), or since midnight if that's shorter.
+            let now = Date().timeIntervalSince1970
+            let start = max(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970, now - 5 * 3600)
+            let span = max(3600, now - start)
             Path { p in
                 var last: CGPoint?
                 for s in samples {
                     guard let pct = s.fiveHourPct else { continue }
-                    let x = geo.size.width * CGFloat((s.at.timeIntervalSince1970 - start) / span)
+                    let x = geo.size.width * CGFloat(max(0, s.at.timeIntervalSince1970 - start) / span)
                     let y = geo.size.height * CGFloat(1 - min(100, pct) / 100)
                     if let l = last { p.addLine(to: CGPoint(x: x, y: l.y)); p.addLine(to: CGPoint(x: x, y: y)) } else { p.move(to: CGPoint(x: x, y: y)) }
                     last = CGPoint(x: x, y: y)
@@ -34,9 +37,7 @@ struct UsageSparkline: View {
             }
             .stroke(Theme.working, lineWidth: 1.5)
         }
-        .frame(height: 14)
-        // A faint track along the bottom: today, midnight to now, so a short stretch of use reads as part of the day.
-        .background(alignment: .bottom) { Capsule().fill(Color.primary.opacity(0.1)).frame(height: 2) }
+        .frame(height: 12)
         .accessibilityLabel("Today's 5-hour usage")
     }
 }
@@ -53,10 +54,14 @@ struct UsageWeekChart: View {
             HStack(alignment: .bottom, spacing: 10) {
                 ForEach(days, id: \.day) { d in
                     VStack(spacing: 3) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill((d.high ?? 0) >= 100 ? Theme.waiting : Theme.working)
-                            .frame(width: 22, height: max(2, 48 * CGFloat((d.high ?? 0) / 100)))
-                            .opacity(d.high == nil ? 0 : 1)
+                        if let high = d.high {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(high >= 100 ? Theme.waiting : Theme.working)
+                                .frame(width: 22, height: max(2, 48 * CGFloat(high / 100)))
+                        } else {
+                            // No use that day: a faint dash, so it reads as empty, not missing.
+                            Capsule().fill(Theme.secondaryText.opacity(0.35)).frame(width: 10, height: 2)
+                        }
                         Text(cal.isDateInToday(d.day) ? "Today" : d.day.formatted(.dateTime.weekday(.abbreviated)))
                             .font(.caption2).foregroundStyle(Theme.secondaryText)
                     }
@@ -67,7 +72,7 @@ struct UsageWeekChart: View {
             .frame(height: 66, alignment: .bottom)
             ForEach(Array(history.limitHits(days: 7, now: now, calendar: cal).prefix(3).enumerated()), id: \.offset) { _, hit in
                 Text("\(hit.window == .fiveHour ? "Limit" : "7-day limit") reached: \(AppState.usageTime(hit.at))")
-                    .font(.caption).foregroundStyle(Theme.waitingText)
+                    .font(.caption).foregroundStyle(Theme.secondaryText)
             }
         }
         .padding(8)
@@ -87,8 +92,12 @@ struct ShortcutField: View {
                 recording ? stop() : start()
             } label: {
                 Text(recording ? "Press keys…" : state.settings.shortcut?.display ?? "Off")
-                    .font(.callout.monospaced()).frame(minWidth: 70)
+                    .font(.callout).frame(minWidth: 56)
+                    .padding(.horizontal, 8).padding(.vertical, 2)
+                    .background(RoundedRectangle(cornerRadius: 5).fill(Color.primary.opacity(recording ? 0.12 : 0.06)))
             }
+            .buttonStyle(.plain)
+            .help("Click, then press a new shortcut (Escape cancels)")
             .target("shortcut-field", in: state.shortcutTargets)
             if state.settings.shortcut != nil, !recording {
                 Button { state.setShortcut(nil) } label: { Image(systemName: "xmark.circle.fill") }
@@ -152,9 +161,9 @@ struct QuietHoursSettings: View {
                     Text("Quiet until \(AppState.usageTime(until))").foregroundStyle(Theme.secondaryText)
                     Button("End now") { state.endQuietHour() }.buttonStyle(.link)
                 }
-                .font(.callout)
+                .font(.caption)
             } else {
-                Button("Quiet for 1 hour") { state.quietForAnHour() }.buttonStyle(.link).font(.callout)
+                Button("Quiet for 1 hour") { state.quietForAnHour() }.buttonStyle(.link).font(.caption)
             }
         }
     }

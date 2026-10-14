@@ -48,6 +48,11 @@ public struct UsageForecast: Equatable, Sendable {
         return f
     }
 
+    /// Worth amber: the limit is reached, or will be within the hour.
+    public func isUrgent(now: Date) -> Bool {
+        reached || hitAt.map { $0.timeIntervalSince(now) <= 3600 } == true
+    }
+
     /// The line under the bars: the 7-day limit at risk first, then the 5-hour one at risk, else the 5-hour pace.
     public static func headline(history: [UsageSample], now: Date) -> UsageForecast? {
         let five = of(.fiveHour, history: history, now: now), seven = of(.sevenDay, history: history, now: now)

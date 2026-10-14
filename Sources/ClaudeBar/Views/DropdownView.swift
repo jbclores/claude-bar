@@ -206,6 +206,8 @@ final class DropdownController: NSViewController {
     @objc private func tabChanged(_ sender: NSSegmentedControl) {
         guard shownTabs.indices.contains(sender.selectedSegment) else { return }
         selection.tab = shownTabs[sender.selectedSegment]
+        // A new tab: the week chart folds, so the dropdown stays short.
+        state.usageWeekShown = false
         onTabChange?()
         // Measure once SwiftUI has laid out the new tab.
         DispatchQueue.main.async { [weak self] in self?.resize() }
@@ -582,11 +584,11 @@ struct UsageHeader: View {
                     Text("as of \(Format.age(asOf, now: Date()))").font(.caption).foregroundStyle(Theme.secondaryText)
                 }
             }
-            row("5h", usage.fiveHourPct, usage.fiveHourResetsAt,
-                extra: usage.workingCount > 0 ? "\(usage.workingCount) working" : nil)
-            row("7d", usage.sevenDayPct, usage.sevenDayResetsAt, extra: nil)
+            // Today's 5-hour use as a small line on its own row, beside the percentage.
             let today = history.today(now: Date(), calendar: .current)
-            if today.count >= 2 { UsageSparkline(samples: today) }
+            row("5h", usage.fiveHourPct, usage.fiveHourResetsAt,
+                extra: usage.workingCount > 0 ? "\(usage.workingCount) working" : nil, spark: today.count >= 2 ? today : nil)
+            row("7d", usage.sevenDayPct, usage.sevenDayResetsAt, extra: nil)
             if let forecast { UsageForecastLine(forecast: forecast) }
             if showWeek { UsageWeekChart(history: history) }
         }
@@ -596,11 +598,12 @@ struct UsageHeader: View {
         .help(showWeek ? "Hide this week's usage" : "Show this week's usage")
     }
 
-    private func row(_ label: String, _ pct: Double?, _ resets: Date?, extra: String?) -> some View {
+    private func row(_ label: String, _ pct: Double?, _ resets: Date?, extra: String?, spark: [UsageSample]? = nil) -> some View {
         HStack(spacing: 8) {
             Text(label).font(.caption.monospaced()).frame(width: 20, alignment: .leading)
             UsageBar(percent: pct)
             Text(pct.map(Format.percent) ?? "—").font(.caption.monospacedDigit()).frame(width: 36, alignment: .trailing)
+            if let spark { UsageSparkline(samples: spark).frame(width: 56).help("Today's 5-hour use") }
             if let extra { Text(extra).font(.caption).foregroundStyle(Theme.working) }
             Spacer()
             if let resets { Text(Format.resets(resets, now: Date())).font(.caption).foregroundStyle(Theme.secondaryText) }

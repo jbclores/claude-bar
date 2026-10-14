@@ -182,6 +182,8 @@ struct SceneCats: View {
                 let dx = placed.minX - pill.rect.minX, dy = placed.minY - pill.rect.minY
                 nameTag(d.cat.agent, light: d.cat.kind == .spare)
                     .frame(width: pill.size.width, height: pill.size.height)
+                    // Hidden while the cat walks (its tag waits where it's going), as its resting picture is.
+                    .opacity(walkingCats.contains(d.cat.agent.id) ? 0 : 1)
                     .scaleEffect(1 / scale, anchor: .top)
                     .offset(x: d.feet.x - pill.size.width / 2 + dx / scale, y: d.feet.y + (3 + dy) / scale)
             }

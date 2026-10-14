@@ -242,3 +242,20 @@ public enum StatusModel {
         return StatusOutput(usage: usage, projects: rows, office: officeRows, claudeHindered: input.office?.claudeHindered ?? false)
     }
 }
+
+
+extension OfficeRow {
+    /// The list under the office, at most `max` rows: those needing you always, the rest in order; and how many more.
+    public static func shown(_ rows: [OfficeRow], max: Int) -> (rows: [OfficeRow], more: Int) {
+        guard rows.count > max else { return (rows, 0) }
+        let urgent = Set(rows.filter { $0.needsAttention || $0.status == .waiting }.map(\.id))
+        var room = max - urgent.count
+        let kept = rows.filter { r in
+            if urgent.contains(r.id) { return true }
+            guard room > 0 else { return false }
+            room -= 1
+            return true
+        }
+        return (kept, rows.count - kept.count)
+    }
+}
