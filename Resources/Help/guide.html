@@ -135,8 +135,8 @@ nothing yet.</p>
 
 <h2 id="settings">Settings &amp; sounds</h2>
 <figure>
-  <img src="images/settings.png" alt="The Settings tab: switches for launch at login, notifications, Cat Office, the hover popup, and the sounds with a volume slider">
-  <figcaption>Settings, including the sounds and their volume.</figcaption>
+  <img src="images/settings.png" alt="The Settings tab: General (open at login, the shortcut), Alerts (notifications, quiet hours), Office (Cat Office, the hover popup, sounds) and one setup line">
+  <figcaption>Settings: General, Alerts and Office, with setup folded into one line.</figcaption>
 </figure>
 <table>
   <tr><th>Setting</th><th>What it does</th></tr>
@@ -197,6 +197,16 @@ If you edited a room in Cat Office, save it there first.</p>
 <h3>The cats don't match the browser, or helpers don't show</h3>
 <p>Those need ClaudeBar's small patch to Cat Office. Tick <b>Patch Cat Office</b> in
 <b>Settings → Set up ClaudeBar…</b>, then restart Cat Office when it asks.</p>
+<p>If the Office tab says <b>Two copies of Cat Office are running</b>, each copy runs its own office, so the browser and
+ClaudeBar may show different cats. Click <b>Stop the extra one</b>: ClaudeBar stops the copy it isn't reading (sessions
+running inside that copy end), and tells you which address to open in the browser. <b>Settings → Setup &amp; more</b>
+shows which copy ClaudeBar reads and whether it's copying your browser page.</p>
+<h3>"Show terminal" does nothing</h3>
+<p>The first time, macOS asks to let ClaudeBar control Terminal or iTerm. If you said no, allow it in <b>System Settings →
+Privacy &amp; Security → Automation</b>. "Show terminal" appears only for sessions running in Terminal or iTerm.</p>
+<h3>The answer buttons don't show, or say Cat Office can't answer</h3>
+<p>Cat Office can type an answer only into sessions running in Orca. For others, ClaudeBar shows the question with
+<b>Open in Cat Office</b> and <b>Show terminal</b>, so you can answer it there.</p>
 <h3>No sound</h3>
 <p>Check that <b>Settings → Cat sounds</b> is on, then <b>Choose sounds</b> and the volume slider, and your Mac's volume. The finished purr is muted while Focus
 or Do Not Disturb is on.</p>

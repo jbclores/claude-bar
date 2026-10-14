@@ -44,7 +44,7 @@ struct OfficeCatList: View {
             }
             Circle().fill(row.needsAttention ? Theme.waiting : Theme.color(row.status)).frame(width: 7, height: 7)
             if row.isSubagent, let type = row.agentType {
-                Text(type).font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
+                Text(type).font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText).lineLimit(1).fixedSize()
                     .padding(.horizontal, 5).padding(.vertical, 1)
                     .background(Capsule().fill(Color.primary.opacity(0.08)))
             }

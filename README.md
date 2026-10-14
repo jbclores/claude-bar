@@ -7,8 +7,15 @@ cats, one click away.
 
 ## Features
 
-- **Usage in the menu bar:** your Claude Code 5-hour and 7-day limits, and how many sessions are working.
-- **Projects:** each project's branch, model, context and status.
+- **Usage in the menu bar:** your Claude Code 5-hour and 7-day limits, and how many sessions are running.
+- **Where usage is heading:** a quiet line says where your pace leads ("On pace for about 55% of the 5-hour limit by
+  5:40 PM"), a small sparkline shows your last 5 hours, one notification warns you before you'd hit a limit, and a
+  click on the usage area folds out the last 7 days.
+- **Projects:** each project's branch, model, context and status, and today's recap ("Today: 4 sessions finished,
+  2h 10m of work, mostly claude-bar").
+- **Answer a waiting session from the menu bar:** a permission, a question or a plan shows in the cat's hover card and
+  under the office, with Allow / Deny (or the options) for sessions running in Orca. Every cat's card also has
+  **Open in Cat Office** (on that cat's panel) and, for Terminal and iTerm sessions, **Show terminal**.
 - **Your Cat Office, floor by floor:** every floor drawn exactly as your own Cat Office lays it out, with an elevator
   between floors, Follow, and a hover peek from the menu bar.
 - **Cats that do what the browser shows:** while a Cat Office page is open, each cat is where the browser has it,
@@ -18,6 +25,12 @@ cats, one click away.
 - **Name tags** on every cat, and a hover card with its project, branch, model and what it's doing in plain words.
 - **Spare cats** (optional): the office's own cats roaming the building.
 - **Sounds and lofi music,** generated from code (no recorded audio).
+- **Quiet hours and a shortcut:** no sounds or notifications in the hours you pick (or for an hour, for meetings);
+  ⌃⌥C (or your own keys) opens ClaudeBar from anywhere.
+- **Speaks Cat Office's language:** statuses read as Cat Office names them (Needs you, Running, Idle, Ended), a
+  teammate's own words included.
+- **Works without Cat Office too:** usage and projects only, with a friendly invitation to try the office. With two
+  copies of Cat Office running, ClaudeBar says so and can stop the extra one.
 - **Safe to try:** a short setup window, every change backed up, and one-click undo.
 
 ## Requirements

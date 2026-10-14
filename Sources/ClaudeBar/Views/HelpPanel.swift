@@ -18,13 +18,20 @@ struct HelpPanel: View {
                     section("The menu bar", [
                         ("The cat", "The cat that matters right now: one that needs you, else one running, else one asleep."),
                         ("5h · 7d", "How much of your Claude usage limits you've used, and when each resets."),
-                        ("Hover the cat", "A peek at the office. Click the cat for the full dropdown."),
+                        ("Hover the cat", "A peek at the office. Click the cat (or press ⌃⌥C) for the full dropdown."),
+                    ])
+                    section("Usage", [
+                        ("The line under the bars", "Where your pace leads. Amber when you'd reach a limit within the hour; ClaudeBar warns you once."),
+                        ("The small graph", "Your last 5 hours of use, next to the 5h bar."),
+                        ("Click the usage area", "The last 7 days: each day's highest 5-hour use, and when a limit was reached."),
                     ])
                     section("Office", [
                         ("Floors", "Each floor is one of your projects, laid out like your Cat Office. Idle cats sleep in the Lounge (1)."),
                         ("Floor menu · ▲▼ · strip", "Pick a floor. Strip colours: green running, amber needs you, grey empty."),
                         ("Follow", "Shows where things are happening. On each time the dropdown opens; picking a floor turns it off."),
                         ("Rings and \"!\"", "Green running, amber or \"!\" needs you, grey asleep. Hover a cat for its details."),
+                        ("A cat's card", "Open in Cat Office (its panel), and Show terminal for Terminal and iTerm sessions."),
+                        ("Needs you", "Its question shows in the card and under the office. Sessions in Orca can be answered right there."),
                     ])
                     section("Mouse tips", [
                         ("Zoom", "Double-click the room, or ⌘-scroll. Drag to look around; click \"1×\" for the whole room."),
@@ -32,15 +39,18 @@ struct HelpPanel: View {
                         ("🎵", "Lofi music while the office is open. Click to turn it off or on."),
                     ])
                     section("Projects and Settings", [
-                        ("Projects", "Your projects' branch, model, context and status."),
-                        ("Settings", "Launch at login, notifications, starting Cat Office, the hover peek, and the sounds."),
+                        ("Projects", "Today's recap, then your projects' branch, model, context and status."),
+                        ("Settings", "General (login, shortcut), Alerts (notifications, quiet hours) and Office (Cat Office, sounds). Setup & more holds the rest."),
+                        ("Quiet hours", "No sounds or notifications in the hours you pick, or for an hour. A 🔕 shows next to Usage."),
                     ])
                     section("If something's wrong", [
                         ("First time?", "Settings → Set up ClaudeBar…"),
                         ("\"Cat Office isn't running\"", "Click Start in the office, or open your Cat Office folder and run npm run dev."),
                         ("No usage numbers", "Turn on usage in Settings → Set up ClaudeBar…, then send a message in Claude Code."),
                         ("A cat on the wrong floor", "Floors come from Cat Office: wait a minute, or reopen the dropdown."),
-                        ("No sound", "Check Settings → Cat sounds, Choose sounds and the volume; Focus mutes the finished purr."),
+                        ("No sound", "Check Settings → Cat sounds, Choose sounds and the volume, and quiet hours; Focus mutes the finished purr."),
+                        ("\"Two copies of Cat Office\"", "Each runs its own office, so cats may not match: click Stop the extra one."),
+                        ("Show terminal does nothing", "Let ClaudeBar control Terminal / iTerm: System Settings → Privacy & Security → Automation."),
                     ])
                 }
                 .padding(.trailing, 6)
