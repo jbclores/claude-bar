@@ -35,6 +35,29 @@ import Testing
         #expect(json(c.buttons[0].request) == #"{"choice":"approve","kind":"plan"}"#)
     }
 
+    /// Cat Office's 409 texts (server/agent-bridge/answer.ts, index.ts, and the patch's `expect` check) in plain words.
+    @Test func eachConflictReadsPlainly() {
+        let changed = "That question closed or changed before your answer got there"
+        let terminal = "Cat Office can't answer this session: answer it in its terminal"
+        let screen = "The question isn't on screen in its terminal"
+        func r(_ e: String?) -> String { AnswerChoices.refusal(status: 409, error: e) }
+        #expect(r("nothing to answer: the session is not waiting on a question, permission or plan") == changed)
+        #expect(r("the open dialog is a question, not permission") == changed)
+        #expect(r("the question changed") == changed)
+        #expect(r("the session has ended") == changed)
+        #expect(r("the question dialog is not on screen") == screen)
+        #expect(r("the permission prompt is not on screen") == screen)
+        #expect(r("the plan approval is not on screen") == screen)
+        #expect(r(#"this prompt has no "yes-always" option"#) == "This prompt has no Always allow")
+        #expect(r(#"this prompt has no "no" option"#) == "This prompt has no such choice: answer it in its terminal")
+        #expect(r(#"this plan prompt has no "Yes" option"#) == "This prompt has no such choice: answer it in its terminal")
+        #expect(r("this session is not in an Orca terminal") == terminal)
+        #expect(r("office workers have no dialogs to answer") == terminal)
+        #expect(r("helpers are read-only: only their parent session talks to them") == terminal)
+        #expect(r("something new") == terminal, "unknown 409")
+        #expect(r(nil) == terminal)
+    }
+
     @Test func refusalsReadPlainly() {
         #expect(AnswerChoices.refusal(status: 409, error: "no terminal") == "Cat Office can't answer this session: answer it in its terminal")
         #expect(AnswerChoices.refusal(status: nil, error: nil) == "Couldn't reach Cat Office")

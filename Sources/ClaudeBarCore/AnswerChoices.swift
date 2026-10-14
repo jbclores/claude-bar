@@ -48,10 +48,24 @@ public struct AnswerChoices: Equatable, Sendable {
         return AnswerButton(title: title, help: nil, request: data)
     }
 
+    /// A 409 from Cat Office in plain words: the dialog closed or changed, it isn't on screen, the prompt lacks that
+    /// choice, or Cat Office can't type into this session (also any text it doesn't know).
+    static func conflict(_ error: String) -> String {
+        let e = error.lowercased()
+        if e.hasPrefix("nothing to answer") || e.hasPrefix("the open dialog is a") || e == "the question changed"
+            || e == "the session has ended" {
+            return "That question closed or changed before your answer got there"
+        }
+        if e.hasSuffix("is not on screen") { return "The question isn't on screen in its terminal" }
+        if e.contains("has no \"yes-always\" option") { return "This prompt has no Always allow" }
+        if e.contains("prompt has no \"") { return "This prompt has no such choice: answer it in its terminal" }
+        return "Cat Office can't answer this session: answer it in its terminal"
+    }
+
     /// Why an answer didn't go through, in plain words.
     public static func refusal(status: Int?, error: String?) -> String {
         guard let status else { return "Couldn't reach Cat Office" }
-        if status == 409 { return "Cat Office can't answer this session: answer it in its terminal" }
+        if status == 409 { return conflict(error ?? "") }
         if let error, !error.isEmpty { return error }
         return "Cat Office couldn't send it (error \(status))"
     }
