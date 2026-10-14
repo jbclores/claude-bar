@@ -37,7 +37,7 @@
    const first = squash(pending.questions[0]?.question ?? '').slice(0, 24);
 --- a/server/agent-bridge/cat-assignments.ts
 +++ b/server/agent-bridge/cat-assignments.ts
-@@ -0,0 +1,317 @@
+@@ -0,0 +1,346 @@
 +/**
 + * The cat the page shows for each agent, and the desk that cat works at (POST /__agents/cats), kept in
 + * <stateDir>/cat-assignments.json by agent id, so other local apps (ClaudeBar's menu bar office) show the same
@@ -51,7 +51,7 @@
 +import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 +import { homedir } from 'node:os';
 +import { dirname, join } from 'node:path';
-+import type { AgentSnapshot, CatPlace, SparePlace } from './types.ts';
++import type { AgentSnapshot, AgentStatus, CatPlace, SparePlace } from './types.ts';
 +
 +/**
 + * Where local apps look for the running bridge: ~/.cat-office/bridge.json. A server on another state folder
@@ -159,6 +159,8 @@
 +  private placesSent = -Infinity;
 +  /** The page whose places are kept, and when it last posted (server clock). */
 +  private following: { page: string; last: number } | null = null;
++  /** The page's status words (STATUS_LABEL), last sent; kept on disk so they last through a restart. */
++  private labels: Record<AgentStatus, string> | null = null;
 +  private listeners = new Set<ChangeListener>();
 +  readonly file: string;
 +
@@ -185,13 +187,15 @@
 +   * and `minutesLeft` aside), and at least every 5 s.
 +   */
 +  merge(body: unknown, now: number = Date.now()): boolean {
-+    const b = body as { assignments?: unknown; desks?: unknown; places?: unknown; at?: unknown; page?: unknown } | null;
++    const b = body as { assignments?: unknown; desks?: unknown; places?: unknown; at?: unknown; page?: unknown; labels?: unknown } | null;
 +    if (!b || (b.assignments === undefined && b.desks === undefined && b.places === undefined)) return false;
 +    const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 +    if (b.assignments !== undefined && !isMap(b.assignments)) return false;
 +    if (b.desks !== undefined && !isMap(b.desks)) return false;
 +    if (b.places !== undefined && (!isMap(b.places) || !finite(b.at) || b.at > now + PLACE_AHEAD_MS)) return false;
 +    if (b.page !== undefined && !(typeof b.page === 'string' && ID.test(b.page))) return false;
++    const labels = b.labels === undefined ? undefined : readLabels(b.labels);
++    if (labels === null) return false;
 +    const cats = Object.entries((b.assignments ?? {}) as Record<string, unknown>);
 +    if (!cats.every(([id, cat]) => ID.test(id) && typeof cat === 'string' && CAT.test(cat))) return false;
 +    const desks = Object.entries((b.desks ?? {}) as Record<string, unknown>).map(([id, v]) => [id, readDesk(v)] as const);
@@ -207,6 +211,10 @@
 +      if (sameDesk(this.desks.get(id), desk)) continue;
 +      this.desks.delete(id);
 +      this.desks.set(id, desk);
++      changed = true;
++    }
++    if (labels && !sameLabels(this.labels, labels)) {
++      this.labels = labels;
 +      changed = true;
 +    }
 +    while (this.cats.size > KEEP_MAX) this.cats.delete(this.cats.keys().next().value as string);
@@ -295,12 +303,14 @@
 +      }),
 +      spares,
 +      placesAt,
++      ...(this.labels ? { statusLabels: { ...this.labels } } : {}),
 +    };
 +  }
 +
 +  private load(): void {
 +    try {
-+      const d = JSON.parse(readFileSync(this.file, 'utf8')) as { cats?: Record<string, unknown>; desks?: Record<string, unknown> };
++      const d = JSON.parse(readFileSync(this.file, 'utf8')) as { cats?: Record<string, unknown>; desks?: Record<string, unknown>; labels?: unknown };
++      this.labels = d.labels === undefined ? null : readLabels(d.labels);
 +      for (const [id, cat] of Object.entries(d.cats ?? {})) {
 +        if (ID.test(id) && typeof cat === 'string' && CAT.test(cat)) this.cats.set(id, cat);
 +      }
@@ -316,7 +326,7 @@
 +  private save(): void {
 +    mkdirSync(dirname(this.file), { recursive: true });
 +    const tmp = `${this.file}.tmp`;
-+    writeFileSync(tmp, JSON.stringify({ cats: Object.fromEntries(this.cats), desks: Object.fromEntries(this.desks) }, null, 2) + '\n');
++    writeFileSync(tmp, JSON.stringify({ cats: Object.fromEntries(this.cats), desks: Object.fromEntries(this.desks), ...(this.labels ? { labels: this.labels } : {}) }, null, 2) + '\n');
 +    renameSync(tmp, this.file);
 +  }
 +}
@@ -354,6 +364,25 @@
 +      // Already gone.
 +    }
 +  };
++}
++
++const STATUSES: readonly AgentStatus[] = ['waiting', 'working', 'idle', 'ended'];
++
++/** The page's status words: one short line for each of the four statuses, else null. */
++function readLabels(v: unknown): Record<AgentStatus, string> | null {
++  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
++  const o = v as Record<string, unknown>;
++  const out = {} as Record<AgentStatus, string>;
++  for (const s of STATUSES) {
++    const t = o[s];
++    if (!text(t, 40) || t.trim() === '') return null;
++    out[s] = t;
++  }
++  return out;
++}
++
++function sameLabels(a: Record<AgentStatus, string> | null, b: Record<AgentStatus, string>): boolean {
++  return !!a && STATUSES.every((s) => a[s] === b[s]);
 +}
 --- a/server/agent-bridge/index.ts
 +++ b/server/agent-bridge/index.ts
@@ -525,7 +554,7 @@
    startedAt: number;
    updatedAt: number;
    /** Office workers only (null for external): the conversation, last 60 entries, oldest first. */
-@@ -236,8 +242,49 @@
+@@ -236,8 +242,51 @@
    claude?: ClaudeHealth;
    /** The account's 5-hour and 7-day usage (plan-usage.ts); absent where nothing watches it, null before any is seen. */
    plan?: PlanUsage | null;
@@ -533,6 +562,8 @@
 +  spares?: SparePlace[];
 +  /** Epoch ms of the newest place kept, or null with none (places over 60 s old are dropped). */
 +  placesAt?: number | null;
++  /** The page's words for each status ("Needs you", "Running", "Idle", "Ended"), as last sent; for other local apps. */
++  statusLabels?: Record<AgentStatus, string>;
 +}
 +
 +/**
@@ -575,7 +606,7 @@
  /** One usage limit window, as Claude Code's status line input last reported it. */
  export interface PlanWindow {
    /** 0–100. */
-@@ -401,13 +448,14 @@
+@@ -401,13 +450,14 @@
  
  /**
   * POST /__agents/:id/answer → answers the open dialog with the keystrokes Claude Code's dialog expects.
@@ -727,13 +758,14 @@
 +}
 --- a/src/agents/live/places-share.ts
 +++ b/src/agents/live/places-share.ts
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,142 @@
 +import { useEffect, useRef } from 'react';
 +import { activityFor, type ActivityKind } from '../../simulation/activities';
 +import type { SimulationEngine } from '../../simulation/simulation-engine';
 +import type { AgentPhaseLabel, SimSnapshot } from '../../simulation/simulation.types';
 +import type { FloorId, Spot } from '../../world/world.types';
 +import { post } from './actions';
++import { STATUS_LABEL } from './status';
 +
 +/*
 + * Where each cat is and what it's doing, shared with other local apps (ClaudeBar's menu bar office mirrors it):
@@ -857,7 +889,7 @@
 +      if (busy || !shouldShare(document.visibilityState)) return;
 +      busy = true;
 +      const places = buildPlaces(engine.snapshot(), latest.current, engine.building);
-+      void post('/__agents/cats', { places, at: Date.now(), page: PAGE_ID }, () => true).finally(() => {
++      void post('/__agents/cats', { places, at: Date.now(), page: PAGE_ID, labels: STATUS_LABEL }, () => true).finally(() => {
 +        busy = false;
 +      });
 +    };
@@ -1593,6 +1625,49 @@
 +  assert.equal(out.agents[0].place?.sleepPose, 'nod');
 +  assert.ok(out.agents[1].place, 'an older page posts neither field');
 +  assert.equal('sleepMirror' in (out.agents[1].place ?? {}), false);
++});
+--- a/tests/sim/status-labels.test.ts
++++ b/tests/sim/status-labels.test.ts
+@@ -0,0 +1,40 @@
++// The page's own status words (STATUS_LABEL) ride on its places post; the bridge keeps the last ones (on disk too) and
++// every snapshot carries them, so other local apps (ClaudeBar) say "Running", "Needs you"… as this Cat Office does,
++// renamed ones included.
++import assert from 'node:assert/strict';
++import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import { after, test } from 'node:test';
++
++const TMP = realpathSync(mkdtempSync(join(tmpdir(), 'cat-office-labels-')));
++after(() => rmSync(TMP, { recursive: true, force: true }));
++
++const { CatAssignmentStore } = await import('../../server/agent-bridge/cat-assignments.ts');
++const { STATUS_LABEL } = await import('../../src/agents/live/status.ts');
++
++const NOW = 1_800_000_000_000;
++const snap = () => ({ agents: [], repos: [], at: 1 }) as never;
++const body = (labels: unknown) => ({ places: {}, at: NOW, page: 'page-1', labels });
++
++test('labels: kept from the post, on every snapshot, and after a restart', () => {
++  const file = join(TMP, 'a', 'cats.json');
++  const store = new CatAssignmentStore(file);
++  assert.equal('statusLabels' in (store.apply(snap(), NOW) as object), false, 'none until a page sends them');
++  const renamed = { ...STATUS_LABEL, working: 'Busy' };
++  assert.equal(store.merge(body(renamed), NOW), true);
++  assert.deepEqual((store.apply(snap(), NOW) as unknown as { statusLabels: unknown }).statusLabels, renamed);
++  const again = new CatAssignmentStore(file);
++  assert.deepEqual((again.apply(snap(), NOW) as unknown as { statusLabels: unknown }).statusLabels, renamed);
++});
++
++test('labels: the four statuses, short text, or the post is refused', () => {
++  const store = new CatAssignmentStore(join(TMP, 'b', 'cats.json'));
++  for (const bad of [{ working: 'Busy' }, { ...STATUS_LABEL, idle: '' }, { ...STATUS_LABEL, ended: 'x'.repeat(41) }, { ...STATUS_LABEL, idle: 3 }, 'Running']) {
++    assert.equal(store.merge(body(bad), NOW), false, JSON.stringify(bad));
++  }
++});
++
++test('STATUS_LABEL is what the page sends', () => {
++  assert.deepEqual(STATUS_LABEL, { waiting: 'Needs you', working: 'Running', idle: 'Idle', ended: 'Ended' });
 +});
 --- a/tests/sim/plan-usage-workers.test.ts
 +++ b/tests/sim/plan-usage-workers.test.ts

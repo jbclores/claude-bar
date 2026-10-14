@@ -21,6 +21,7 @@ FILES=(
   tests/sim/answer-expect.test.ts
   tests/sim/cat-assignments.test.ts
   tests/sim/places.test.ts
+  tests/sim/status-labels.test.ts
   tests/sim/plan-usage-workers.test.ts
 )
 : > "$OUT"
