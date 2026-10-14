@@ -644,6 +644,26 @@
 +    return () => window.clearInterval(timer);
 +  }, [engine, building, agentOf, source]);
 +}
+--- a/src/agents/live/agent-link.ts
++++ b/src/agents/live/agent-link.ts
+@@ -0,0 +1,17 @@
++/*
++ * ?agent=<id>: other local apps (ClaudeBar's "Open in Cat Office") open the page on one agent's drawer. Read once
++ * when the agents are in; then dropped from the address so a reload doesn't open it again.
++ */
++
++/** The agent id in the URL (?agent=sess-1), or null. */
++export function agentParam(search = window.location.search): string | null {
++  const id = new URLSearchParams(search).get('agent');
++  return id ? id : null;
++}
++
++/** `href` without its ?agent= parameter. */
++export function withoutAgentParam(href = window.location.href): string {
++  const url = new URL(href);
++  url.searchParams.delete('agent');
++  return url.toString();
++}
 --- a/src/agents/live/places-share.ts
 +++ b/src/agents/live/places-share.ts
 @@ -0,0 +1,141 @@
@@ -821,16 +841,17 @@
    const spare = useMemo(() => (source === 'live' ? spareCats(agents ?? [], catIds, assignment) : []), [source, agents, catIds, assignment]);
 --- a/src/components/mission/MissionControl.tsx
 +++ b/src/components/mission/MissionControl.tsx
-@@ -4,6 +4,8 @@
+@@ -4,6 +4,9 @@
  import { displayName, helperIcon, isHelper } from '../../agents/live/helpers';
- import { countByStatus, formatRuntime, runtimeMs } from '../../agents/live/status';
+ import { countByStatus, formatRuntime, runtimeMs, sumTokens } from '../../agents/live/status';
  import { useAgentCats, type Portrait } from '../../agents/live/useAgentCats';
 +import { useReportDesks } from '../../agents/live/agent-desks';
++import { agentParam, withoutAgentParam } from '../../agents/live/agent-link';
 +import { usePlacesShare } from '../../agents/live/places-share';
  import { useLiveAgents } from '../../agents/live/useLiveAgents';
  import { useWarmStart } from '../../agents/live/warm-start';
  import { withMeeting, workingHelpers } from '../../agents/live/meetings';
-@@ -162,6 +164,10 @@
+@@ -162,6 +165,10 @@
      const agentOf = new Map([...assigned.agentOf].filter(([simId, a]) => !left(simId, a)));
      return { catOf, agentOf };
    }, [assigned, departedKey]);
@@ -841,6 +862,43 @@
    const agents = live.snapshot?.agents ?? NO_AGENTS;
    // Every session's face in the roster, drawer and feed: its cat's, the one it had, or one picked from its id;
    // muted when no cat in the office stands for it now (ended, or queued for a free cat).
+@@ -283,6 +290,15 @@
+     pickAgent(agent);
+     setReveal((n) => n + 1);
+   };
++  // ?agent=<id> (ClaudeBar's "Open in Cat Office"): once the agents are in, open that agent's drawer, then drop it.
++  const linkedAgent = useRef(agentParam());
++  useEffect(() => {
++    const id = linkedAgent.current;
++    if (!id || agents.length === 0) return;
++    linkedAgent.current = null;
++    if (agents.some((a) => a.id === id)) pickAgentId(id);
++    window.history.replaceState(null, '', withoutAgentParam());
++  }, [agents]); // eslint-disable-line react-hooks/exhaustive-deps
+   // A pick from the roster (the restore on load calls pickAgent itself, and leaves a hidden drawer hidden).
+   const pickAgentShown = (agent: LiveAgent): void => {
+     pickAgent(agent);
+--- a/tests/sim/agent-link.test.ts
++++ b/tests/sim/agent-link.test.ts
+@@ -0,0 +1,18 @@
++// ?agent=<id>: ClaudeBar's "Open in Cat Office" link opens the page on that agent; the parameter is then dropped.
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++
++const { agentParam, withoutAgentParam } = await import('../../src/agents/live/agent-link.ts');
++
++test('agentParam: the id in ?agent=, else null', () => {
++  assert.equal(agentParam('?agent=sess-1'), 'sess-1');
++  assert.equal(agentParam('?floor=3&agent=a%2Fb'), 'a/b');
++  assert.equal(agentParam('?floor=3'), null);
++  assert.equal(agentParam('?agent='), null);
++});
++
++test('withoutAgentParam: the same address without it', () => {
++  assert.equal(withoutAgentParam('http://localhost:5173/?agent=x'), 'http://localhost:5173/');
++  assert.equal(withoutAgentParam('http://localhost:5173/?floor=3&agent=x#y'), 'http://localhost:5173/?floor=3#y');
++  assert.equal(withoutAgentParam('http://localhost:5173/'), 'http://localhost:5173/');
++});
 --- a/tests/sim/cat-assignments.test.ts
 +++ b/tests/sim/cat-assignments.test.ts
 @@ -0,0 +1,154 @@
