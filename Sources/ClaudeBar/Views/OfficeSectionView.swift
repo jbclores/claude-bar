@@ -44,7 +44,7 @@ struct OfficeCatList: View {
             }
             Text(row.label).font(row.isSubagent ? .caption.weight(.medium) : .callout.weight(.medium)).lineLimit(1).layoutPriority(1)
             Text(statusText(row)).font(.caption)
-                .foregroundStyle(row.needsAttention ? Theme.waiting : Theme.color(row.status))
+                .foregroundStyle(row.needsAttention ? Theme.waitingText : Theme.color(row.status))
                 .fixedSize()
             Spacer(minLength: 8)
             // What it's doing in two or three words; the file or program, and the raw action, are on hover.
@@ -78,7 +78,7 @@ struct OfficeStarter: View {
                 ProgressView().controlSize(.small)
                 Text("Starting Cat Office…").font(.caption).foregroundStyle(Theme.secondaryText)
             case .failed(let message):
-                Text(message).font(.caption).foregroundStyle(Theme.waiting)
+                Text(message).font(.caption).foregroundStyle(Theme.waitingText)
                 Button("Try again", action: start).buttonStyle(.link).font(.caption)
                 Button("Open log", action: openLog).buttonStyle(.link).font(.caption)
             }

@@ -170,3 +170,9 @@ private func walkableRows(_ grid: [String: Any]?) -> [String]? {
           rows.allSatisfy({ $0.count == Int(size) }) else { return nil }
     return rows
 }
+
+
+extension Building {
+    /// The floors as Cat Office's floor menu lists them: the top floor first (FloorTabs.tsx).
+    public var menuOrder: [Floor] { floors.sorted { $0.id > $1.id } }
+}

@@ -76,11 +76,20 @@ public struct UsageForecast: Equatable, Sendable {
 
 /// Warns once per usage window: the first forecast at risk for a window and reset, never again for that one.
 public struct UsageWarner: Sendable {
-    private var warned = Set<String>()
-    public init() {}
+    /// The windows warned about, oldest first (kept across restarts by the app: `warnedKeys`).
+    private var warned: [String]
+    static let keep = 20
+
+    public init(warned: [String] = []) { self.warned = Array(warned.suffix(Self.keep)) }
+
+    /// What to keep for the next launch.
+    public var warnedKeys: [String] { warned }
 
     public mutating func shouldWarn(_ f: UsageForecast) -> Bool {
         guard f.atRisk else { return false }
-        return warned.insert("\(f.window.rawValue)|\(f.resetsAt.timeIntervalSince1970)").inserted
+        let key = "\(f.window.rawValue)|\(f.resetsAt.timeIntervalSince1970)"
+        guard !warned.contains(key) else { return false }
+        warned = Array((warned + [key]).suffix(Self.keep))
+        return true
     }
 }

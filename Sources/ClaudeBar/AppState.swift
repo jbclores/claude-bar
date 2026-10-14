@@ -340,6 +340,9 @@ final class AppState: ObservableObject {
     var sideEffects = true
 
     func start() {
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.macWillSleep() }
+        }
         loadCatalog()
         refresh()
         officeClient.start()
@@ -719,7 +722,9 @@ final class AppState: ObservableObject {
 
     /// ClaudeBar's usage log; renders read CLAUDEBAR_RENDER_USAGE_HISTORY=<jsonl file> instead (never written).
     @Published private(set) var usageHistory = UsageHistory()
-    private var usageWarner = UsageWarner()
+    /// Warned once per usage window; the windows warned about are kept (a preference) so a restart doesn't warn again.
+    static let usageWarnedKey = "usageWarned"
+    private lazy var usageWarner = UsageWarner(warned: sideEffects ? UserDefaults.standard.stringArray(forKey: Self.usageWarnedKey) ?? [] : [])
     private var usageHistoryLoaded = false
 
     /// The week chart under the usage bars is open; folded each time the dropdown opens (acknowledge).
@@ -746,6 +751,7 @@ final class AppState: ObservableObject {
             try? usageHistory.save(UsageHistory.defaultFile)
         }
         if settings.usageWarnings, !isQuiet, let f = usageForecast, usageWarner.shouldWarn(f) {
+            UserDefaults.standard.set(usageWarner.warnedKeys, forKey: Self.usageWarnedKey)
             notifier.post(title: "Usage", body: f.warning(time: Self.usageTime))
         }
     }
@@ -871,33 +877,48 @@ final class AppState: ObservableObject {
         NSWorkspace.shared.open(c.url ?? officeClient.baseURL)
     }
 
-    /// Each pid's tty, looked up at most every 10 s (hovering a card asks often).
-    private var ttys: [Int32: (tty: String?, at: Date)] = [:]
+    /// Each pid's tty and the app it belongs to, looked up at most every 10 s (hovering a card asks often); pruned of
+    /// old entries as it goes.
+    private var ttys: [Int32: (tty: String?, host: TerminalHost?, at: Date)] = [:]
 
-    private func tty(of pid: Int32) -> String? {
-        if let known = ttys[pid], Date().timeIntervalSince(known.at) < 10 { return known.tty }
+    private func terminal(of pid: Int32) -> (tty: String, host: TerminalHost)? {
+        let now = Date()
+        if let known = ttys[pid], now.timeIntervalSince(known.at) < 10 {
+            return known.tty.flatMap { t in known.host.map { (t, $0) } }
+        }
+        ttys = ttys.filter { now.timeIntervalSince($0.value.at) < 60 }
         let tty = TerminalFinder.tty(of: pid)
-        ttys[pid] = (tty, Date())
-        return tty
+        let host = tty == nil ? nil : TerminalFinder.host(of: pid)
+        ttys[pid] = (tty, host, now)
+        return tty.flatMap { t in host.map { (t, $0) } }
     }
 
     /// "Show terminal" is offered: the session's process has a tty, and Terminal or iTerm is running.
     func canShowTerminal(_ agent: OfficeAgent) -> Bool {
         // Renders only (CLAUDEBAR_RENDER_TERMINAL=1, or =missed for "couldn't bring it forward"): the link shows.
         if renderTerminal != nil { return true }
-        guard let pid = agent.pid, tty(of: pid) != nil else { return false }
-        return !TerminalFinder.terminalsRunning.isEmpty
+        guard let pid = agent.pid, let found = terminal(of: pid) else { return false }
+        return TerminalFinder.terminalsRunning.contains(found.host.bundleId)
     }
 
     private var renderTerminal: String? { sideEffects ? nil : ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_TERMINAL"] }
+
+    private static let terminalQueue = DispatchQueue(label: "ClaudeBar.terminal")
 
     /// Agents whose terminal tab couldn't be brought forward (not found, or macOS didn't allow ClaudeBar to ask).
     @Published private(set) var terminalMissed: Set<String> = []
 
     /// Brings forward the Terminal / iTerm tab the session runs in.
     func showTerminal(_ agent: OfficeAgent) {
-        guard sideEffects, let pid = agent.pid, let tty = tty(of: pid) else { return }
-        if TerminalFinder.show(tty: tty) { terminalMissed.remove(agent.id) } else { terminalMissed.insert(agent.id) }
+        guard sideEffects, let pid = agent.pid, let found = terminal(of: pid) else { return }
+        let id = agent.id
+        // Off the main thread: macOS may first ask to let ClaudeBar control Terminal / iTerm.
+        Self.terminalQueue.async {
+            let shown = TerminalFinder.show(tty: found.tty, in: found.host)
+            DispatchQueue.main.async {
+                if shown { self.terminalMissed.remove(id) } else { self.terminalMissed.insert(id) }
+            }
+        }
     }
 
     /// Answers sent from ClaudeBar, by agent id; cleared when the agent stops waiting or waits on something else.
@@ -1026,6 +1047,14 @@ final class AppState: ObservableObject {
     private var sessionLogLoaded = false
     static let sessionLogSeenKey = "sessionLogLastSeen"
     private var sessionLogSeenWritten: Date?
+
+    /// The Mac is going to sleep: working time stops now, not when ClaudeBar next looks.
+    func macWillSleep() {
+        guard sideEffects, sessionLogLoaded else { return }
+        sessionLogWorking.pause(at: Date())
+        sessionLog = sessionLogWorking
+        try? sessionLogWorking.save(SessionLog.defaultFile)
+    }
 
     /// Today so far, for the top of Projects.
     var todayRecap: TodayRecap { TodayRecap.of(sessionLog, now: Date(), calendar: .current) }

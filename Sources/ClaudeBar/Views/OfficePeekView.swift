@@ -60,7 +60,7 @@ struct OfficeSummary: View {
             Text("\(count) cat\(count == 1 ? "" : "s")").foregroundStyle(Theme.secondaryText)
             if office.claudeHindered {
                 Label("Claude is having trouble", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Theme.waiting).lineLimit(1)
+                    .foregroundStyle(Theme.waitingText).lineLimit(1)
             }
         }
     }
@@ -516,7 +516,7 @@ struct OfficeRoomView: View {
             Spacer()
             if let cat = state.catIds.first {
                 SpriteImage(key: "\(cat)-sleeping", fallback: Theme.idle) { await state.art.catImage(cat: cat, pose: .sleeping) }
-                    .frame(width: 70, height: 74)
+                    .frame(width: 70, height: state.catFrame.size(width: 70).height)
             } else {
                 Image(systemName: "cat.fill").font(.system(size: 34)).foregroundStyle(Theme.secondaryText)
             }
@@ -844,7 +844,7 @@ struct NearbyHelper: View {
         SpriteImage(key: "\(cat)-standing-front-left", fallback: Theme.color(agent.status)) {
             await state.art.catImage(cat: cat, pose: .standing, direction: "front-left")
         }
-        .frame(width: 40, height: 42)
+        .frame(width: 40, height: state.catFrame.size(width: 40).height)
         .colorMultiply(officeNight ? Night.furniture : .white)
         .help("\(agent.label) · working nearby")
     }
@@ -965,7 +965,7 @@ struct CatView: View {
                 RoomPill(text: agent.label,
                          detail: Format.statusText(agent.status, needsYou: needsYou,
                                                    since: agent.statusSince(tracked: state.statusSince[agent.key])),
-                         detailColor: needsYou ? Theme.waiting : Theme.color(agent.status))
+                         detailColor: needsYou ? Theme.waitingText : Theme.color(agent.status))
                     .frame(maxWidth: 84)
             }
         }
@@ -1280,7 +1280,7 @@ struct CatCard: View {
                 Text(agent.label).font(.callout.weight(.semibold)).lineLimit(1)
                 Spacer()
                 Text(Format.statusText(agent.status, needsYou: needsYou, since: agent.waitingSince ?? since))
-                    .font(.caption).foregroundStyle(needsYou ? Theme.waiting : Theme.color(agent.status))
+                    .font(.caption).foregroundStyle(needsYou ? Theme.waitingText : Theme.color(agent.status))
             }
             let place = [agent.name, agent.repoName, agent.branch, agent.model.map(Format.modelName)]
                 .compactMap { $0 }.filter { !$0.isEmpty }
@@ -1289,7 +1289,7 @@ struct CatCard: View {
             if let p = state.mirror.places[agent.id] { ActivityLine(place: p, key: agent.id, clock: state.minutesLeft) }
             // With a prompt to answer, it takes the room: the task on one line, no wait reason or last action.
             let asks = AnswerPanel.shows(agent)
-            if !asks, let reason = agent.waitReason { Text(reason).font(.caption).foregroundStyle(Theme.waiting) }
+            if !asks, let reason = agent.waitReason { Text(reason).font(.caption).foregroundStyle(Theme.waitingText) }
             if let task = agent.task, !task.isEmpty { Text(task).font(.caption).lineLimit(asks ? 1 : 3) }
             if asks { AnswerPanel(agent: agent, targetPrefix: "card", links: false).padding(.vertical, 2) }
             if !asks, let last = agent.lastAction, !last.isEmpty {

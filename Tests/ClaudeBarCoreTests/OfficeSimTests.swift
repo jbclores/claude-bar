@@ -78,6 +78,23 @@ import Testing
 
     /// cat.sprite / simulation-engine.ts applyActivityPose: a nap in a seat facing front-right is the sleeping sprite
     /// mirrored; facing front-left, or on a bed or rug (no seat), it isn't.
+    /// cat.sprite.ts: a nap in a seat facing away keeps the seat's pose (Cat Office draws a back-facing sit as standing),
+    /// not the sleeping sprite.
+    @Test func aNapInASeatFacingAwayIsNotDrawnAsleep() throws {
+        let all: [(Int, BuiltRoom, RoomSpot)] = rooms.flatMap { entry in
+            (entry.value.seats + entry.value.props.flatMap(\.spots)).map { (entry.key, entry.value, $0) }
+        }
+        let (floorId, room, seat) = try #require(all.first { $0.2.pose == "sit" })
+        let agent = OfficeAgent(id: "a", name: "A", owner: "me", status: .idle, cwd: "", cat: nil)
+        func nap(_ direction: String) -> MirrorPlace {
+            MirrorPlace(floor: floorId, u: seat.standAt.u, v: seat.standAt.v, direction: direction, state: "resting", asleep: true,
+                        spotId: seat.id, phase: "using", at: 0)
+        }
+        #expect(SceneCast.mirroredCat(agent, nap("back-left"), in: room).pose == .standing)
+        #expect(SceneCast.mirroredCat(agent, nap("back-right"), in: room).pose == .standing)
+        #expect(SceneCast.mirroredCat(agent, nap("front-left"), in: room).pose == .sleeping)
+    }
+
     @Test func aNapInAFrontRightSeatIsMirrored() throws {
         let all: [(Int, BuiltRoom, RoomSpot)] = rooms.flatMap { entry in
             (entry.value.seats + entry.value.props.flatMap(\.spots)).map { (entry.key, entry.value, $0) }

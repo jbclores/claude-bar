@@ -8,7 +8,7 @@ struct UsageForecastLine: View {
     var body: some View {
         Text(forecast.line(time: AppState.usageTime))
             .font(.caption)
-            .foregroundStyle(forecast.atRisk ? Theme.waiting : Theme.secondaryText)
+            .foregroundStyle(forecast.atRisk ? Theme.waitingText : Theme.secondaryText)
             .lineLimit(1)
     }
 }
@@ -67,7 +67,7 @@ struct UsageWeekChart: View {
             .frame(height: 66, alignment: .bottom)
             ForEach(Array(history.limitHits(days: 7, now: now, calendar: cal).prefix(3).enumerated()), id: \.offset) { _, hit in
                 Text("\(hit.window == .fiveHour ? "Limit" : "7-day limit") reached: \(AppState.usageTime(hit.at))")
-                    .font(.caption).foregroundStyle(Theme.waiting)
+                    .font(.caption).foregroundStyle(Theme.waitingText)
             }
         }
         .padding(8)

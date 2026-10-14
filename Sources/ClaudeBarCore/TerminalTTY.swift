@@ -80,3 +80,20 @@ extension SessionLog {
         }
     }
 }
+
+
+/// The app a session's terminal belongs to, found from its process's ancestors' commands: Terminal or iTerm (the two
+/// "Show terminal" can bring forward), else nil (VS Code, Orca, others).
+public enum TerminalHost: Equatable, Sendable {
+    case terminal, iterm
+
+    public var bundleId: String { self == .terminal ? "com.apple.Terminal" : "com.googlecode.iterm2" }
+
+    public static func of(ancestorCommands: [String]) -> TerminalHost? {
+        for command in ancestorCommands {
+            if command.contains("/Terminal.app/Contents/MacOS/") { return .terminal }
+            if command.contains("/iTerm.app/Contents/MacOS/") { return .iterm }
+        }
+        return nil
+    }
+}

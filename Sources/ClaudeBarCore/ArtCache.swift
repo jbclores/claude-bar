@@ -31,6 +31,9 @@ public struct CatFrame: Equatable, Sendable {
     /// Cat Office's own cats.
     public static let standard = CatFrame(canvas: CGSize(width: 360, height: 380), feet: CGPoint(x: 180, y: 300), bodyHeight: 210)
 
+    /// The canvas drawn `width` wide, keeping its proportions (small cat pictures).
+    public func size(width: CGFloat) -> CGSize { CGSize(width: width, height: width * canvas.height / canvas.width) }
+
     /// Drawn size per canvas pixel for a cat `catHeight` tall.
     public func scale(catHeight: CGFloat) -> CGFloat { catHeight / bodyHeight }
 

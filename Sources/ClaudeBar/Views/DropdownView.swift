@@ -54,7 +54,7 @@ struct DropdownHeader: View {
                         quietEnds: state.quietEnds, showWeek: $state.usageWeekShown)
             if let error = state.configError {
                 Label(error, systemImage: "exclamationmark.triangle")
-                    .font(.caption).foregroundStyle(Theme.waiting)
+                    .font(.caption).foregroundStyle(Theme.waitingText)
             }
         }
         .frame(width: DropdownLayout.contentWidth, alignment: .leading)
@@ -268,7 +268,7 @@ struct TwoCopiesCard: View {
         let kept = state.officePortKept.map { "localhost:\($0)" } ?? "the first one"
         let extra = state.extraOfficeCopies.map { "\($0.port)" }.joined(separator: ", ")
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.waiting)
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.waitingText)
             VStack(alignment: .leading, spacing: 3) {
                 Text("Two copies of Cat Office are running, so the cats may not match").font(.callout)
                     .fixedSize(horizontal: false, vertical: true)
@@ -380,7 +380,7 @@ struct SettingsTabView: View {
             HStack {
                 Text("Open ClaudeBar with")
                 Spacer()
-                if state.shortcutTaken { Text("That shortcut is taken; try another").font(.caption).foregroundStyle(Theme.waiting) }
+                if state.shortcutTaken { Text("That shortcut is taken; try another").font(.caption).foregroundStyle(Theme.waitingText) }
                 ShortcutField()
             }
             // Cat Office's switches: not for "I don't use Cat Office" (they come back with the Office tab).
@@ -622,7 +622,7 @@ struct ProjectRowView: View {
                     Text(row.name).font(.body.weight(.medium)).lineLimit(1)
                     if case .live(let status, _) = row.state {
                         Text(row.needsAttention || status == .waiting ? "needs you" : status.rawValue)
-                            .font(.caption).foregroundStyle(row.needsAttention ? Theme.waiting : Theme.color(status))
+                            .font(.caption).foregroundStyle(row.needsAttention ? Theme.waitingText : Theme.color(status))
                     }
                     if row.helpers > 0 {
                         Text("+\(row.helpers) helper\(row.helpers == 1 ? "" : "s")")

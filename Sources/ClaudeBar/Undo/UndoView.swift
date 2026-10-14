@@ -28,7 +28,7 @@ struct UndoView: View {
             Text(UndoText.intro).font(.callout).foregroundStyle(Theme.secondaryText).fixedSize(horizontal: false, vertical: true)
             ForEach(model.rows) { row in rowView(row) }
             if let warning = model.warning {
-                Text(warning).font(.caption).foregroundStyle(Theme.waiting).fixedSize(horizontal: false, vertical: true)
+                Text(warning).font(.caption).foregroundStyle(Theme.waitingText).fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
             HStack {
@@ -95,7 +95,7 @@ struct UndoView: View {
                 .disabled(model.working)
                 .setupTarget("undo-restart")
                 if let error = model.restartError {
-                    Text(error).font(.caption).foregroundStyle(Theme.waiting).fixedSize(horizontal: false, vertical: true)
+                    Text(error).font(.caption).foregroundStyle(Theme.waitingText).fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer()

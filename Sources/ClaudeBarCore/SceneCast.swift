@@ -201,7 +201,10 @@ extension SceneCast {
         }
         let lift = spot.map { max(0, $0.lift) } ?? 0
         let desk = riding ? nil : place.spotId.flatMap { id in room.desks.first { $0.id == id }?.rect }
-        let pose = CatPose(place)
+        var pose = CatPose(place)
+        // A nap in a seat facing away keeps the seat's pose (simulation-engine.ts applyActivityPose sleeps only in
+        // seats facing front), and a back-facing sit is drawn standing (cat.sprite.ts catSpriteFor).
+        if pose == .sleeping, spot?.pose == "sit", place.direction.hasPrefix("back") { pose = .standing }
         let asleep = pose == .sleeping
         // The page's own mirror when it shares it; else (an older patch) a nap in a seat facing front-right is mirrored.
         let mirrored = place.sleepMirror ?? (spot?.pose == "sit" && place.direction == "front-right")

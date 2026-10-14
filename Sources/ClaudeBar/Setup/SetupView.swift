@@ -198,7 +198,7 @@ struct SetupView: View {
             }
             if let error = model.choiceError {
                 Label(error + " Choose again.", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Theme.waiting).font(.callout)
+                    .foregroundStyle(Theme.waitingText).font(.callout)
             }
         }
     }
@@ -275,7 +275,7 @@ struct SetupView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     choice($model.patch, "Patch Cat Office", "Matching cats, helpers, and usage without a terminal.", result: "patch")
                     if let warning = model.patchWarning {
-                        Text(warning).font(.caption).foregroundStyle(Theme.waiting)
+                        Text(warning).font(.caption).foregroundStyle(Theme.waitingText)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.leading, 20)
                     }
@@ -331,7 +331,7 @@ struct SetupView: View {
         case .wrapped:
             Text("Your status line is already kept, with ClaudeBar reading its data.").font(.caption).foregroundStyle(Theme.secondaryText)
         case .unreadable:
-            Text("~/.claude/settings.json isn't valid JSON, so it will be left alone.").font(.caption).foregroundStyle(Theme.waiting)
+            Text("~/.claude/settings.json isn't valid JSON, so it will be left alone.").font(.caption).foregroundStyle(Theme.waitingText)
         case .none:
             Text("Installs ClaudeBar's status line; settings.json is backed up first.").font(.caption).foregroundStyle(Theme.secondaryText)
         }

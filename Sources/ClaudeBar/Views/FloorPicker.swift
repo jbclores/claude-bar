@@ -18,7 +18,7 @@ struct FloorPicker: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
                 Menu {
-                    ForEach(state.building.floors) { f in
+                    ForEach(state.building.menuOrder) { f in
                         let count = FloorPlan.cats(on: f.id, agents: agents, in: state.building, mirror: state.mirror).count
                         Button { floors.choice.pick(f.id) } label: {
                             Text("\(activity[f.id] == .needsYou ? "● " : "")\(f.id) \(f.name)\(count > 0 ? " · \(count)" : "")")

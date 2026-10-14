@@ -68,7 +68,7 @@ struct AnswerPanel: View {
         case .sending:
             ProgressView().controlSize(.small)
         case .failed(let message):
-            Text(message).font(.caption).foregroundStyle(Theme.waiting).fixedSize(horizontal: false, vertical: true)
+            Text(message).font(.caption).foregroundStyle(Theme.waitingText).fixedSize(horizontal: false, vertical: true)
             if links { JumpLinks(agent: agent) }
         case nil:
             if !agent.canBeAnswered, !agent.isOffice {
