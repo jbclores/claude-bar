@@ -135,4 +135,10 @@ import Testing
         let store = ConfigStore(file: file)
         #expect(throws: ConfigError.self) { try store.set(false, at: ["hoverPeek"]) }
     }
+
+    @Test func usageWarningsDefaultOnAndCanBeTurnedOff() throws {
+        #expect(Config.empty.usageWarnings)
+        #expect(try Config.parse(Data(#"{"projects":[]}"#.utf8)).usageWarnings)
+        #expect(try !Config.parse(Data(#"{"projects":[],"usageWarnings":false}"#.utf8)).usageWarnings)
+    }
 }

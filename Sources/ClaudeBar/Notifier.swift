@@ -30,6 +30,24 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
+    /// A plain notification (the usage warning): same permission and fallback as a cat finishing.
+    func post(title: String, body: String) {
+        let fallback = { @Sendable in Self.osascript(title, body) }
+        guard Bundle.main.bundleIdentifier != nil else { return fallback() }
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if error != nil { return fallback() }
+            guard granted else { return }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)) { error in
+                if error != nil { fallback() }
+            }
+        }
+    }
+
     // Show banners even while the dropdown makes ClaudeBar the active app.
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {

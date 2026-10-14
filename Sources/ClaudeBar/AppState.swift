@@ -556,6 +556,7 @@ final class AppState: ObservableObject {
         if attention != tracker.attention { attention = tracker.attention }
         needsAttention = !tracker.attention.isEmpty
         output = StatusModel.build(input)
+        recordUsage(output.usage)
         let cat = office.flatMap {
             MenuBarCat.pick(agents: $0.agents, attention: tracker.attention, catIds: catIds,
                             since: tracker.since, current: menuCat?.agentId)
@@ -634,6 +635,44 @@ final class AppState: ObservableObject {
     func setAutoStart(_ on: Bool) { setSetting(on, at: ["catOffice", "autoStart"]) }
     func setHoverPeek(_ on: Bool) { setSetting(on, at: ["hoverPeek"]) }
     func setShowSpareCats(_ on: Bool) { setSetting(on, at: ["office", "spareCats"]) }
+
+    func setUsageWarnings(_ on: Bool) { setSetting(on, at: ["usageWarnings"]) }
+
+    /// ClaudeBar's usage log; renders read CLAUDEBAR_RENDER_USAGE_HISTORY=<jsonl file> instead (never written).
+    @Published private(set) var usageHistory = UsageHistory()
+    private var usageWarner = UsageWarner()
+    private var usageHistoryLoaded = false
+
+    /// The line under the usage bars.
+    var usageForecast: UsageForecast? { UsageForecast.headline(history: usageHistory.samples, now: Date()) }
+
+    /// Notes the usage reading in the log (on change, at most once a minute), and warns once per window when the pace
+    /// reaches a limit before its reset.
+    private func recordUsage(_ usage: UsageSummary) {
+        if !usageHistoryLoaded {
+            usageHistoryLoaded = true
+            if !sideEffects, let file = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_USAGE_HISTORY"] {
+                usageHistory = UsageHistory.load(URL(fileURLWithPath: file))
+                return
+            }
+            usageHistory = UsageHistory.load(UsageHistory.defaultFile)
+        }
+        guard sideEffects else { return }
+        let now = Date()
+        if let sample = UsageSample(usage: usage, at: usage.asOf ?? now), usageHistory.add(sample) {
+            try? usageHistory.save(UsageHistory.defaultFile)
+        }
+        if settings.usageWarnings, let f = usageForecast, usageWarner.shouldWarn(f) {
+            notifier.post(title: "Usage", body: f.warning(time: Self.usageTime))
+        }
+    }
+
+    /// "3:40 PM" today, else "Fri 2:00 PM".
+    static func usageTime(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = Calendar.current.isDateInToday(d) ? "h:mm a" : "EEE h:mm a"
+        return f.string(from: d)
+    }
 
     /// A cat sound for `event`, if its switch is on and the spacing allows (SoundGate).
     func playSound(_ event: SoundEvent) {

@@ -55,6 +55,8 @@ public struct Config: Equatable, Sendable {
     public var officeLighting: OfficeLighting = .auto
     /// Show the office's spare cats (office cats with no session): the browser's while a page is open, else the simulation's ("office.spareCats").
     public var showSpareCats = false
+    /// Warn (once per usage window) when the pace reaches a limit before it resets.
+    public var usageWarnings = true
     public var sounds = SoundSettings()
     public var setup = SetupSettings()
 
@@ -91,6 +93,7 @@ public struct Config: Equatable, Sendable {
         }
         if let n = root["notifications"] as? Bool { config.notifications = n }
         if let h = root["hoverPeek"] as? Bool { config.hoverPeek = h }
+        if let w = root["usageWarnings"] as? Bool { config.usageWarnings = w }
         if let l = (root["officeLighting"] as? String).flatMap(OfficeLighting.init(rawValue:)) { config.officeLighting = l }
         if let o = root["office"] as? [String: Any], let v = o["spareCats"] as? Bool { config.showSpareCats = v }
         if let s = root["sounds"] as? [String: Any] {
