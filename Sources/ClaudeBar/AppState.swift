@@ -225,6 +225,22 @@ final class AppState: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
+    /// What each status is called (Cat Office's words, shared by its patch; kept between launches so a teammate's own
+    /// words show even before Cat Office connects). Views read `StatusWords.current`; this republishes them.
+    static let statusWordsKey = "statusWords"
+    @Published private(set) var statusWords: StatusWords = {
+        let saved = (UserDefaults.standard.dictionary(forKey: AppState.statusWordsKey)).flatMap { StatusWords($0) }
+        StatusWords.current = saved ?? .standard
+        return StatusWords.current
+    }()
+
+    private func setStatusWords(_ words: StatusWords) {
+        StatusWords.current = words
+        statusWords = words
+        if sideEffects { UserDefaults.standard.set(words.dictionary, forKey: Self.statusWordsKey) }
+        recompute()
+    }
+
     /// When the last snapshot from Cat Office arrived (the feed sends one at least every 5 s), for Settings' connection line.
     @Published private(set) var lastOfficeUpdate: Date?
     /// Cat Office's dev servers running from its folder (CatOfficeServers): more than one means two offices that disagree.
@@ -499,6 +515,7 @@ final class AppState: ObservableObject {
             snapshot!.agents[i].pendingPrompt = prompt
             renderWaitingId = snapshot!.agents[i].id
         }
+        if let words = snapshot?.statusWords, words != statusWords { setStatusWords(words) }
         if snapshot != nil {
             lastOfficeUpdate = Date()
             if officeAnswers { officeAnswers = false }

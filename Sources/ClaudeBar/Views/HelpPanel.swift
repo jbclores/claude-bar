@@ -16,15 +16,15 @@ struct HelpPanel: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     section("The menu bar", [
-                        ("The cat", "The cat that matters right now: one that needs you, else one working, else one asleep."),
+                        ("The cat", "The cat that matters right now: one that needs you, else one running, else one asleep."),
                         ("5h · 7d", "How much of your Claude usage limits you've used, and when each resets."),
                         ("Hover the cat", "A peek at the office. Click the cat for the full dropdown."),
                     ])
                     section("Office", [
                         ("Floors", "Each floor is one of your projects, laid out like your Cat Office. Idle cats sleep in the Lounge (1)."),
-                        ("Floor menu · ▲▼ · strip", "Pick a floor. Strip colours: green working, amber needs you, grey empty."),
+                        ("Floor menu · ▲▼ · strip", "Pick a floor. Strip colours: green running, amber needs you, grey empty."),
                         ("Follow", "Shows where things are happening. On each time the dropdown opens; picking a floor turns it off."),
-                        ("Rings and \"!\"", "Green working, amber or \"!\" needs you, grey asleep. Hover a cat for its details."),
+                        ("Rings and \"!\"", "Green running, amber or \"!\" needs you, grey asleep. Hover a cat for its details."),
                     ])
                     section("Mouse tips", [
                         ("Zoom", "Double-click the room, or ⌘-scroll. Drag to look around; click \"1×\" for the whole room."),

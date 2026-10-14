@@ -172,6 +172,8 @@ public struct OfficeSnapshot: Equatable, Sendable, Decodable {
     public var spares: [MirrorPlace]
     /// When the newest place was posted (ms since 1970); nil with no page open. See `MirrorPlaces.isLive`.
     public var placesAt: Double?
+    /// Cat Office's status words, when its patch shares them.
+    public var statusWords: StatusWords?
 
     public init(agents: [OfficeAgent], claudeHindered: Bool = false, spares: [MirrorPlace] = [], placesAt: Double? = nil) {
         self.agents = agents
@@ -181,7 +183,7 @@ public struct OfficeSnapshot: Equatable, Sendable, Decodable {
     }
 
     private struct Health: Decodable { var hindered: Bool? }
-    enum CodingKeys: String, CodingKey { case agents, claude, spares, placesAt }
+    enum CodingKeys: String, CodingKey { case agents, claude, spares, placesAt, statusLabels }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -196,6 +198,7 @@ public struct OfficeSnapshot: Equatable, Sendable, Decodable {
         self.spares = spares
         let at = (try? c.decodeIfPresent(Double.self, forKey: .placesAt)) ?? nil
         placesAt = at?.isFinite == true ? at : nil
+        statusWords = ((try? c.decodeIfPresent([String: String].self, forKey: .statusLabels)) ?? nil).flatMap { StatusWords($0) }
     }
     private struct Skip: Decodable { init(from decoder: Decoder) throws {} }
 

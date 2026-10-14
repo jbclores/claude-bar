@@ -30,10 +30,28 @@ import Testing
     }
 
     @Test func statusText() {
-        #expect(Format.statusText(.working, needsYou: false, since: t - 190, now: t) == "working 3m")
-        #expect(Format.statusText(.waiting, needsYou: true, since: t - 30, now: t) == "needs you")
-        #expect(Format.statusText(.idle, needsYou: true, since: nil, now: t) == "needs you")
-        #expect(Format.statusText(.idle, needsYou: false, since: nil, now: t) == "idle")
+        #expect(Format.statusText(.working, needsYou: false, since: t - 190, now: t, words: .standard) == "running 3m")
+        #expect(Format.statusText(.waiting, needsYou: true, since: t - 30, now: t, words: .standard) == "needs you")
+        #expect(Format.statusText(.idle, needsYou: true, since: nil, now: t, words: .standard) == "needs you")
+        #expect(Format.statusText(.idle, needsYou: false, since: nil, now: t, words: .standard) == "idle")
+        #expect(Format.statusText(.ended, needsYou: false, since: nil, now: t, words: .standard) == "ended")
+    }
+
+    /// Cat Office's words (status.ts STATUS_LABEL), or a teammate's own: "Running" on its own, "running 3m" in a line.
+    @Test func statusWordsFollowCatOffice() throws {
+        #expect(StatusWords.standard.word(.working) == "Running" && StatusWords.standard.word(.waiting) == "Needs you")
+        #expect(StatusWords.standard.inline(.working) == "running" && StatusWords.standard.inline(.waiting) == "needs you")
+        let busy = try #require(StatusWords(["waiting": "Your turn", "working": "Busy", "idle": "Resting", "ended": "Done"]))
+        #expect(Format.statusText(.working, needsYou: false, since: t - 190, now: t, words: busy) == "busy 3m")
+        #expect(Format.statusText(.idle, needsYou: true, since: nil, now: t, words: busy) == "your turn")
+        #expect(StatusWords(["working": "Busy"]) == nil, "all four, or none")
+        #expect(StatusWords(["waiting": "", "working": "Busy", "idle": "Resting", "ended": "Done"]) == nil)
+        // From Cat Office's snapshot; an older patch sends none.
+        let snap = try JSONDecoder().decode(OfficeSnapshot.self, from: Data(#"{"agents":[],"statusLabels":{"waiting":"Your turn","working":"Busy","idle":"Resting","ended":"Done"}}"#.utf8))
+        #expect(snap.statusWords == busy)
+        #expect(try JSONDecoder().decode(OfficeSnapshot.self, from: Data(#"{"agents":[]}"#.utf8)).statusWords == nil)
+        // Kept between launches as a plain dictionary.
+        #expect(StatusWords(busy.dictionary) == busy)
     }
 
     @Test func officeRowsCarryLabelAndLastAction() {

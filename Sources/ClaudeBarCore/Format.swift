@@ -44,11 +44,12 @@ public enum Format {
         return out + "…"
     }
 
-    /// "working 3m", "idle 1h", "needs you" — the second line of a cat's label.
-    public static func statusText(_ status: AgentStatus, needsYou: Bool, since: Date?, now: Date = Date()) -> String {
-        if needsYou { return "needs you" }
-        guard let since else { return status.rawValue }
-        return "\(status.rawValue) \(duration(now.timeIntervalSince(since)))"
+    /// "running 3m", "idle 1h", "needs you" (Cat Office's words, StatusWords) — the second line of a cat's label.
+    public static func statusText(_ status: AgentStatus, needsYou: Bool, since: Date?, now: Date = Date(),
+                                  words: StatusWords = .current) -> String {
+        if needsYou { return words.inline(.waiting) }
+        guard let since else { return words.inline(status) }
+        return "\(words.inline(status)) \(duration(now.timeIntervalSince(since)))"
     }
 
     /// "claude-opus-5-5[1m]" → "Opus 5.5", like the status line's display names; anything else unchanged.

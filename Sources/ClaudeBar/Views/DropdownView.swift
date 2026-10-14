@@ -605,7 +605,7 @@ struct UsageHeader: View {
             // Today's 5-hour use as a small line on its own row, beside the percentage.
             let today = history.today(now: Date(), calendar: .current)
             row("5h", usage.fiveHourPct, usage.fiveHourResetsAt,
-                extra: usage.workingCount > 0 ? "\(usage.workingCount) working" : nil, spark: today.count >= 2 ? today : nil)
+                extra: usage.workingCount > 0 ? "\(usage.workingCount) \(StatusWords.current.inline(.working))" : nil, spark: today.count >= 2 ? today : nil)
             row("7d", usage.sevenDayPct, usage.sevenDayResetsAt, extra: nil)
             if let forecast { UsageForecastLine(forecast: forecast) }
             if showWeek { UsageWeekChart(history: history) }
@@ -642,7 +642,7 @@ struct ProjectRowView: View {
                 HStack(spacing: 6) {
                     Text(row.name).font(.body.weight(.medium)).lineLimit(1)
                     if case .live(let status, _) = row.state {
-                        Text(row.needsAttention || status == .waiting ? "needs you" : status.rawValue)
+                        Text(StatusWords.current.inline(row.needsAttention ? .waiting : status))
                             .font(.caption).foregroundStyle(row.needsAttention ? Theme.waitingText : Theme.color(status))
                     }
                     if row.helpers > 0 {
