@@ -77,6 +77,11 @@ final class StatusItemController: NSResponder {
         state.$settings.map(\.setup).removeDuplicates().combineLatest(state.$office.map { $0 != nil }.removeDuplicates())
             .sink { [weak self] _, _ in DispatchQueue.main.async { self?.dropdownController.updateTabs() } }
             .store(in: &subscriptions)
+        // The shortcut opens and closes the dropdown; re-registered whenever it changes in Settings.
+        HotKeyCenter.shared.onPress = { [weak self] in self?.toggleDropdown() }
+        state.$settings.map(\.shortcut).removeDuplicates()
+            .sink { [weak self] shortcut in self?.state.shortcutTaken = !HotKeyCenter.shared.register(shortcut) }
+            .store(in: &subscriptions)
         state.$menuCat.removeDuplicates()
             .sink { [weak self] cat in self?.updateIcon(cat) }
             .store(in: &subscriptions)

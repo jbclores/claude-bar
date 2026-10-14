@@ -74,3 +74,98 @@ struct UsageWeekChart: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))
     }
 }
+
+/// Settings' shortcut box: shows the shortcut; click it and press a new one (Escape cancels); ✕ turns it off.
+struct ShortcutField: View {
+    @EnvironmentObject var state: AppState
+    @State private var recording = false
+    @State private var monitor: Any?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Button {
+                recording ? stop() : start()
+            } label: {
+                Text(recording ? "Press keys…" : state.settings.shortcut?.display ?? "Off")
+                    .font(.callout.monospaced()).frame(minWidth: 70)
+            }
+            .target("shortcut-field", in: state.shortcutTargets)
+            if state.settings.shortcut != nil, !recording {
+                Button { state.setShortcut(nil) } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.plain).foregroundStyle(Theme.secondaryText).help("Turn the shortcut off")
+            }
+        }
+        .onDisappear(perform: stop)
+    }
+
+    private func start() {
+        recording = true
+        state.shortcutTaken = false
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.keyCode == 53 { stop(); return nil } // Escape
+            let f = event.modifierFlags
+            if let s = Shortcut(keyCode: UInt32(event.keyCode), control: f.contains(.control), option: f.contains(.option),
+                                shift: f.contains(.shift), command: f.contains(.command)) {
+                state.setShortcut(s)
+                stop()
+            } else {
+                NSSound.beep()
+            }
+            return nil
+        }
+    }
+
+    private func stop() {
+        recording = false
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+    }
+}
+
+/// Settings' quiet hours: the switch, from / to times, weekends, and "Quiet for 1 hour".
+struct QuietHoursSettings: View {
+    @EnvironmentObject var state: AppState
+
+    var body: some View {
+        let q = state.settings.quietHours
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(isOn: Binding(get: { q.on }, set: { state.setQuietHours(on: $0) })) {
+                Text("Quiet hours").frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .help("No sounds or notifications in these hours. The office keeps running, and the menu bar still shows who needs you.")
+            if q.on {
+                HStack(spacing: 8) {
+                    Text("From").foregroundStyle(Theme.secondaryText)
+                    time(q.from) { state.setQuietTime("from", minutes: $0) }
+                    Text("to").foregroundStyle(Theme.secondaryText)
+                    time(q.to) { state.setQuietTime("to", minutes: $0) }
+                    Spacer()
+                }
+                .padding(.leading, 16)
+                Toggle("All weekend too", isOn: Binding(get: { q.weekends }, set: { state.setQuietWeekends($0) }))
+                    .toggleStyle(.checkbox).padding(.leading, 16)
+            }
+            if let until = state.quietUntil {
+                HStack(spacing: 10) {
+                    Text("Quiet until \(AppState.usageTime(until))").foregroundStyle(Theme.secondaryText)
+                    Button("End now") { state.endQuietHour() }.buttonStyle(.link)
+                }
+                .font(.callout)
+            } else {
+                Button("Quiet for 1 hour") { state.quietForAnHour() }.buttonStyle(.link).font(.callout)
+            }
+        }
+    }
+
+    private func time(_ minutes: Int, set: @escaping (Int) -> Void) -> some View {
+        let cal = Calendar.current
+        let date = cal.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: Date()) ?? Date()
+        return DatePicker("", selection: Binding(get: { date }, set: { d in
+            let c = cal.dateComponents([.hour, .minute], from: d)
+            set((c.hour ?? 0) * 60 + (c.minute ?? 0))
+        }), displayedComponents: .hourAndMinute)
+        .labelsHidden().datePickerStyle(.field).fixedSize()
+    }
+}

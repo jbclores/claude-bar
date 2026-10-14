@@ -57,6 +57,10 @@ public struct Config: Equatable, Sendable {
     public var showSpareCats = false
     /// Warn (once per usage window) when the pace reaches a limit before it resets.
     public var usageWarnings = true
+    /// No sounds or notifications in these hours (QuietHours).
+    public var quietHours = QuietHours.standard
+    /// The shortcut that opens ClaudeBar; nil when turned off ("").
+    public var shortcut: Shortcut? = .standard
     public var sounds = SoundSettings()
     public var setup = SetupSettings()
 
@@ -94,6 +98,13 @@ public struct Config: Equatable, Sendable {
         if let n = root["notifications"] as? Bool { config.notifications = n }
         if let h = root["hoverPeek"] as? Bool { config.hoverPeek = h }
         if let w = root["usageWarnings"] as? Bool { config.usageWarnings = w }
+        if let q = root["quietHours"] as? [String: Any] {
+            if let on = q["on"] as? Bool { config.quietHours.on = on }
+            if let f = (q["from"] as? String).flatMap(QuietHours.minutes) { config.quietHours.from = f }
+            if let t = (q["to"] as? String).flatMap(QuietHours.minutes) { config.quietHours.to = t }
+            if let w = q["weekends"] as? Bool { config.quietHours.weekends = w }
+        }
+        if let s = root["shortcut"] as? String { config.shortcut = s.isEmpty ? nil : Shortcut(string: s) ?? .standard }
         if let l = (root["officeLighting"] as? String).flatMap(OfficeLighting.init(rawValue:)) { config.officeLighting = l }
         if let o = root["office"] as? [String: Any], let v = o["spareCats"] as? Bool { config.showSpareCats = v }
         if let s = root["sounds"] as? [String: Any] {

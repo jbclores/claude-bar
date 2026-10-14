@@ -10,6 +10,7 @@ enum RenderPeek {
         if RenderLabel.runIfRequested(state: state) { return true }
         if TestTabs.runIfRequested(state: state) { return true }
         if TestStart.runIfRequested(state: state) { return true }
+        if TestShortcut.runIfRequested(state: state) { return true }
         if TestZoom.runIfRequested(state: state) { return true }
         if TestSetup.runIfRequested() { return true }
         if TestUndo.runIfRequested() { return true }
@@ -437,6 +438,53 @@ enum TestStart {
                     if case .starting = state.officeLaunch { print("PASS: the click reached Start Cat Office"); exit(0) }
                     print("FAIL: the click didn't reach Start Cat Office (launch: \(state.officeLaunch))")
                     exit(1)
+                }
+            }
+        }
+        return true
+    }
+}
+
+/// `ClaudeBar --test-shortcut`: the live dropdown offscreen on Settings; clicks the shortcut box (found by its frame),
+/// presses ⌃⌥K, and prints the shortcut it recorded. Side effects are off: nothing is saved or registered.
+@MainActor
+enum TestShortcut {
+    static func runIfRequested(state: AppState) -> Bool {
+        guard CommandLine.arguments.contains("--test-shortcut") else { return false }
+        // Opens on Settings; the tab you had is put back before exiting.
+        let previousTab = UserDefaults.standard.string(forKey: TabSelection.key)
+        UserDefaults.standard.set("settings", forKey: TabSelection.key)
+        let exit = { (code: Int32) -> Never in
+            UserDefaults.standard.set(previousTab, forKey: TabSelection.key)
+            Foundation.exit(code)
+        }
+        let controller = DropdownController(state: state)
+        let window = KeyWindow(contentViewController: controller)
+        window.styleMask = [.borderless]
+        window.setFrameOrigin(NSPoint(x: -10_000, y: -10_000))
+        window.makeKeyAndOrderFront(nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            if controller.preferredContentSize.height > 0 { window.setContentSize(controller.preferredContentSize) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                guard let frame = state.shortcutTargets.targets["shortcut-field"] else { print("FAIL: no shortcut box"); exit(1) }
+                let point = NSPoint(x: frame.midX, y: window.contentView!.bounds.height - frame.midY)
+                let hit = window.contentView!.hitTest(window.contentView!.superview!.convert(point, from: nil))
+                print("shortcut box at \(frame), hits \(hit.map { String(describing: type(of: $0)) } ?? "nothing")")
+                NSApp.postEvent(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                   windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0)!, atStart: false)
+                window.sendEvent(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    // ⌃⌥K (key code 40), through the app as a real key press is.
+                    let key = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.control, .option],
+                                               timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                               context: nil, characters: "k", charactersIgnoringModifiers: "k", isARepeat: false, keyCode: 40)!
+                    NSApp.sendEvent(key)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if state.recordedShortcut?.string == "ctrl+opt+K" { print("PASS: recorded ⌃⌥K"); exit(0) }
+                        print("FAIL: recorded \(state.recordedShortcut?.display ?? "nothing")")
+                        exit(1)
+                    }
                 }
             }
         }

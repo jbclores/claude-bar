@@ -400,6 +400,8 @@ final class AppState: ObservableObject {
         }
         officeSettings.set(config.config.catOffice)
         checkCopies()
+        if let until = quietUntil, until <= Date() { setQuietUntil(nil) }
+        updateMusic()
         let projects = config.config.projects
         let snapshots = snapshots, sessions = sessions, git = git
         Task.detached(priority: .utility) {
@@ -537,7 +539,8 @@ final class AppState: ObservableObject {
         let finished = tracker.update(tracked, now: Date())
         if sideEffects {
             let now = Date()
-            for event in finished {
+            // Quiet hours: no notifications or sounds (they aren't sent later).
+            for event in finished where !isQuiet {
                 let sound = soundGate.sound(for: .finished(event.key), settings: settings.sounds, now: now)
                 if config.config.notifications {
                     let volume = settings.sounds.volume
@@ -639,6 +642,62 @@ final class AppState: ObservableObject {
 
     func setUsageWarnings(_ on: Bool) { setSetting(on, at: ["usageWarnings"]) }
 
+    // MARK: Quiet hours
+
+    /// "Quiet for 1 hour": until when (a preference, so it lasts through a restart; ends by itself).
+    static let quietUntilKey = "quietUntil"
+    @Published private(set) var quietUntil: Date? = {
+        // Renders only: CLAUDEBAR_RENDER_QUIET=1 is quiet for the next hour (in memory).
+        if ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_QUIET"] == "1" { return Date().addingTimeInterval(3600) }
+        let d = UserDefaults.standard.object(forKey: AppState.quietUntilKey) as? Date
+        return d.flatMap { $0 > Date() ? $0 : nil }
+    }()
+
+    /// No ClaudeBar sounds or notifications now (quiet hours, or "Quiet for 1 hour").
+    var isQuiet: Bool { settings.quietHours.isQuiet(at: Date(), calendar: .current, quietUntil: quietUntil) }
+    /// When the quiet on now ends.
+    var quietEnds: Date? { settings.quietHours.quietEnds(at: Date(), calendar: .current, quietUntil: quietUntil) }
+
+    func quietForAnHour() { setQuietUntil(Date().addingTimeInterval(3600)) }
+    func endQuietHour() { setQuietUntil(nil) }
+    private func setQuietUntil(_ date: Date?) {
+        quietUntil = date
+        if sideEffects { UserDefaults.standard.set(date, forKey: Self.quietUntilKey) }
+        updateMusic()
+    }
+
+    func setQuietHours(on: Bool) { setSetting(on, at: ["quietHours", "on"]); updateMusic() }
+    func setQuietWeekends(_ on: Bool) { setSetting(on, at: ["quietHours", "weekends"]); updateMusic() }
+    /// `from` or `to`, minutes after midnight.
+    func setQuietTime(_ key: String, minutes: Int) {
+        do { try config.set(QuietHours.clock(minutes), at: ["quietHours", key]) } catch let e as ConfigError { configError = e.message } catch {}
+        settings = config.config
+        updateMusic()
+    }
+
+    // MARK: Shortcut
+
+    /// The shortcut couldn't be registered (another app has it): the Settings box says so.
+    @Published var shortcutTaken = false
+    /// Where the shortcut box is, for the click test.
+    let shortcutTargets = FloorSelection()
+    /// Click tests only: the shortcut the recorder produced (side effects off: nothing is saved).
+    @Published private(set) var recordedShortcut: Shortcut?
+
+    /// A new shortcut, or nil to turn it off.
+    func setShortcut(_ shortcut: Shortcut?) {
+        guard sideEffects else { recordedShortcut = shortcut; return }
+        // Taken by another app: keep the old one.
+        if let shortcut, !HotKeyCenter.shared.register(shortcut) {
+            shortcutTaken = true
+            HotKeyCenter.shared.register(settings.shortcut)
+            return
+        }
+        shortcutTaken = false
+        do { try config.set(shortcut?.string ?? "", at: ["shortcut"]) } catch let e as ConfigError { configError = e.message } catch {}
+        settings = config.config
+    }
+
     /// ClaudeBar's usage log; renders read CLAUDEBAR_RENDER_USAGE_HISTORY=<jsonl file> instead (never written).
     @Published private(set) var usageHistory = UsageHistory()
     private var usageWarner = UsageWarner()
@@ -667,7 +726,7 @@ final class AppState: ObservableObject {
         if let sample = UsageSample(usage: usage, at: usage.asOf ?? now), usageHistory.add(sample) {
             try? usageHistory.save(UsageHistory.defaultFile)
         }
-        if settings.usageWarnings, let f = usageForecast, usageWarner.shouldWarn(f) {
+        if settings.usageWarnings, !isQuiet, let f = usageForecast, usageWarner.shouldWarn(f) {
             notifier.post(title: "Usage", body: f.warning(time: Self.usageTime))
         }
     }
@@ -681,7 +740,7 @@ final class AppState: ObservableObject {
 
     /// A cat sound for `event`, if its switch is on and the spacing allows (SoundGate).
     func playSound(_ event: SoundEvent) {
-        guard sideEffects else { return }
+        guard sideEffects, !isQuiet else { return }
         if case .clicked = event, !officeVisible { return }
         if case .elevator = event, !officeVisible { return }
         guard let sound = soundGate.sound(for: event, settings: settings.sounds, now: Date()) else { return }
@@ -699,7 +758,7 @@ final class AppState: ObservableObject {
     /// The lofi loop plays while the office is on screen and the 🎵 button is on (OfficeMusic).
     func updateMusic() {
         guard sideEffects else { return }
-        let play = OfficeMusic.shouldPlay(on: settings.sounds.music, officeTab: officeTabShown, peekShownSince: peekShownSince, now: Date())
+        let play = !isQuiet && OfficeMusic.shouldPlay(on: settings.sounds.music, officeTab: officeTabShown, peekShownSince: peekShownSince, now: Date())
         lofi.set(playing: play, volume: OfficeMusic.volume(sounds: settings.sounds.volume))
     }
 

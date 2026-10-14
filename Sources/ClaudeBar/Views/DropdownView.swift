@@ -51,7 +51,7 @@ struct DropdownHeader: View {
         VStack(alignment: .leading, spacing: 8) {
             TitleRow()
             UsageHeader(usage: state.output.usage, history: state.usageHistory, forecast: state.usageForecast,
-                        showWeek: $state.usageWeekShown)
+                        quietEnds: state.quietEnds, showWeek: $state.usageWeekShown)
             if let error = state.configError {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .font(.caption).foregroundStyle(Theme.waiting)
@@ -376,6 +376,12 @@ struct SettingsTabView: View {
             setting("Open at login", state.launchAtLogin) { state.setLaunchAtLogin($0) }
             setting("Notify when a cat finishes", state.settings.notifications) { state.setNotifications($0) }
             setting("Warn before I hit a usage limit", state.settings.usageWarnings) { state.setUsageWarnings($0) }
+            HStack {
+                Text("Open ClaudeBar with")
+                Spacer()
+                if state.shortcutTaken { Text("That shortcut is taken; try another").font(.caption).foregroundStyle(Theme.waiting) }
+                ShortcutField()
+            }
             // Cat Office's switches: not for "I don't use Cat Office" (they come back with the Office tab).
             if state.officeShown {
                 setting("Start Cat Office with ClaudeBar", state.settings.catOffice.autoStart) { state.setAutoStart($0) }
@@ -408,6 +414,7 @@ struct SettingsTabView: View {
     @ViewBuilder private var sounds: some View {
         let s = state.settings.sounds
         heading("Sounds")
+        QuietHoursSettings()
         setting("Cat sounds", s.on) { state.setSound("on", $0) }
         if s.on {
             HStack(spacing: 8) {
@@ -556,6 +563,8 @@ struct UsageHeader: View {
     let usage: UsageSummary
     let history: UsageHistory
     let forecast: UsageForecast?
+    /// When the quiet on now ends (nil: not quiet), for the 🔕.
+    var quietEnds: Date? = nil
     /// The week chart (AppState.usageWeekShown: folded each time the dropdown opens).
     @Binding var showWeek: Bool
 
@@ -563,6 +572,10 @@ struct UsageHeader: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("Usage").font(.subheadline.weight(.semibold))
+                if let quietEnds {
+                    Image(systemName: "bell.slash.fill").font(.caption).foregroundStyle(Theme.secondaryText)
+                        .help("Quiet until \(AppState.usageTime(quietEnds))")
+                }
                 Spacer()
                 if let asOf = usage.asOf {
                     Text("as of \(Format.age(asOf, now: Date()))").font(.caption).foregroundStyle(Theme.secondaryText)
