@@ -367,9 +367,9 @@ struct SettingsTabView: View {
     @EnvironmentObject var state: AppState
     /// What "Restore my old status line" did (its error, or that it worked).
     @State private var restoreMessage: String?
-    /// The two folded sections: the four separate sounds, and Advanced (Refresh office art, Edit config file, Open log).
+    /// The two folded sections: the four separate sounds, and "Setup & more" (setup, connection, undo, the advanced links).
     @State private var soundsOpen = SettingsTabView.startOpen
-    @State private var advancedOpen = SettingsTabView.startOpen
+    @State private var moreOpen = SettingsTabView.startOpen
     /// Renders only: draw both folded sections open (`CLAUDEBAR_RENDER_SETTINGS_OPEN=1`).
     static var startOpen = false
 
@@ -377,47 +377,69 @@ struct SettingsTabView: View {
         VStack(alignment: .leading, spacing: 9) {
             heading("General")
             setting("Open at login", state.launchAtLogin) { state.setLaunchAtLogin($0) }
-            setting("Notify when a cat finishes", state.settings.notifications) { state.setNotifications($0) }
-            setting("Warn before I hit a usage limit", state.settings.usageWarnings) { state.setUsageWarnings($0) }
             HStack {
                 Text("Open ClaudeBar with")
                 Spacer()
                 if state.shortcutTaken { Text("That shortcut is taken; try another").font(.caption).foregroundStyle(Theme.waitingText) }
                 ShortcutField()
             }
-            // Cat Office's switches: not for "I don't use Cat Office" (they come back with the Office tab).
+            Divider()
+            heading("Alerts")
+            setting("Notify when a cat finishes", state.settings.notifications) { state.setNotifications($0) }
+            setting("Warn before I hit a usage limit", state.settings.usageWarnings) { state.setUsageWarnings($0) }
+            QuietHoursSettings()
+            Divider()
+            // Cat Office's switches: not for "I don't use Cat Office" (they come back with the Office tab); the cat
+            // sounds then stand as their own group.
+            heading(state.officeShown ? "Office" : "Sounds")
             if state.officeShown {
                 setting("Start Cat Office with ClaudeBar", state.settings.catOffice.autoStart) { state.setAutoStart($0) }
                 setting("Show the office on hover", state.settings.hoverPeek) { state.setHoverPeek($0) }
                 setting("Show spare cats", state.settings.showSpareCats) { state.setShowSpareCats($0) }
                     .help("Also draw the office's own cats (the ones with no Claude session)")
             }
-            Divider()
             sounds
             Divider()
-            setup
-            Divider()
-            fold("Advanced", open: $advancedOpen)
-            if advancedOpen {
-                HStack(spacing: 14) {
-                    Button("Refresh office art") { state.refreshArt() }
-                        .help("Check Cat Office now for changed floors, furniture and characters")
-                    Button("Edit config file") { state.editConfig() }
-                    Button("Open log") { state.openLauncherLog() }
+            // Setup in one line; the details, undo and the advanced links folded under it.
+            HStack(spacing: 6) {
+                setupSummary
+                Spacer()
+                fold("Setup & more", open: $moreOpen, small: true).fixedSize()
+            }
+            if moreOpen {
+                VStack(alignment: .leading, spacing: 9) {
+                    setup
+                    HStack(spacing: 14) {
+                        Button("Refresh office art") { state.refreshArt() }
+                            .help("Check Cat Office now for changed floors, furniture and characters")
+                        Button("Edit config file") { state.editConfig() }
+                        Button("Open log") { state.openLauncherLog() }
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
                 }
-                .buttonStyle(.link)
-                .font(.caption)
                 .padding(.leading, 16)
             }
         }
         .font(.callout)
     }
 
+    /// "✓ Set up and connected", or what's missing in a few words.
+    @ViewBuilder private var setupSummary: some View {
+        let setup = state.setup
+        let full = setup.state == .full
+        let text = !full ? setup.line(catOfficeDir: state.settings.catOffice.dir,
+                                      runningDir: UserDefaults.standard.string(forKey: AppState.rememberedDirKey), home: NSHomeDirectory())
+            : !state.officeShown || state.office != nil ? "Set up and connected" : "Set up; Cat Office isn't connected"
+        HStack(spacing: 4) {
+            if full { Image(systemName: "checkmark").font(.caption.weight(.bold)).foregroundStyle(Theme.working) }
+            Text(text).font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1).truncationMode(.middle)
+        }
+    }
+
     /// One "Cat sounds" switch; with it on, the volume and the four separate sounds (folded).
     @ViewBuilder private var sounds: some View {
         let s = state.settings.sounds
-        heading("Sounds")
-        QuietHoursSettings()
         setting("Cat sounds", s.on) { state.setSound("on", $0) }
         if s.on {
             HStack(spacing: 8) {
@@ -441,20 +463,16 @@ struct SettingsTabView: View {
         }
     }
 
-    /// "✓ Set up · Cat Office: <name>" (full path on hover), then "Set up ClaudeBar…" and "Undo ClaudeBar's changes…".
+    /// "Cat Office: <name>" (full path on hover), the connection, then "Set up ClaudeBar…" and "Undo ClaudeBar's changes…".
     @ViewBuilder private var setup: some View {
-        let setup = state.setup
         let running = UserDefaults.standard.string(forKey: AppState.rememberedDirKey)
-        heading("Setup")
-        HStack(spacing: 4) {
-            if setup.state == .full {
-                Image(systemName: "checkmark").font(.caption.weight(.bold)).foregroundStyle(Theme.working)
-            }
-            Text(setup.line(catOfficeDir: state.settings.catOffice.dir, runningDir: running, home: NSHomeDirectory()))
+        // Which Cat Office (the summary line above already says whether it's set up).
+        if let dir = state.settings.catOffice.dir ?? running {
+            Text("Cat Office: \(URL(fileURLWithPath: dir).lastPathComponent)")
                 .font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1).truncationMode(.middle)
+                .help(SetupSettings.folderPath(catOfficeDir: state.settings.catOffice.dir, runningDir: running,
+                                               home: NSHomeDirectory()) ?? "")
         }
-        .help(SetupSettings.folderPath(catOfficeDir: state.settings.catOffice.dir, runningDir: running,
-                                       home: NSHomeDirectory()) ?? "")
         if state.officeShown {
             // How ClaudeBar reads Cat Office right now, ticking each second.
             TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -493,14 +511,14 @@ struct SettingsTabView: View {
     }
 
     /// A folded section's header: a chevron, the title and an optional note ("3 of 4 on").
-    private func fold(_ title: String, note: String? = nil, open: Binding<Bool>) -> some View {
+    private func fold(_ title: String, note: String? = nil, open: Binding<Bool>, small: Bool = false) -> some View {
         Button {
             withAnimation(.easeOut(duration: 0.15)) { open.wrappedValue.toggle() }
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: open.wrappedValue ? "chevron.down" : "chevron.right")
                     .font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.secondaryText).frame(width: 10)
-                Text(title)
+                Text(title).font(small ? .caption : nil).foregroundStyle(small ? Theme.secondaryText : .primary)
                 if let note { Text("· \(note)").font(.caption).foregroundStyle(Theme.secondaryText) }
                 Spacer()
             }
