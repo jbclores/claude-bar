@@ -41,10 +41,14 @@ public struct UsageHistory: Equatable, Sendable {
 
     public static var defaultFile: URL { Paths.home.appendingPathComponent(".claude/claude-bar/usage-history.jsonl") }
 
-    /// Adds `s` when the reading changed and a minute has passed since the last sample; drops samples over 30 days old.
+    /// Adds `s` when the reading changed: a new sample a minute or more after the last, else in place of the last (a
+    /// quick change may be the last reading for a while, e.g. 100%). Drops samples over 30 days old. True when stored.
     @discardableResult
     public mutating func add(_ s: UsageSample) -> Bool {
-        if let last = samples.last, last.sameReading(s) || s.at.timeIntervalSince(last.at) < Self.minGap { return false }
+        if let last = samples.last {
+            if last.sameReading(s) { return false }
+            if s.at.timeIntervalSince(last.at) < Self.minGap { samples.removeLast() }
+        }
         samples.append(s)
         samples.removeAll { s.at.timeIntervalSince($0.at) > Self.keepFor }
         return true

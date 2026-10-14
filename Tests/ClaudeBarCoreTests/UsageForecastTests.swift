@@ -76,4 +76,23 @@ import Testing
         let quiet = w.shouldWarn(calm)
         #expect(!quiet)
     }
+
+    /// A burst then silence: the pace counts the quiet time up to now, so the projection shrinks instead of sliding on.
+    @Test func silenceAfterABurstSlowsThePace() throws {
+        let h = [s(0, 10, reset: 300), s(15, 40, reset: 300)]
+        let soon = try #require(UsageForecast.of(.fiveHour, history: h, now: at(15)))
+        let later = try #require(UsageForecast.of(.fiveHour, history: h, now: at(50)))
+        #expect(soon.atRisk, "2%/min right after the burst")
+        #expect(try #require(later.hitAt) > #require(soon.hitAt), "the limit moves further away while nothing happens")
+        // 30% over 50 min = 0.6%/min; 250 min left → 40 + 150 → 100 at 50 + 100 min = T+150m, before the reset.
+        #expect(later.hitAt == at(150))
+    }
+
+    /// Already at 100%: say so, with the reset, not "you'll reach it around now".
+    @Test func atTheLimitSaysItsReached() throws {
+        let f = try #require(UsageForecast.of(.fiveHour, history: [s(0, 90), s(20, 100)], now: at(25)))
+        #expect(f.reached && f.atRisk)
+        #expect(f.line(time: time) == "You've reached the 5-hour limit. It resets at T+120m")
+        #expect(f.warning(time: time) == "You've reached your 5-hour limit. It resets at T+120m.")
+    }
 }

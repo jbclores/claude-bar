@@ -13,12 +13,20 @@ import Testing
 
     @Test func addsOnlyChangesAtMostOncePerMinute() {
         var h = UsageHistory()
-        let first = h.add(s(0, 10)), same = h.add(s(5, 10)), soon = h.add(s(0.5, 12)), later = h.add(s(2, 12))
-        #expect(first)
-        #expect(!same, "unchanged")
-        #expect(!soon, "under a minute after the last")
-        #expect(later)
+        let first = h.add(s(0, 10)), same = h.add(s(5, 10)), later = h.add(s(2, 12)), again = h.add(s(4, 12))
+        #expect(first && later)
+        #expect(!same && !again, "unchanged")
         #expect(h.samples.map(\.fiveHourPct) == [10, 12])
+    }
+
+    /// A change under a minute after the last sample replaces it (it may be the last reading for a while: 100%).
+    @Test func aQuickChangeReplacesTheLastSample() {
+        var h = UsageHistory()
+        _ = h.add(s(0, 90)); _ = h.add(s(2, 98))
+        let kept = h.add(s(2.67, 100))
+        #expect(kept)
+        #expect(h.samples.map(\.fiveHourPct) == [90, 100])
+        #expect(h.samples.last?.at == t0.addingTimeInterval(2.67 * 60))
     }
 
     @Test func trimsToThirtyDays() {
