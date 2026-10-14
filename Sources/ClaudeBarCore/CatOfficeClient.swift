@@ -9,10 +9,14 @@ public final class CatOfficeClient: @unchecked Sendable {
     private let onUpdate: @Sendable (OfficeSnapshot?) -> Void
     private let session: URLSession
     private let current = LockedBox<URL?>(nil)
+    private let live = LockedBox<BridgeInfo?>(nil)
     private var task: Task<Void, Never>?
 
     /// The address Cat Office was last reached at (bridge.json may name a different port than the settings).
     public var baseURL: URL { current.get() ?? settings.get().url }
+
+    /// The url + token of the feed being followed now (what an answer is sent through).
+    public var bridge: BridgeInfo? { live.get() }
 
     /// `onBridge` hears each connection made through the bridge file (it carries Cat Office's folder).
     public init(settings: LockedBox<CatOfficeSettings>, bridgeFile: URL = CatOfficeDiscovery.bridgeFile,
@@ -84,6 +88,7 @@ public final class CatOfficeClient: @unchecked Sendable {
         guard let result = try? await session.bytes(for: request),
               (result.1 as? HTTPURLResponse)?.statusCode == 200 else { return false }
         current.set(info.url)
+        live.set(info)
         if info.dir != nil { onBridge(info) }
         var parser = SSEParser()
         var received = false
