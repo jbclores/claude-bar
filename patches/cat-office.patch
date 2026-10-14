@@ -1,3 +1,40 @@
+--- a/server/agent-bridge/answer.ts
++++ b/server/agent-bridge/answer.ts
+@@ -107,6 +107,7 @@
+   const pending = agent.status === 'waiting' ? agent.pendingPrompt : null;
+   if (!pending) throw new WorkerError(409, 'nothing to answer: the session is not waiting on a question, permission or plan');
+   if (body.kind !== pending.kind) throw new WorkerError(409, `the open dialog is a ${pending.kind}, not ${String(body.kind)}`);
++  if (!expectMatches(pending, body.expect)) throw new WorkerError(409, 'the question changed');
+   switch (pending.kind) {
+     case 'question':
+       return answerQuestions(handle, pending, body.answers);
+@@ -117,6 +118,26 @@
+   }
+ }
+ 
++/**
++ * The answer's `expect` (optional) is the prompt it was meant for, exactly as the snapshot gave it: permission
++ * `{ tool, input }`, question the first question's text, plan the whole plan. Absent (undefined or null): any
++ * open dialog of that kind, as before. A sender that read an older prompt gets 409 instead of answering a new one.
++ */
++export function expectMatches(pending: PendingPrompt, expect: unknown): boolean {
++  if (expect === undefined || expect === null) return true;
++  switch (pending.kind) {
++    case 'permission': {
++      if (typeof expect !== 'object') return false;
++      const e = expect as { tool?: unknown; input?: unknown };
++      return e.tool === pending.tool && e.input === pending.input;
++    }
++    case 'question':
++      return expect === (pending.questions[0]?.question ?? '');
++    case 'plan':
++      return expect === pending.plan;
++  }
++}
++
+ async function answerQuestions(handle: string, pending: Extract<PendingPrompt, { kind: 'question' }>, raw: unknown): Promise<void> {
+   const keys = questionKeys(pending.questions, raw);
+   const first = squash(pending.questions[0]?.question ?? '').slice(0, 24);
 --- a/server/agent-bridge/cat-assignments.ts
 +++ b/server/agent-bridge/cat-assignments.ts
 @@ -0,0 +1,317 @@
@@ -496,8 +533,8 @@
 +  spares?: SparePlace[];
 +  /** Epoch ms of the newest place kept, or null with none (places over 60 s old are dropped). */
 +  placesAt?: number | null;
- }
- 
++}
++
 +/**
 + * Where a cat is in the page's office and what it's doing (POST /__agents/cats `places`, sent every 2 s by
 + * src/agents/live/places-share.ts from the simulation's snapshot), with the time of the post it came in.
@@ -530,14 +567,33 @@
 +  sleepPose?: string | null;
 +  /** Epoch ms of the post. */
 +  at: number;
-+}
-+
+ }
+ 
 +/** A spare cat's place: keyed `spare:<simulation id>`, with the cat's own name. */
 +export type SparePlace = CatPlace & { key: string; name: string };
 +
  /** One usage limit window, as Claude Code's status line input last reported it. */
  export interface PlanWindow {
    /** 0–100. */
+@@ -401,13 +448,14 @@
+ 
+ /**
+  * POST /__agents/:id/answer → answers the open dialog with the keystrokes Claude Code's dialog expects.
+- * 409: no terminal, nothing pending, or kind doesn't match pendingPrompt.kind. 400: answers don't fit the
++ * 409: no terminal, nothing pending, or kind doesn't match pendingPrompt.kind; "the question changed" when `expect`
++ * (optional: the prompt the answer was meant for) doesn't match pendingPrompt. 400: answers don't fit the
+  * questions (count, index range, several picks on a single-select question).
+  */
+ export type AnswerRequest =
+-  | { kind: 'question'; answers: QuestionAnswer[] }
+-  | { kind: 'permission'; choice: 'yes' | 'yes-always' | 'no'; note?: string }
+-  | { kind: 'plan'; choice: 'approve' | 'reject'; feedback?: string };
++  | { kind: 'question'; answers: QuestionAnswer[]; /** The first question's text. */ expect?: string }
++  | { kind: 'permission'; choice: 'yes' | 'yes-always' | 'no'; note?: string; expect?: { tool: string; input: string } }
++  | { kind: 'plan'; choice: 'approve' | 'reject'; feedback?: string; /** The whole plan. */ expect?: string };
+ 
+ // ─── Drawer endpoints (same guard; agreed with the drawer UI) ─────────────────────────────────────────────────
+ // Bodies are JSON, at most 64 KB unless noted. Errors answer { error } as above, plus 423 (a dialog is open),
 --- a/server/agent-bridge/workers.ts
 +++ b/server/agent-bridge/workers.ts
 @@ -32,6 +32,7 @@
@@ -933,6 +989,82 @@
 +  assert.equal(linkWins('c', ['a', 'b']), false);
 +  assert.equal(linkWins(null, ['a', 'b']), false);
 +  assert.equal(linkWins('a', []), false);
++});
+--- a/tests/sim/answer-expect.test.ts
++++ b/tests/sim/answer-expect.test.ts
+@@ -0,0 +1,73 @@
++// POST /answer's optional `expect` (sent by ClaudeBar): the prompt the answer was meant for. When the session now
++// waits on something else, nothing is typed and the answer gets 409 "the question changed". No `expect`: as before.
++// A stand-in `orca` (CAT_OFFICE_ORCA) logs every call; no real terminal is involved.
++import assert from 'node:assert/strict';
++import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import { after, test } from 'node:test';
++
++const TMP = realpathSync(mkdtempSync(join(tmpdir(), 'cat-office-expect-')));
++const LOG = join(TMP, 'orca.log');
++process.env.CLAUDE_CONFIG_DIR = join(TMP, 'claude');
++process.env.CAT_OFFICE_ORCA = join(TMP, 'orca');
++mkdirSync(process.env.CLAUDE_CONFIG_DIR, { recursive: true });
++writeFileSync(
++  process.env.CAT_OFFICE_ORCA,
++  `#!/usr/bin/env node
++require('fs').appendFileSync(${JSON.stringify(LOG)}, JSON.stringify(process.argv.slice(2)) + '\\n');
++process.stdout.write(JSON.stringify({ ok: false, error: { message: 'stand-in: nothing on screen' } }));
++process.exit(1);
++`,
++);
++chmodSync(process.env.CAT_OFFICE_ORCA, 0o755);
++const { answerDialog, expectMatches } = await import('../../server/agent-bridge/answer.ts');
++after(() => rmSync(TMP, { recursive: true, force: true }));
++
++const permission = { kind: 'permission', tool: 'Bash', input: 'npm run build' } as const;
++const question = {
++  kind: 'question',
++  questions: [{ question: 'Which auth?', header: 'Auth', multiSelect: false, options: [{ label: 'OAuth', description: '' }] }],
++} as const;
++const plan = { kind: 'plan', plan: '# Add login\n\nSteps' } as const;
++const waiting = (pendingPrompt: unknown) =>
++  ({ id: 'sess-expect', owner: 'external', kind: 'interactive', status: 'waiting', terminal: { app: 'orca', handle: 'term_standin' }, pendingPrompt }) as never;
++
++test('expectMatches: the prompt exactly as the snapshot gave it; absent matches anything', () => {
++  assert.equal(expectMatches(permission, { tool: 'Bash', input: 'npm run build' }), true);
++  assert.equal(expectMatches(permission, { tool: 'Bash', input: 'rm -rf build' }), false);
++  assert.equal(expectMatches(permission, { tool: 'Edit', input: 'npm run build' }), false);
++  assert.equal(expectMatches(permission, 'npm run build'), false);
++  assert.equal(expectMatches(question, 'Which auth?'), true);
++  assert.equal(expectMatches(question, 'Which store?'), false);
++  assert.equal(expectMatches(plan, '# Add login\n\nSteps'), true);
++  assert.equal(expectMatches(plan, '# Add login'), false);
++  assert.equal(expectMatches(plan, undefined), true);
++  assert.equal(expectMatches(permission, null), true);
++});
++
++test('a changed prompt: 409 "the question changed", nothing typed', async () => {
++  for (const [pending, body] of [
++    [permission, { kind: 'permission', choice: 'yes', expect: { tool: 'Bash', input: 'rm -rf /' } }],
++    [question, { kind: 'question', answers: [{ optionIndexes: [0] }], expect: 'Something else?' }],
++    [plan, { kind: 'plan', choice: 'approve', expect: '# Another plan' }],
++  ] as const) {
++    await assert.rejects(answerDialog(waiting(pending), body as never), (e: { status?: number; message?: string }) => {
++      assert.equal(e.status, 409);
++      assert.equal(e.message, 'the question changed');
++      return true;
++    });
++  }
++  assert.equal(existsSync(LOG) ? readFileSync(LOG, 'utf8') : '', '', 'orca was not called');
++});
++
++test('a matching or absent expect goes on to the terminal as before', async () => {
++  for (const body of [
++    { kind: 'permission', choice: 'yes', expect: { tool: 'Bash', input: 'npm run build' } },
++    { kind: 'permission', choice: 'yes' },
++  ]) {
++    // The stand-in shows no screen, so it ends in the terminal step, past the expect check.
++    await assert.rejects(answerDialog(waiting(permission), body as never), (e: { message?: string }) => e.message !== 'the question changed');
++  }
++  assert.ok(readFileSync(LOG, 'utf8').length > 0, 'orca was asked for the screen');
 +});
 --- a/tests/sim/cat-assignments.test.ts
 +++ b/tests/sim/cat-assignments.test.ts

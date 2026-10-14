@@ -5,6 +5,7 @@ set -euo pipefail
 ORIG="${1:?pristine dir}"; WORK="${2:?patched dir}"
 OUT="$(cd "$(dirname "$0")/.." && pwd)/patches/cat-office.patch"
 FILES=(
+  server/agent-bridge/answer.ts
   server/agent-bridge/cat-assignments.ts
   server/agent-bridge/index.ts
   server/agent-bridge/plan-usage.ts
@@ -17,6 +18,7 @@ FILES=(
   src/agents/live/useAgentCats.ts
   src/components/mission/MissionControl.tsx
   tests/sim/agent-link.test.ts
+  tests/sim/answer-expect.test.ts
   tests/sim/cat-assignments.test.ts
   tests/sim/places.test.ts
   tests/sim/plan-usage-workers.test.ts
