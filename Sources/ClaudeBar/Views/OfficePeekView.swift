@@ -289,6 +289,11 @@ struct OfficeRoomView: View {
         .overlay(alignment: .top) {
             if let agent = shownCard {
                 CatCard(agent: agent, since: agent.statusSince(tracked: state.statusSince[agent.key]))
+                    // The card opens over its cat and takes the room's clicks (for its buttons), so a click on the
+                    // rest of the card pats its cat. Spare cats never make a sound.
+                    .contentShape(Rectangle())
+                    .onTapGesture { if !agent.isSpare { state.playSound(.clicked) } }
+                    .target("card", in: state.shortcutTargets)
                     .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named("office")) }) { rect in
                         cardRect = rect
                         zoom.excluded = [rect]

@@ -780,8 +780,12 @@ final class AppState: ObservableObject {
         return f.string(from: d)
     }
 
+    /// The last sound asked for (played or not), for the click tests.
+    private(set) var lastSoundRequest: SoundEvent?
+
     /// A cat sound for `event`, if its switch is on and the spacing allows (SoundGate).
     func playSound(_ event: SoundEvent) {
+        lastSoundRequest = event
         guard sideEffects, !isQuiet else { return }
         if case .clicked = event, !officeVisible { return }
         if case .elevator = event, !officeVisible { return }

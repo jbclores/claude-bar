@@ -542,9 +542,11 @@ enum TestAnswer {
             }
         }
         /// Clicks the recorded target (nothing else); refuses when the room's zoom would take the click instead.
-        func click(_ id: String) {
+        func click(_ id: String, top: Bool = false) {
             guard let frame = targets.targets[id] else { fail("no \(id) button shown") }
-            let point = NSPoint(x: frame.midX, y: window.contentView!.bounds.height - frame.midY)
+            // `top`: near the top-left corner (the card's name line), not its middle (its buttons).
+            let point = top ? NSPoint(x: frame.minX + 30, y: window.contentView!.bounds.height - frame.minY - 14)
+                            : NSPoint(x: frame.midX, y: window.contentView!.bounds.height - frame.midY)
             let hit = window.contentView!.hitTest(window.contentView!.superview!.convert(point, from: nil))
             // In the room's own space (the office content's, top-left): over the room, yet not the zoom's to take.
             let office = controller.content.convert(point, from: nil)
@@ -580,43 +582,48 @@ enum TestAnswer {
             state.renderCardAgent = id
             when("the card's Deny", { targets.targets["card-deny"] != nil }) {
                 shot("card")
-                click("card-deny")
-                // The card is drawn over the room: this is the click the room's zoom used to take.
-                if let f = targets.targets["card-deny"],
-                   !controller.roomZoom.roomRect.contains(controller.content.convert(NSPoint(x: f.midX, y: window.contentView!.bounds.height - f.midY), from: nil)) {
-                    fail("the card's Deny isn't over the room (nothing tested)")
-                }
+                // The card covers its cat: a click on its name line pats the cat (the meow).
+                click("card", top: true)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { MainActor.assumeIsolated {
-                    print("card answer:", state.lastAnswerRequest.map { "\($0.id) \(String(decoding: $0.body, as: UTF8.self))" } ?? "none")
-                    guard sent(id, #"{"choice":"no","expect":{"input":"npm run build && npm test -- --watch=false --reporter=dot src/agents/live","tool":"Bash"},"kind":"permission"}"#) else { fail("the card's Deny didn't send the expected answer") }
-                    // Back to unanswered, the card closed, for the row's turn.
-                    state.answerState[id] = nil
-                    state.renderCardAgent = nil
-                    targets.targets["answer-sent"] = nil
-                    when("the row's Allow again", { targets.targets["answer-allow"] != nil && state.answerState[id] == nil }) {
-                        click("answer-allow")
-                        when("Sent in the row", { targets.targets["answer-sent"] != nil }) {
-                            shot("sent")
-                            print("row answer:", state.lastAnswerRequest.map { "\($0.id) \(String(decoding: $0.body, as: UTF8.self))" } ?? "none",
-                                  "· state:", state.answerState[id].map { "\($0)" } ?? "none")
-                            guard sent(id, #"{"choice":"yes","expect":{"input":"npm run build && npm test -- --watch=false --reporter=dot src/agents/live","tool":"Bash"},"kind":"permission"}"#) else { fail("the row's Allow didn't send the expected answer") }
-                            guard case .sent = state.answerState[id] else { fail("the row doesn't say Sent") }
-                            // A button built from a prompt the session no longer waits on: nothing goes out.
-                            state.answerState[id] = nil
-                            let before = state.lastAnswerRequest?.body
-                            let old = PendingPrompt.permission(tool: "Bash", input: "an older command")
-                            guard let agent = state.office?.agents.first(where: { $0.id == id }),
-                                  let button = AnswerChoices.of(old).buttons.first else { fail("no agent to answer") }
-                            state.answer(agent, button, prompt: old)
-                            print("stale answer: state:", state.answerState[id].map { "\($0)" } ?? "none")
-                            guard state.lastAnswerRequest?.body == before,
-                                  state.answerState[id] == .failed("That question changed: check it again") else {
-                                fail("an answer to a changed prompt wasn't stopped")
-                            }
-                            print("PASS: card Deny and row Allow answered \(id); the row shows Sent; a changed prompt's answer wasn't sent")
-                            exit(0)
-                        }
+                    guard state.lastSoundRequest == .clicked else { fail("a click on the card didn't pat its cat") }
+                    click("card-deny")
+                    // The card is drawn over the room: this is the click the room's zoom used to take.
+                    if let f = targets.targets["card-deny"],
+                       !controller.roomZoom.roomRect.contains(controller.content.convert(NSPoint(x: f.midX, y: window.contentView!.bounds.height - f.midY), from: nil)) {
+                        fail("the card's Deny isn't over the room (nothing tested)")
                     }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { MainActor.assumeIsolated {
+                        print("card answer:", state.lastAnswerRequest.map { "\($0.id) \(String(decoding: $0.body, as: UTF8.self))" } ?? "none")
+                        guard sent(id, #"{"choice":"no","expect":{"input":"npm run build && npm test -- --watch=false --reporter=dot src/agents/live","tool":"Bash"},"kind":"permission"}"#) else { fail("the card's Deny didn't send the expected answer") }
+                        // Back to unanswered, the card closed, for the row's turn.
+                        state.answerState[id] = nil
+                        state.renderCardAgent = nil
+                        targets.targets["answer-sent"] = nil
+                        when("the row's Allow again", { targets.targets["answer-allow"] != nil && state.answerState[id] == nil }) {
+                            click("answer-allow")
+                            when("Sent in the row", { targets.targets["answer-sent"] != nil }) {
+                                shot("sent")
+                                print("row answer:", state.lastAnswerRequest.map { "\($0.id) \(String(decoding: $0.body, as: UTF8.self))" } ?? "none",
+                                      "· state:", state.answerState[id].map { "\($0)" } ?? "none")
+                                guard sent(id, #"{"choice":"yes","expect":{"input":"npm run build && npm test -- --watch=false --reporter=dot src/agents/live","tool":"Bash"},"kind":"permission"}"#) else { fail("the row's Allow didn't send the expected answer") }
+                                guard case .sent = state.answerState[id] else { fail("the row doesn't say Sent") }
+                                // A button built from a prompt the session no longer waits on: nothing goes out.
+                                state.answerState[id] = nil
+                                let before = state.lastAnswerRequest?.body
+                                let old = PendingPrompt.permission(tool: "Bash", input: "an older command")
+                                guard let agent = state.office?.agents.first(where: { $0.id == id }),
+                                      let button = AnswerChoices.of(old).buttons.first else { fail("no agent to answer") }
+                                state.answer(agent, button, prompt: old)
+                                print("stale answer: state:", state.answerState[id].map { "\($0)" } ?? "none")
+                                guard state.lastAnswerRequest?.body == before,
+                                      state.answerState[id] == .failed("That question changed: check it again") else {
+                                    fail("an answer to a changed prompt wasn't stopped")
+                                }
+                                print("PASS: a click on the card pats its cat; card Deny and row Allow answered \(id); the row shows Sent; a changed prompt's answer wasn't sent")
+                                exit(0)
+                            }
+                        }
+                    } }
                 } }
             }
         }
