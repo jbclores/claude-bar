@@ -24,6 +24,15 @@ public enum NameTags {
         name.count <= maxLength ? name : String(name.prefix(maxLength - 1)) + "…"
     }
 
+    /// The cat is mostly out of view (less than half of it inside `visible`): no tag for it, so no tag hangs where no
+    /// cat shows (a cat at the back wall of a deep floor, cut off at the top).
+    public static func isMostlyHidden(figure: CGRect, visible: CGRect) -> Bool {
+        guard figure.width > 0, figure.height > 0 else { return true }
+        let shown = figure.intersection(visible)
+        guard !shown.isNull else { return true }
+        return shown.width * shown.height < figure.width * figure.height / 2
+    }
+
     public static func layout(_ wanted: [String: CGRect], avoid: [CGRect], priority: Set<String> = [], in room: CGRect) -> [String: CGRect] {
         let order = wanted.keys.sorted { a, b in
             let pa = priority.contains(a), pb = priority.contains(b)

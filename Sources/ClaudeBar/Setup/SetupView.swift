@@ -273,7 +273,7 @@ struct SetupView: View {
             Text("Connect").font(.title3.weight(.semibold))
             if model.chosen != nil {
                 VStack(alignment: .leading, spacing: 4) {
-                    choice($model.patch, "Patch Cat Office", "Matching cats, helpers, and usage without a terminal.", result: "patch")
+                    choice($model.patch, "Patch Cat Office", "Lets ClaudeBar show the same cats as your browser, open a cat's panel, and answer waiting sessions safely.", result: "patch")
                     if let warning = model.patchWarning {
                         Text(warning).font(.caption).foregroundStyle(Theme.waitingText)
                             .fixedSize(horizontal: false, vertical: true)

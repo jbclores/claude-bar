@@ -48,7 +48,12 @@ struct UsageSparkline: View {
     /// right, 0–100% bottom to top.
     static func line(_ samples: [UsageSample], in size: CGSize) -> [CGPoint] {
         let now = Date().timeIntervalSince1970
-        let start = max(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970, now - 5 * 3600)
+        var start = max(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970, now - 5 * 3600)
+        // Begin at the first sample (keeping at least an hour), so the line starts at the left edge instead of
+        // leaving a blank stretch after the percentage when the log is younger than the window.
+        if let first = samples.first(where: { $0.fiveHourPct != nil })?.at.timeIntervalSince1970, first > start {
+            start = min(first, now - 3600)
+        }
         let span = max(3600, now - start)
         var points: [CGPoint] = []
         for s in samples {

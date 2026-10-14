@@ -122,3 +122,17 @@ import Testing
         #expect(few.rows.count == 3 && few.more == 0)
     }
 }
+
+/// A cat mostly outside the visible room (cut off at the top of a deep floor) gets no name tag: a tag with no cat
+/// above it reads as a glitch.
+@Suite struct OffscreenTagTests {
+    let visible = CGRect(x: 0, y: 0, width: 400, height: 180)
+
+    @Test func tagsOnlyForCatsMostlyInView() {
+        #expect(!NameTags.isMostlyHidden(figure: CGRect(x: 100, y: 50, width: 30, height: 40), visible: visible))
+        #expect(!NameTags.isMostlyHidden(figure: CGRect(x: 100, y: -15, width: 30, height: 40), visible: visible), "more than half in view")
+        #expect(NameTags.isMostlyHidden(figure: CGRect(x: 100, y: -36, width: 30, height: 40), visible: visible), "only its feet in view")
+        #expect(NameTags.isMostlyHidden(figure: CGRect(x: 500, y: 50, width: 30, height: 40), visible: visible), "off to the side")
+        #expect(NameTags.isMostlyHidden(figure: .zero, visible: visible))
+    }
+}

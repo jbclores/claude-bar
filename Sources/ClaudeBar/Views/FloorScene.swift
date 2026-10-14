@@ -148,14 +148,21 @@ struct SceneCats: View {
             + shownCovers.map { Entry(z: $0.box.z, order: 1 + $0.order, id: $0.key, item: .cover($0)) }
         let sorted = items.sorted { ($0.z, $0.order, $0.id) < ($1.z, $1.order, $1.id) }
         let scale = zoom.view.scale
-        let pills = Dictionary(drawn.map { ($0.cat.agent.id, pillRect($0, scale: scale)) }, uniquingKeysWith: { a, _ in a })
+        // Only cats mostly in view get a tag (NameTags.isMostlyHidden): one cut off at the top of a deep floor doesn't.
+        let area = tagArea(scale: scale)
+        let tagged = drawn.filter { d in
+            let c = d.canvas
+            return !NameTags.isMostlyHidden(figure: CGRect(x: c.minX * scale, y: c.minY * scale, width: c.width * scale, height: c.height * scale),
+                                            visible: area)
+        }
+        let pills = Dictionary(tagged.map { ($0.cat.agent.id, pillRect($0, scale: scale)) }, uniquingKeysWith: { a, _ in a })
         // "+N" notes are always shown; every cat's name tag fits round them and round each other (NameTags).
         let noteRects = Dictionary(notes.enumerated().map { i, note -> (String, CGRect) in
             let p = fit.point(room.frame.px(note.1)), size = Self.pillSize(note.0, detail: nil)
             return ("\u{0}note\(i)", CGRect(x: p.x * scale, y: p.y * scale, width: size.width, height: size.height))
         }, uniquingKeysWith: { a, _ in a })
         let needy = Set(drawn.map(\.cat.agent).filter(needsYou).map(\.id))
-        let tags = NameTags.layout(pills.mapValues(\.rect), avoid: Array(noteRects.values), priority: needy, in: tagArea(scale: scale))
+        let tags = NameTags.layout(pills.mapValues(\.rect), avoid: Array(noteRects.values), priority: needy, in: area)
 
         ZStack(alignment: .topLeading) {
             ForEach(sorted) { entry in
@@ -175,7 +182,7 @@ struct SceneCats: View {
                     .scaleEffect(1 / scale, anchor: .topLeading)
                     .offset(x: p.x, y: p.y)
             }
-            ForEach(drawn, id: \.cat.agent.id) { d in
+            ForEach(tagged, id: \.cat.agent.id) { d in
                 let pill = pills[d.cat.agent.id]!
                 // Moved to the nearest free spot (in view points after zoom) so no two tags overlap.
                 let placed = tags[d.cat.agent.id] ?? pill.rect
