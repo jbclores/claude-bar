@@ -50,7 +50,8 @@ struct DropdownHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             TitleRow()
-            UsageHeader(usage: state.output.usage)
+            UsageHeader(usage: state.output.usage, history: state.usageHistory, forecast: state.usageForecast,
+                        showWeek: $state.usageWeekShown)
             if let error = state.configError {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .font(.caption).foregroundStyle(Theme.waiting)
@@ -374,6 +375,7 @@ struct SettingsTabView: View {
             heading("General")
             setting("Open at login", state.launchAtLogin) { state.setLaunchAtLogin($0) }
             setting("Notify when a cat finishes", state.settings.notifications) { state.setNotifications($0) }
+            setting("Warn before I hit a usage limit", state.settings.usageWarnings) { state.setUsageWarnings($0) }
             // Cat Office's switches: not for "I don't use Cat Office" (they come back with the Office tab).
             if state.officeShown {
                 setting("Start Cat Office with ClaudeBar", state.settings.catOffice.autoStart) { state.setAutoStart($0) }
@@ -552,6 +554,10 @@ struct TitleRow: View {
 
 struct UsageHeader: View {
     let usage: UsageSummary
+    let history: UsageHistory
+    let forecast: UsageForecast?
+    /// The week chart (AppState.usageWeekShown: folded each time the dropdown opens).
+    @Binding var showWeek: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -565,7 +571,15 @@ struct UsageHeader: View {
             row("5h", usage.fiveHourPct, usage.fiveHourResetsAt,
                 extra: usage.workingCount > 0 ? "\(usage.workingCount) working" : nil)
             row("7d", usage.sevenDayPct, usage.sevenDayResetsAt, extra: nil)
+            let today = history.today(now: Date(), calendar: .current)
+            if today.count >= 2 { UsageSparkline(samples: today) }
+            if let forecast { UsageForecastLine(forecast: forecast) }
+            if showWeek { UsageWeekChart(history: history) }
         }
+        // Click the usage area for the last 7 days; click again to fold them.
+        .contentShape(Rectangle())
+        .onTapGesture { showWeek.toggle() }
+        .help(showWeek ? "Hide this week's usage" : "Show this week's usage")
     }
 
     private func row(_ label: String, _ pct: Double?, _ resets: Date?, extra: String?) -> some View {

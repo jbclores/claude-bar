@@ -617,6 +617,7 @@ final class AppState: ObservableObject {
 
     /// The user opened the dropdown or the peek.
     func acknowledge() {
+        usageWeekShown = false
         tracker.acknowledge()
         recompute()
     }
@@ -642,6 +643,10 @@ final class AppState: ObservableObject {
     @Published private(set) var usageHistory = UsageHistory()
     private var usageWarner = UsageWarner()
     private var usageHistoryLoaded = false
+
+    /// The week chart under the usage bars is open; folded each time the dropdown opens (acknowledge).
+    /// CLAUDEBAR_RENDER_USAGE_WEEK=1 opens it for renders.
+    @Published var usageWeekShown = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_USAGE_WEEK"] == "1"
 
     /// The line under the usage bars.
     var usageForecast: UsageForecast? { UsageForecast.headline(history: usageHistory.samples, now: Date()) }
