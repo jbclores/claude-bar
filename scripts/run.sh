@@ -26,12 +26,31 @@ fi
 echo "Building ClaudeBar (the first build takes a minute)…"
 bash scripts/build.sh
 
-# Quit a running ClaudeBar (from here or ~/Applications) so the new build takes its place.
-if pkill -f "ClaudeBar.app/Contents/MacOS/ClaudeBar" 2>/dev/null; then
-  for _ in 1 2 3 4 5 6 7 8 9 10; do
-    pgrep -f "ClaudeBar.app/Contents/MacOS/ClaudeBar" >/dev/null || break
+# Quit a running ClaudeBar (from here or ~/Applications) so the new build takes its place: asked politely by its
+# app id (how macOS quits apps), then by name. If it's still running, stop here: opening would only bring the old
+# one forward.
+BUNDLE_ID=com.jbclores.claudebar
+running() {
+  [ "$(osascript -e "application id \"$BUNDLE_ID\" is running" 2>/dev/null)" = true ] \
+    || pgrep -f "ClaudeBar.app/Contents/MacOS/ClaudeBar" >/dev/null 2>&1
+}
+wait_quit() {
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+    running || return 0
     sleep 0.5
   done
+  return 1
+}
+if running; then
+  osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
+  if ! wait_quit; then
+    pkill -f "ClaudeBar.app/Contents/MacOS/ClaudeBar" 2>/dev/null || true
+    if ! wait_quit; then
+      echo "ClaudeBar is still running, so the new build can't take its place." >&2
+      echo "Quit it (click the menu bar cat, then Quit) and run this again." >&2
+      exit 1
+    fi
+  fi
 fi
 
 APP=build/ClaudeBar.app
@@ -42,5 +61,11 @@ if [ "$INSTALL" = 1 ]; then
   APP=~/Applications/ClaudeBar.app
 fi
 open "$APP"
+# Check the new one is the one running.
+for _ in 1 2 3 4 5 6 7 8 9 10; do running && break; sleep 0.5; done
+if ! running; then
+  echo "ClaudeBar didn't start. Open $APP from Finder to see why." >&2
+  exit 1
+fi
 echo "ClaudeBar is running from $APP — look for the cat in your menu bar."
 echo "The first time, a Set up ClaudeBar window opens. Run this again after a git pull to update."
