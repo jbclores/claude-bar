@@ -52,6 +52,21 @@ find_older() {
   done <<< "$revs"
 }
 
+# True when older version $1 is not what this folder holds, though it reverses: taking it out doesn't leave a folder the
+# current patch fits (the upgrade path's rule). That is a folder with the current version plus an edit, where an older
+# version lacking the newer pieces reverses "cleanly" and would leave those pieces behind. Nothing is changed in $DIR.
+leaves_current() {
+  local scratch f fits
+  scratch=$(mktemp -d)
+  cat "$1" "$PATCH" | grep '^+++ b/' | sed 's|^+++ b/||' | sort -u | while read -r f; do
+    if [ -f "$DIR/$f" ]; then mkdir -p "$scratch/$(dirname "$f")"; cp -p "$DIR/$f" "$scratch/$f"; fi
+  done
+  fits=""
+  if patch -d "$scratch" -p1 -R -s -f < "$1" >/dev/null 2>&1 && patch -d "$scratch" -p1 --dry-run -s -f < "$PATCH" >/dev/null 2>&1; then fits=1; fi
+  rm -rf "$scratch"
+  [ -z "$fits" ]
+}
+
 # Copies the files the given patches touch into a new .cat-office/patch-backup-<time>[-N]/ and sets BACKUP.
 back_up() {
   local base n f
@@ -72,6 +87,7 @@ if [ "$UNDO" = 1 ]; then
     REV=$(mktemp); cp "$PATCH" "$REV"
   else
     REV=$(find_older)
+    if [ -n "$REV" ] && leaves_current "$REV"; then rm -f "$REV"; REV=""; fi
   fi
   if [ -z "$REV" ]; then
     if patch -d "$DIR" -p1 --dry-run -s -f < "$PATCH" >/dev/null 2>&1; then echo "Not patched: $DIR"; exit 0; fi
