@@ -244,7 +244,7 @@ struct OfficeTabView: View {
             FloorPicker()
             OfficeRoomView()
             if let rows = state.output.office {
-                OfficeCatList(rows: rows, openOffice: { state.openCatOffice() })
+                OfficeCatList(rows: rows)
             }
         }
         .environmentObject(pointer)
@@ -334,6 +334,7 @@ struct ProjectsTabView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            TodayRecapLine()
             if state.invitesToCatOffice { CatOfficeInvite() }
             if state.output.projects.isEmpty {
                 Text("No projects yet").font(.callout).foregroundStyle(Theme.secondaryText)

@@ -1,10 +1,17 @@
 import ClaudeBarCore
 import SwiftUI
 
-/// The office cats, one row each: status, how long, where and what.
+/// The office cats, one row each: status, how long, where and what; a waiting one's prompt and answer buttons
+/// unfolded under it. A row click opens Cat Office on that cat.
 struct OfficeCatList: View {
     let rows: [OfficeRow]
-    let openOffice: () -> Void
+    @EnvironmentObject var state: AppState
+
+    private func agent(_ row: OfficeRow) -> OfficeAgent? { state.office?.agents.first { $0.key == row.id } }
+
+    private func open(_ row: OfficeRow) {
+        if let agent = agent(row) { state.openInCatOffice(agent) } else { state.openCatOffice() }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -12,33 +19,43 @@ struct OfficeCatList: View {
                 Text("No office cats right now").font(.caption).foregroundStyle(Theme.secondaryText)
             }
             ForEach(rows) { row in
-                HStack(spacing: 8) {
-                    if row.isSubagent {
-                        // A helper its parent started, listed under it.
-                        Text("↳").font(.caption).foregroundStyle(Theme.secondaryText).padding(.leading, 10)
-                    }
-                    Circle().fill(row.needsAttention ? Theme.waiting : Theme.color(row.status)).frame(width: 7, height: 7)
-                    if row.isSubagent, let type = row.agentType {
-                        Text(type).font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
-                            .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(Capsule().fill(Color.primary.opacity(0.08)))
-                    }
-                    Text(row.label).font(row.isSubagent ? .caption.weight(.medium) : .callout.weight(.medium)).lineLimit(1).layoutPriority(1)
-                    Text(statusText(row)).font(.caption)
-                        .foregroundStyle(row.needsAttention ? Theme.waiting : Theme.color(row.status))
-                        .fixedSize()
-                    Spacer(minLength: 8)
-                    // What it's doing in two or three words; the file or program, and the raw action, are on hover.
-                    Text(row.lastAction.map { ActionSummary.short($0, working: row.status == .working) } ?? row.branch ?? "")
-                        .font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1).fixedSize()
+                rowView(row)
+                if let agent = agent(row), AnswerPanel.shows(agent) {
+                    // Under the title: past the dot (and a helper's ↳).
+                    AnswerPanel(agent: agent, targetPrefix: "answer")
+                        .padding(.leading, row.isSubagent ? 37 : 15)
+                        .padding(.bottom, 4)
                 }
-                .contentShape(Rectangle())
-                .onTapGesture(perform: openOffice)
-                .help(([row.name, row.lastAction.map { ActionSummary.calm($0, working: row.status == .working) }, row.detail]
-                    + [row.lastAction == row.detail ? nil : row.lastAction])
-                    .compactMap { $0 }.joined(separator: "\n"))
             }
         }
+    }
+
+    private func rowView(_ row: OfficeRow) -> some View {
+        HStack(spacing: 8) {
+            if row.isSubagent {
+                // A helper its parent started, listed under it.
+                Text("↳").font(.caption).foregroundStyle(Theme.secondaryText).padding(.leading, 10)
+            }
+            Circle().fill(row.needsAttention ? Theme.waiting : Theme.color(row.status)).frame(width: 7, height: 7)
+            if row.isSubagent, let type = row.agentType {
+                Text(type).font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
+                    .padding(.horizontal, 5).padding(.vertical, 1)
+                    .background(Capsule().fill(Color.primary.opacity(0.08)))
+            }
+            Text(row.label).font(row.isSubagent ? .caption.weight(.medium) : .callout.weight(.medium)).lineLimit(1).layoutPriority(1)
+            Text(statusText(row)).font(.caption)
+                .foregroundStyle(row.needsAttention ? Theme.waiting : Theme.color(row.status))
+                .fixedSize()
+            Spacer(minLength: 8)
+            // What it's doing in two or three words; the file or program, and the raw action, are on hover.
+            Text(row.lastAction.map { ActionSummary.short($0, working: row.status == .working) } ?? row.branch ?? "")
+                .font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1).fixedSize()
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { open(row) }
+        .help(([row.name, row.lastAction.map { ActionSummary.calm($0, working: row.status == .working) }, row.detail]
+            + [row.lastAction == row.detail ? nil : row.lastAction])
+            .compactMap { $0 }.joined(separator: "\n"))
     }
 
     private func statusText(_ row: OfficeRow) -> String {

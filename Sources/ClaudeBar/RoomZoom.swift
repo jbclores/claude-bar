@@ -32,7 +32,12 @@ final class RoomZoom: ObservableObject {
     /// their clicks.
     var interactive = true
 
-    func contains(_ point: CGPoint) -> Bool { interactive && roomRect.contains(point) }
+    /// Parts of the room drawn over it that take their own clicks (the hover card and its buttons), in office space.
+    var excluded: [CGRect] = []
+
+    func contains(_ point: CGPoint) -> Bool {
+        interactive && roomRect.contains(point) && !excluded.contains { $0.contains(point) }
+    }
 
     /// Handles a mouse, scroll or magnify event at `point` (office space). False: not for the room, pass it on.
     func handle(_ event: NSEvent, at point: CGPoint) -> Bool {

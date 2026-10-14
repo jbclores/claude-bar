@@ -2,6 +2,11 @@ import AppKit
 import ClaudeBarCore
 import ServiceManagement
 
+/// An answer sent from ClaudeBar for a waiting session: on its way, taken by Cat Office, or why not (plain words).
+enum AnswerState: Equatable {
+    case sending, sent, failed(String)
+}
+
 enum OfficeLaunch: Equatable {
     case none
     case starting(since: Date)
@@ -483,6 +488,14 @@ final class AppState: ObservableObject {
                 ? after.map { a in elapsed > a ? min(files.count - 1, 1 + Int((elapsed - a) / step)) : 0 } ?? 0 : 0
             if let file = files.indices.contains(index) ? files[index] : files.first { Self.renderPlaces(file: file, into: &snapshot!) }
         }
+        // Renders and the answer click test (CLAUDEBAR_RENDER_WAITING=<permission|question|plan>): the first office
+        // agent waits on a sample prompt.
+        if !sideEffects, let kind = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_WAITING"], snapshot != nil,
+           let prompt = Self.samplePrompt(kind), let i = Self.renderWaitingIndex(snapshot!.agents) {
+            snapshot!.agents[i].status = .waiting
+            snapshot!.agents[i].pendingPrompt = prompt
+            renderWaitingId = snapshot!.agents[i].id
+        }
         if snapshot != nil {
             lastOfficeUpdate = Date()
             if officeAnswers { officeAnswers = false }
@@ -491,7 +504,12 @@ final class AppState: ObservableObject {
         let cameOnline = office == nil && snapshot != nil
         // Only the browser's places moved (every 2 s while a Cat Office page is shown): the mirror, not the status.
         let placesOnly = office.flatMap { old in snapshot.map(old.sameExceptPlaces) } ?? false
+        // "Sent" or an error no longer applies once the agent stops waiting or waits on something else.
+        for id in AnswerReset.stale(Set(answerState.keys), before: office?.agents ?? [], after: snapshot?.agents ?? []) {
+            answerState[id] = nil
+        }
         office = snapshot
+        renderAnswerState()
         updateMirror()
         if snapshot != nil { officeLaunch = .none }
         if cameOnline { loadCatalog() }
@@ -537,6 +555,7 @@ final class AppState: ObservableObject {
         input.office = office
         let tracked = StatusModel.trackedSessions(fallback: input.fallbackSessions, office: office)
         let finished = tracker.update(tracked, now: Date())
+        recordSessions(tracked, fallback: input.fallbackSessions)
         if sideEffects {
             let now = Date()
             // Quiet hours: no notifications or sounds (they aren't sent later).
@@ -841,6 +860,148 @@ final class AppState: ObservableObject {
 
     func openCatOffice() {
         NSWorkspace.shared.open(officeClient.baseURL)
+    }
+
+    // MARK: Sessions: jump, answer, today's recap
+
+    /// Cat Office on this agent's panel (`<base>/?agent=<id>`; the patched page opens its drawer, on its floor).
+    func openInCatOffice(_ agent: OfficeAgent) {
+        guard sideEffects, var c = URLComponents(url: officeClient.baseURL, resolvingAgainstBaseURL: false) else { return }
+        c.queryItems = [URLQueryItem(name: "agent", value: agent.id)]
+        NSWorkspace.shared.open(c.url ?? officeClient.baseURL)
+    }
+
+    /// Each pid's tty, looked up at most every 10 s (hovering a card asks often).
+    private var ttys: [Int32: (tty: String?, at: Date)] = [:]
+
+    private func tty(of pid: Int32) -> String? {
+        if let known = ttys[pid], Date().timeIntervalSince(known.at) < 10 { return known.tty }
+        let tty = TerminalFinder.tty(of: pid)
+        ttys[pid] = (tty, Date())
+        return tty
+    }
+
+    /// "Show terminal" is offered: the session's process has a tty, and Terminal or iTerm is running.
+    func canShowTerminal(_ agent: OfficeAgent) -> Bool {
+        // Renders only (CLAUDEBAR_RENDER_TERMINAL=1, or =missed for "couldn't bring it forward"): the link shows.
+        if renderTerminal != nil { return true }
+        guard let pid = agent.pid, tty(of: pid) != nil else { return false }
+        return !TerminalFinder.terminalsRunning.isEmpty
+    }
+
+    private var renderTerminal: String? { sideEffects ? nil : ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_TERMINAL"] }
+
+    /// Agents whose terminal tab couldn't be brought forward (not found, or macOS didn't allow ClaudeBar to ask).
+    @Published private(set) var terminalMissed: Set<String> = []
+
+    /// Brings forward the Terminal / iTerm tab the session runs in.
+    func showTerminal(_ agent: OfficeAgent) {
+        guard sideEffects, let pid = agent.pid, let tty = tty(of: pid) else { return }
+        if TerminalFinder.show(tty: tty) { terminalMissed.remove(agent.id) } else { terminalMissed.insert(agent.id) }
+    }
+
+    /// Answers sent from ClaudeBar, by agent id; cleared when the agent stops waiting or waits on something else.
+    @Published var answerState: [String: AnswerState] = [:]
+    /// Click tests only (side effects off): the answer that would have been sent, never sent.
+    @Published private(set) var lastAnswerRequest: (id: String, body: Data)?
+
+    /// Sends `button`'s answer to Cat Office for `agent` (POST /__agents/<id>/answer).
+    func answer(_ agent: OfficeAgent, _ button: AnswerButton) {
+        let id = agent.id
+        guard answerState[id] != .sending else { return }
+        guard sideEffects else {
+            lastAnswerRequest = (id, button.request)
+            answerState[id] = .sent
+            return
+        }
+        guard let bridge = officeClient.bridge else {
+            answerState[id] = .failed(AnswerChoices.refusal(status: nil, error: nil))
+            return
+        }
+        answerState[id] = .sending
+        Task { @MainActor in
+            let refusal = await CatOfficeActions.answer(button.request, agentId: id, bridge: bridge)
+            // The prompt changed or closed meanwhile: that state was cleared; don't bring back a stale one.
+            guard answerState[id] == .sending else { return }
+            answerState[id] = refusal.map(AnswerState.failed) ?? .sent
+        }
+    }
+
+    /// Renders and click tests: the agent CLAUDEBAR_RENDER_WAITING made wait, and the cat whose hover card shows
+    /// without a pointer (CLAUDEBAR_RENDER_CARD=1, or set by --test-answer).
+    private(set) var renderWaitingId: String?
+    @Published var renderCardAgent: String?
+    private var renderAnswerApplied = false
+
+    /// Renders only: CLAUDEBAR_RENDER_ANSWER=<sending|sent|failed> for the waiting agent; CLAUDEBAR_RENDER_CARD=1 shows
+    /// its card (CLAUDEBAR_RENDER_CARD=<id, name or project> another agent's).
+    private func renderAnswerState() {
+        let env = ProcessInfo.processInfo.environment
+        guard !sideEffects, !renderAnswerApplied, let card = env["CLAUDEBAR_RENDER_CARD"] ?? (renderWaitingId != nil ? "" : nil) else { return }
+        if card != "1", !card.isEmpty {
+            renderAnswerApplied = true
+            renderCardAgent = office?.agents.first { [$0.id, $0.name, $0.repoName, $0.label].contains(card) }?.id
+            if renderTerminal == "missed", let id = renderCardAgent { terminalMissed.insert(id) }
+            return
+        }
+        guard let id = renderWaitingId else { return }
+        renderAnswerApplied = true
+        if card == "1" { renderCardAgent = id }
+        switch env["CLAUDEBAR_RENDER_ANSWER"] {
+        case "sending": answerState[id] = .sending
+        case "sent": answerState[id] = .sent
+        case "failed": answerState[id] = .failed(AnswerChoices.refusal(status: 409, error: nil))
+        default: break
+        }
+    }
+
+    /// The agent the render seam makes wait: the first office worker (listed under the office), else the first agent.
+    private static func renderWaitingIndex(_ agents: [OfficeAgent]) -> Int? {
+        agents.firstIndex { $0.isOffice && !$0.isSubagent && $0.status != .ended } ?? agents.indices.first
+    }
+
+    /// A sample prompt of each kind, for renders and the answer click test.
+    private static func samplePrompt(_ kind: String) -> PendingPrompt? {
+        switch kind {
+        case "permission":
+            return .permission(tool: "Bash", input: "npm run build && npm test -- --watch=false --reporter=dot src/agents/live")
+        case "question":
+            return .question([.init(question: "Which store should the recap read from?", header: "Store", multiSelect: false, options: [
+                .init(label: "The session log", description: "~/.claude/claude-bar/sessions-today.jsonl, kept 2 days"),
+                .init(label: "Cat Office's feed", description: "Only what the office saw since it started"),
+                .init(label: "Both", description: ""),
+            ])])
+        case "plan":
+            return .plan("# Add today's recap to Projects\n\n1. Log working spans\n2. Sum them since midnight\n3. Show the line")
+        default:
+            return nil
+        }
+    }
+
+    /// ClaudeBar's log of sessions starting and stopping work (published when it gains events).
+    @Published private(set) var sessionLog = SessionLog()
+    private var sessionLogWorking = SessionLog()
+    private var sessionLogLoaded = false
+
+    /// Today so far, for the top of Projects.
+    var todayRecap: TodayRecap { TodayRecap.of(sessionLog, now: Date(), calendar: .current) }
+
+    /// Notes who started or stopped working; saved when something changed. Renders read
+    /// CLAUDEBAR_RENDER_SESSIONS=<jsonl file> instead (never written).
+    private func recordSessions(_ tracked: [TrackedSession], fallback: [LiveSession]) {
+        if !sessionLogLoaded {
+            sessionLogLoaded = true
+            if sideEffects {
+                sessionLogWorking = SessionLog.load(SessionLog.defaultFile)
+            } else if let file = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_SESSIONS"] {
+                sessionLogWorking = SessionLog.load(URL(fileURLWithPath: file))
+            }
+            sessionLog = sessionLogWorking
+        }
+        let entries = SessionLog.entries(tracked: tracked, agents: office?.agents ?? [], fallback: fallback)
+        guard sessionLogWorking.update(entries, now: Date()) else { return }
+        sessionLog = sessionLogWorking
+        if sideEffects { try? sessionLogWorking.save(SessionLog.defaultFile) }
     }
 
     func setLaunchAtLogin(_ on: Bool) {

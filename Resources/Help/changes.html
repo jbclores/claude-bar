@@ -32,7 +32,7 @@ settings and files:</p>
 <table>
   <tr><th>Place</th><th>What changes</th><th>Backup</th></tr>
   <tr><td><code>~/.config/claude-bar/</code></td><td>ClaudeBar's own settings.</td><td>Not needed: it's ClaudeBar's own.</td></tr>
-  <tr><td><code>~/.claude/claude-bar/</code></td><td>ClaudeBar's own usage files, written by the status line, and <code>usage-history.jsonl</code>, its usage log for the forecast and the week chart (the last 30 days).</td><td>Not needed: it's ClaudeBar's own.</td></tr>
+  <tr><td><code>~/.claude/claude-bar/</code></td><td>ClaudeBar's own usage files, written by the status line, <code>usage-history.jsonl</code>, its usage log for the forecast and the week chart (the last 30 days), and <code>sessions-today.jsonl</code>, when sessions started and stopped working, for today's recap (the last 2 days).</td><td>Not needed: it's ClaudeBar's own.</td></tr>
   <tr><td><code>~/.claude/settings.json</code></td><td>Only the <code>statusLine</code> entry, so Claude Code shows usage. Every other setting stays.</td><td><code>~/.claude/settings.json.claude-bar-backup-&lt;time&gt;</code></td></tr>
   <tr><td><code>~/.claude/statusline-command.sh</code> and ClaudeBar's helper files</td><td>ClaudeBar's status line script, only if you chose ClaudeBar's status line. ClaudeBar's helper files next to it are listed below.</td><td><code>~/.claude/statusline-command.sh.claude-bar-backup-&lt;time&gt;</code> (only if you already had a different script)</td></tr>
   <tr><td>Your Cat Office folder</td><td>A small patch, so cats match the browser, helpers show and usage works without a terminal.</td><td><code>&lt;Cat Office&gt;/.cat-office/patch-backup-&lt;time&gt;/</code></td></tr>

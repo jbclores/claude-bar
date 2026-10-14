@@ -11,6 +11,7 @@ enum RenderPeek {
         if TestTabs.runIfRequested(state: state) { return true }
         if TestStart.runIfRequested(state: state) { return true }
         if TestShortcut.runIfRequested(state: state) { return true }
+        if TestAnswer.runIfRequested(state: state) { return true }
         if TestZoom.runIfRequested(state: state) { return true }
         if TestSetup.runIfRequested() { return true }
         if TestUndo.runIfRequested() { return true }
@@ -89,6 +90,11 @@ enum RenderPeek {
             let step = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_PLACES_STEP"].flatMap(Double.init) ?? 3
             DispatchQueue.main.asyncAfter(deadline: .now() + flip + 0.3 + step + 0.05) { state.replayOffice() }
             DispatchQueue.main.asyncAfter(deadline: .now() + flip + 0.3 + mid) { captureHost(); exit(0) }
+            return true
+        }
+        // CLAUDEBAR_RENDER_PEEK_WINDOW=1: the live window instead (buttons draw; SwiftUI's renderer can't draw AppKit's).
+        if ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_PEEK_WINDOW"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6) { captureHost(); exit(0) }
             return true
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
@@ -486,6 +492,118 @@ enum TestShortcut {
                         exit(1)
                     }
                 }
+            }
+        }
+        return true
+    }
+}
+
+/// `CLAUDEBAR_RENDER_WAITING=permission ClaudeBar --test-answer`: the live dropdown offscreen on Office, its first office
+/// cat waiting on a sample permission. Clicks the hover card's "Deny" (the card shown for the test, over the room),
+/// then the waiting row's "Allow" (each found by its recorded frame, nothing else), and checks the answer each would
+/// send and that the row says "Sent". Side effects are off: nothing is sent to Cat Office.
+@MainActor
+enum TestAnswer {
+    static func runIfRequested(state: AppState) -> Bool {
+        guard CommandLine.arguments.contains("--test-answer") else { return false }
+        setvbuf(stdout, nil, _IOLBF, 0)
+        // Opens on Office; the tab you had is put back before exiting.
+        let previousTab = UserDefaults.standard.string(forKey: TabSelection.key)
+        UserDefaults.standard.set("office", forKey: TabSelection.key)
+        let exit = { (code: Int32) -> Never in
+            UserDefaults.standard.set(previousTab, forKey: TabSelection.key)
+            Foundation.exit(code)
+        }
+        func fail(_ reason: String) -> Never { print("FAIL: \(reason)"); exit(1) }
+        guard ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_WAITING"] == "permission" else {
+            fail("run with CLAUDEBAR_RENDER_WAITING=permission")
+        }
+        let controller = DropdownController(state: state)
+        let window = KeyWindow(contentViewController: controller)
+        window.styleMask = [.borderless]
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.setFrameOrigin(NSPoint(x: -10_000, y: -10_000))
+        window.makeKeyAndOrderFront(nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { fail("timed out") }
+        let targets = state.shortcutTargets
+
+        func fit() { if controller.preferredContentSize.height > 0 { window.setContentSize(controller.preferredContentSize) } }
+        /// CLAUDEBAR_TEST_SHOTS=<dir>: a picture of the window after each step.
+        func shot(_ name: String) {
+            guard let dir = ProcessInfo.processInfo.environment["CLAUDEBAR_TEST_SHOTS"], let view = window.contentView,
+                  let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+            view.cacheDisplay(in: view.bounds, to: rep)
+            let image = NSImage(size: view.bounds.size)
+            image.lockFocus(); NSColor(white: 0.16, alpha: 1).setFill(); view.bounds.fill(); rep.draw(in: view.bounds); image.unlockFocus()
+            if let tiff = image.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("test-answer-\(name).png"))
+            }
+        }
+        /// Clicks the recorded target (nothing else); refuses when the room's zoom would take the click instead.
+        func click(_ id: String) {
+            guard let frame = targets.targets[id] else { fail("no \(id) button shown") }
+            let point = NSPoint(x: frame.midX, y: window.contentView!.bounds.height - frame.midY)
+            let hit = window.contentView!.hitTest(window.contentView!.superview!.convert(point, from: nil))
+            // In the room's own space (the office content's, top-left): over the room, yet not the zoom's to take.
+            let office = controller.content.convert(point, from: nil)
+            let overRoom = controller.roomZoom.roomRect.contains(office), zoomTakes = controller.roomZoom.contains(office)
+            print("\(id): at \(frame), over the room: \(overRoom), zoom takes it: \(zoomTakes),",
+                  "hits \(hit.map { String(describing: type(of: $0)) } ?? "nothing")")
+            if hit is ZoomingContainer || zoomTakes { fail("the room's zoom takes the click on \(id)") }
+            NSApp.postEvent(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                               windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0)!, atStart: false)
+            window.sendEvent(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
+        }
+        /// Waits (polling, up to 10 s) for `done`, then runs `then`.
+        func when(_ what: String, _ done: @escaping @MainActor () -> Bool, _ then: @escaping @MainActor () -> Void) {
+            let deadline = Date().addingTimeInterval(10)
+            func poll() {
+                fit()
+                if done() { DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { MainActor.assumeIsolated { fit(); then() } }; return }
+                guard Date() < deadline else { fail("gave up waiting for \(what)") }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { MainActor.assumeIsolated { poll() } }
+            }
+            poll()
+        }
+        func sent(_ id: String, _ json: String) -> Bool {
+            state.lastAnswerRequest?.id == id && state.lastAnswerRequest.map { String(decoding: $0.body, as: UTF8.self) } == json
+        }
+
+        when("the waiting row's Allow", { state.renderWaitingId != nil && targets.targets["answer-allow"] != nil }) {
+            guard let id = state.renderWaitingId else { fail("no waiting agent") }
+            print("waiting agent: \(id)")
+            shot("row")
+            // The hover card over the room: its Deny takes the click, not the room's zoom.
+            state.renderCardAgent = id
+            when("the card's Deny", { targets.targets["card-deny"] != nil }) {
+                shot("card")
+                click("card-deny")
+                // The card is drawn over the room: this is the click the room's zoom used to take.
+                if let f = targets.targets["card-deny"],
+                   !controller.roomZoom.roomRect.contains(controller.content.convert(NSPoint(x: f.midX, y: window.contentView!.bounds.height - f.midY), from: nil)) {
+                    fail("the card's Deny isn't over the room (nothing tested)")
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { MainActor.assumeIsolated {
+                    print("card answer:", state.lastAnswerRequest.map { "\($0.id) \(String(decoding: $0.body, as: UTF8.self))" } ?? "none")
+                    guard sent(id, #"{"choice":"no","kind":"permission"}"#) else { fail("the card's Deny didn't send the expected answer") }
+                    // Back to unanswered, the card closed, for the row's turn.
+                    state.answerState[id] = nil
+                    state.renderCardAgent = nil
+                    targets.targets["answer-sent"] = nil
+                    when("the row's Allow again", { targets.targets["answer-allow"] != nil && state.answerState[id] == nil }) {
+                        click("answer-allow")
+                        when("Sent in the row", { targets.targets["answer-sent"] != nil }) {
+                            shot("sent")
+                            print("row answer:", state.lastAnswerRequest.map { "\($0.id) \(String(decoding: $0.body, as: UTF8.self))" } ?? "none",
+                                  "· state:", state.answerState[id].map { "\($0)" } ?? "none")
+                            guard sent(id, #"{"choice":"yes","kind":"permission"}"#) else { fail("the row's Allow didn't send the expected answer") }
+                            guard state.answerState[id] == .sent else { fail("the row doesn't say Sent") }
+                            print("PASS: card Deny and row Allow answered \(id); the row shows Sent")
+                            exit(0)
+                        }
+                    }
+                } }
             }
         }
         return true

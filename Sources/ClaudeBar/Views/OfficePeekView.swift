@@ -184,6 +184,41 @@ struct OfficeRoomView: View {
 
     private var hovered: OfficeAgent? { pointer.location.flatMap(cat(at:)) }
 
+    /// The cat whose card shows (StickyCard): the hovered one, kept while the pointer is on its way to the card or on
+    /// it, so the card's links and answer buttons can be clicked.
+    @State private var cardId: String?
+    /// The card's frame in "office" space (zero while none shows); the room leaves clicks there to the card.
+    @State private var cardRect: CGRect = .zero
+    @State private var lingering = false
+    @State private var lingerToken = 0
+    /// How long the card waits for the pointer after it leaves the cat.
+    static let cardLinger: TimeInterval = 0.6
+
+    private var onCard: Bool { pointer.location.map { cardRect.contains($0) } == true }
+
+    private var shownCard: OfficeAgent? {
+        // Renders and the answer click test: a card shown without a pointer.
+        if let forced = state.renderCardAgent { return agent(id: forced) }
+        return StickyCard.shown(hovered: hovered?.id, card: cardId, onCard: onCard, lingering: lingering).flatMap(agent(id:))
+    }
+
+    private func agent(id: String) -> OfficeAgent? {
+        state.office?.agents.first { $0.id == id } ?? state.mirror.spares.first { $0.key == id }.map(OfficeMirror.spareAgent)
+    }
+
+    /// The pointer moved onto a cat (its card shows) or off it (the card lingers a moment for the pointer to reach it).
+    private func hoverChanged(from old: String?, to new: String?) {
+        lingerToken += 1
+        if let new {
+            cardId = new
+            lingering = false
+        } else if old != nil {
+            lingering = true
+            let token = lingerToken
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.cardLinger) { if lingerToken == token { lingering = false } }
+        }
+    }
+
     /// The frontmost cat at a point in the office space (over the zoomed drawing).
     private func cat(at point: CGPoint) -> OfficeAgent? {
         guard let office = state.office, zoom.contains(point) else { return nil }
@@ -235,9 +270,26 @@ struct OfficeRoomView: View {
                     .padding(8)
                     .help("Show the whole room (or double-click)")
             }
-            if let agent = hovered { CatCard(agent: agent, since: agent.statusSince(tracked: state.statusSince[agent.key])).padding(6) }
         }
         .frame(height: Self.height)
+        // Over the room, not part of its layout: a tall card (a waiting cat's) never moves the room.
+        .overlay(alignment: .top) {
+            if let agent = shownCard {
+                CatCard(agent: agent, since: agent.statusSince(tracked: state.statusSince[agent.key]))
+                    .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named("office")) }) { rect in
+                        cardRect = rect
+                        zoom.excluded = [rect]
+                    }
+                    .onDisappear {
+                        cardRect = .zero
+                        zoom.excluded = []
+                    }
+                    .padding(6)
+            }
+        }
+        .onChange(of: hovered?.id) { old, new in hoverChanged(from: old, to: new) }
+        // Off the card (and not onto a cat): it closes.
+        .onChange(of: onCard) { _, on in if !on { lingering = false } }
         .background(GeometryReader { proxy in
             Color.clear.onAppear { zoom.roomRect = proxy.frame(in: .named("office")) }
                 .onChange(of: proxy.frame(in: .named("office"))) { _, rect in zoom.roomRect = rect }
@@ -1222,13 +1274,17 @@ struct CatCard: View {
             Text(place.joined(separator: " · ")).font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1)
             // What the cat is doing: the browser's while the mirror is live, else the office's own life (OfficeSim).
             if let p = state.mirror.places[agent.id] { ActivityLine(place: p, key: agent.id, clock: state.minutesLeft) }
-            if let reason = agent.waitReason { Text(reason).font(.caption).foregroundStyle(Theme.waiting) }
-            if let task = agent.task, !task.isEmpty { Text(task).font(.caption).lineLimit(3) }
-            if let last = agent.lastAction, !last.isEmpty {
+            // With a prompt to answer, it takes the room: the task on one line, no wait reason or last action.
+            let asks = AnswerPanel.shows(agent)
+            if !asks, let reason = agent.waitReason { Text(reason).font(.caption).foregroundStyle(Theme.waiting) }
+            if let task = agent.task, !task.isEmpty { Text(task).font(.caption).lineLimit(asks ? 1 : 3) }
+            if asks { AnswerPanel(agent: agent, targetPrefix: "card", links: false).padding(.vertical, 2) }
+            if !asks, let last = agent.lastAction, !last.isEmpty {
                 // Plain words, as in the session list (the raw action is on the list row's hover).
                 Text("Last: \(ActionSummary.calm(last, working: agent.status == .working))")
                     .font(.caption2).foregroundStyle(Theme.secondaryText).lineLimit(1)
             }
+            JumpLinks(agent: agent).padding(.top, 2)
         }
         .padding(8)
         .frame(maxWidth: 340, alignment: .leading)

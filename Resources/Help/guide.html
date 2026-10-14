@@ -81,9 +81,22 @@ the same desks, furniture, windows and elevator.</p>
 <h3>Reading the cats</h3>
 <ul>
   <li><b>Green ring</b>: working. <b>Amber ring or red "!"</b>: needs you (a question, a permission, a plan to approve). <b>In the Lounge</b> (napping, reading, on the sofa): idle.</li>
-  <li><b>Hover a cat</b> for its card: name, status, project, branch, model and what it's doing (e.g. "Coffee break · 4 min left").</li>
+  <li><b>Hover a cat</b> for its card: name, status, project, branch, model and what it's doing (e.g. "Coffee break · 4 min left").
+    The card stays open while you move the pointer onto it, and has two links: <b>Open in Cat Office</b> (Cat Office opens
+    on that cat's panel) and, when ClaudeBar can find it, <b>Show terminal</b> (brings forward the Terminal or iTerm tab
+    the session runs in; macOS asks once to let ClaudeBar do that).</li>
+  <li><b>Click a row</b> in the list under the room to open Cat Office on that cat.</li>
   <li>When a cat changes floors it walks to the elevator, rides, and walks out on the other floor.</li>
 </ul>
+
+<h3 id="answer">Answering a cat that needs you</h3>
+<p>When a cat waits on a permission ("Allow this command?"), a question or a plan, its card and its row in the list show
+what it's asking, with buttons: <b>Allow</b>, <b>Always allow</b> or <b>Deny</b>; one button per option for a single
+question; <b>Approve</b> or <b>Reject</b> for a plan. Click one and Cat Office types the answer; the row says
+<b>Sent</b>, and the cat gets back to work. Several questions, or one with several picks, are answered in Cat Office.</p>
+<p>Cat Office can answer sessions running in its Orca terminals. For others (Terminal, iTerm, VS Code) the question
+still shows; a click says "Cat Office can't answer this session: answer it in its terminal", with the links to get
+there.</p>
 
 <h3>Matching the browser</h3>
 <p>While a Cat Office page is open, ClaudeBar shows each cat where the browser has it, doing the same thing.
@@ -114,6 +127,9 @@ with the same zoom, hover cards and 🎵 button. It closes when you move away. Y
 <h2 id="projects">Projects</h2>
 <p>The Projects tab lists the projects you've added, each with its branch, model, how full its context is, and its
 status. Add folders from the tab, or edit the list with <b>Settings → Advanced → Edit config file</b>.</p>
+<p>Its first line is today's recap: "4 sessions finished · 2h 10m working · busiest: claude-bar" (since midnight;
+office cats and terminal sessions alike, helpers counted in their parent's project). It's hidden on a day with
+nothing yet.</p>
 
 <h2 id="settings">Settings &amp; sounds</h2>
 <figure>
