@@ -6,11 +6,14 @@ import Testing
 /// A one-request HTTP server on 127.0.0.1: records what it got, answers `status` with `body`.
 final class OneShotServer: @unchecked Sendable {
     let listener: NWListener
-    private(set) var received = ""
+    private let box = LockedBox<String>("")
+    var received: String { box.get() }
     var port: UInt16 { listener.port?.rawValue ?? 0 }
 
     init(status: Int, body: String) throws {
-        listener = try NWListener(using: .tcp, on: .any)
+        let params = NWParameters.tcp
+        params.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
+        listener = try NWListener(using: params)
         listener.newConnectionHandler = { [unowned self] conn in
             conn.start(queue: .global())
             self.receiveAll(conn, buffer: Data()) {
@@ -33,12 +36,12 @@ final class OneShotServer: @unchecked Sendable {
                     .first { $0.hasPrefix("content-length:") }
                     .flatMap { Int($0.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) } ?? 0
                 if text[split.upperBound...].utf8.count >= length {
-                    self.received = text
+                    self.box.set(text)
                     done()
                     return
                 }
             }
-            if isComplete || error != nil { self.received = text; done(); return }
+            if isComplete || error != nil { self.box.set(text); done(); return }
             self.receiveAll(conn, buffer: buffer, done: done)
         }
     }
