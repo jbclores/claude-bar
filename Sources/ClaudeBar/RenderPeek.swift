@@ -598,7 +598,7 @@ enum TestAnswer {
                             print("row answer:", state.lastAnswerRequest.map { "\($0.id) \(String(decoding: $0.body, as: UTF8.self))" } ?? "none",
                                   "· state:", state.answerState[id].map { "\($0)" } ?? "none")
                             guard sent(id, #"{"choice":"yes","kind":"permission"}"#) else { fail("the row's Allow didn't send the expected answer") }
-                            guard state.answerState[id] == .sent else { fail("the row doesn't say Sent") }
+                            guard case .sent = state.answerState[id] else { fail("the row doesn't say Sent") }
                             print("PASS: card Deny and row Allow answered \(id); the row shows Sent")
                             exit(0)
                         }

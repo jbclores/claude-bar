@@ -32,7 +32,7 @@ struct AnswerPanel: View {
     /// Click tests: records each button's frame as "<prefix>-<title>" (and "Sent" as "<prefix>-sent") in
     /// state.shortcutTargets.
     var targetPrefix: String?
-    /// The jump links after an error (and "Open in Cat Office" for a plan); the hover card has its own below.
+    /// The jump links under "Sent" or an error (and "Open in Cat Office" for a plan); the hover card has its own below.
     var links = true
     @EnvironmentObject var state: AppState
 
@@ -63,6 +63,8 @@ struct AnswerPanel: View {
         case .sent:
             Text("Sent").font(.caption.weight(.semibold)).foregroundStyle(Theme.working)
                 .recordFrame(targetPrefix.map { "\($0)-sent" }, in: state.shortcutTargets)
+            // In case the dialog didn't take it: the way there (the buttons come back if it still waits after a while).
+            if links { JumpLinks(agent: agent) }
         case .sending:
             ProgressView().controlSize(.small)
         case .failed(let message):

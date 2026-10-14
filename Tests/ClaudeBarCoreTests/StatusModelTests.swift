@@ -160,6 +160,19 @@ import Testing
     }
 
     /// The office list has room for longer titles than the name tags.
+    @Test func officeListAlsoShowsWaitingTerminalSessions() {
+        var waiting = OfficeAgent(id: "t1", name: "zed-term", owner: "external", status: .waiting, cwd: "/w/app", sessionId: "s-t1")
+        waiting.pendingPrompt = .permission(tool: "Bash", input: "ls")
+        let office = OfficeSnapshot(agents: [
+            waiting,
+            OfficeAgent(id: "t2", name: "idle-term", owner: "external", status: .idle, cwd: "/w/app"),
+            OfficeAgent(id: "w1", name: "office-a", owner: "office", status: .working, cwd: "/w/app"),
+        ])
+        let rows = StatusModel.build(input([], office: office)).office
+        #expect(rows?.map(\.name) == ["office-a", "zed-term"])
+        #expect(rows?.last?.id == "s-t1")
+    }
+
     @Test func officeListShowsLongerTitles() throws {
         var a = OfficeAgent(id: "1", name: "office-a", owner: "office", status: .idle, cwd: "/w/app",
                             task: "Fix the bug in Build a cat where the preview stays blank")

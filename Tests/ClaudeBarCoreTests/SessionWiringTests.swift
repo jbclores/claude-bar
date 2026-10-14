@@ -59,6 +59,16 @@ import Testing
         #expect(AnswerReset.stale(["a"], before: [waiting("a", .plan("x"))], after: []) == ["a"])
     }
 
+    @Test func aSentAnswerExpiresWhileTheSamePromptWaits() {
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+        // Fresh: kept.
+        #expect(!AnswerReset.sentIsStale(sentAt: t0, now: t0.addingTimeInterval(3)))
+        // 11 s on, still waiting on the same prompt: the buttons come back.
+        #expect(AnswerReset.sentIsStale(sentAt: t0, now: t0.addingTimeInterval(11)))
+        // A different prompt: cleared at once, as before.
+        #expect(AnswerReset.stale(["a"], before: [waiting("a", .plan("x"))], after: [waiting("a", .plan("y"))]) == ["a"])
+    }
+
     @Test func otherAgentsAreLeftAlone() {
         let before = [waiting("a", .plan("x")), waiting("b", .plan("z"))]
         let after = [waiting("a", .plan("x")), waiting("b", .plan("new"))]

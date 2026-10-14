@@ -225,6 +225,8 @@ public enum StatusModel {
             var ordered: [OfficeAgent] = []
             for p in parents { ordered.append(p); ordered += helpers.filter { $0.parentName == p.name } }
             ordered += helpers.filter { h in !parents.contains { $0.name == h.parentName } }
+            // Then terminal sessions waiting on a prompt: their row unfolds the answer buttons.
+            ordered += alive.filter { !$0.isOffice && !$0.isSubagent && $0.status == .waiting && $0.pendingPrompt != nil }.sorted(by: byName)
             return ordered
                 .map { a in
                     OfficeRow(

@@ -2,9 +2,9 @@ import AppKit
 import ClaudeBarCore
 import ServiceManagement
 
-/// An answer sent from ClaudeBar for a waiting session: on its way, taken by Cat Office, or why not (plain words).
+/// An answer sent from ClaudeBar for a waiting session: on its way, taken by Cat Office (when), or why not (plain words).
 enum AnswerState: Equatable {
-    case sending, sent, failed(String)
+    case sending, sent(at: Date), failed(String)
 }
 
 enum OfficeLaunch: Equatable {
@@ -491,7 +491,7 @@ final class AppState: ObservableObject {
         // Renders and the answer click test (CLAUDEBAR_RENDER_WAITING=<permission|question|plan>): the first office
         // agent waits on a sample prompt.
         if !sideEffects, let kind = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_WAITING"], snapshot != nil,
-           let prompt = Self.samplePrompt(kind), let i = Self.renderWaitingIndex(snapshot!.agents) {
+           let prompt = Self.samplePrompt(kind), let i = Self.renderWaitingIndex(&snapshot!.agents) {
             snapshot!.agents[i].status = .waiting
             snapshot!.agents[i].pendingPrompt = prompt
             renderWaitingId = snapshot!.agents[i].id
@@ -911,7 +911,7 @@ final class AppState: ObservableObject {
         guard answerState[id] != .sending else { return }
         guard sideEffects else {
             lastAnswerRequest = (id, button.request)
-            answerState[id] = .sent
+            markSent(id)
             return
         }
         guard let bridge = officeClient.bridge else {
@@ -923,7 +923,19 @@ final class AppState: ObservableObject {
             let refusal = await CatOfficeActions.answer(button.request, agentId: id, bridge: bridge)
             // The prompt changed or closed meanwhile: that state was cleared; don't bring back a stale one.
             guard answerState[id] == .sending else { return }
-            answerState[id] = refusal.map(AnswerState.failed) ?? .sent
+            if let refusal { answerState[id] = .failed(refusal) } else { markSent(id) }
+        }
+    }
+
+    /// "Sent" for `id`; if the session still waits on the same prompt AnswerReset.sentFor later (the dialog didn't take
+    /// it, or the next prompt is the same), the buttons come back.
+    private func markSent(_ id: String) {
+        let at = Date()
+        answerState[id] = .sent(at: at)
+        DispatchQueue.main.asyncAfter(deadline: .now() + AnswerReset.sentFor + 0.1) { [weak self] in
+            // A changed prompt or a session no longer waiting has cleared it already (officeUpdated).
+            guard let self, self.answerState[id] == .sent(at: at), AnswerReset.sentIsStale(sentAt: at, now: Date()) else { return }
+            self.answerState[id] = nil
         }
     }
 
@@ -949,15 +961,24 @@ final class AppState: ObservableObject {
         if card == "1" { renderCardAgent = id }
         switch env["CLAUDEBAR_RENDER_ANSWER"] {
         case "sending": answerState[id] = .sending
-        case "sent": answerState[id] = .sent
+        case "sent": answerState[id] = .sent(at: Date())
         case "failed": answerState[id] = .failed(AnswerChoices.refusal(status: 409, error: nil))
         default: break
         }
     }
 
-    /// The agent the render seam makes wait: the first office worker (listed under the office), else the first agent.
-    private static func renderWaitingIndex(_ agents: [OfficeAgent]) -> Int? {
-        agents.firstIndex { $0.isOffice && !$0.isSubagent && $0.status != .ended } ?? agents.indices.first
+    /// The agent the render seam makes wait: the first office worker, else the first agent. With
+    /// CLAUDEBAR_RENDER_WAITING_EXTERNAL=1, a stand-in terminal session (the answerable kind) added for the render.
+    private static func renderWaitingIndex(_ agents: inout [OfficeAgent]) -> Int? {
+        if ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_WAITING_EXTERNAL"] == "1" {
+            var a = OfficeAgent(id: "render-external-0001", name: "orca-terminal", owner: "external", status: .waiting,
+                                cwd: agents.first?.cwd ?? "/tmp", repoName: agents.first?.repoName, task: "Wire the answer buttons",
+                                lastAction: "Bash: npm run build", sessionId: "render-external-0001")
+            a.cat = agents.first?.cat
+            agents.append(a)
+            return agents.count - 1
+        }
+        return agents.firstIndex { $0.isOffice && !$0.isSubagent && $0.status != .ended } ?? agents.indices.first
     }
 
     /// A sample prompt of each kind, for renders and the answer click test.

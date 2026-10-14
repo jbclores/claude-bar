@@ -27,6 +27,16 @@ public enum AnswerReset {
             return before.first(where: { $0.id == id })?.pendingPrompt != now.pendingPrompt
         }
     }
+
+    /// How long "Sent" stands while the session still waits on the same prompt (Cat Office took it, but the dialog
+    /// didn't, or the next prompt is the same): then the buttons come back.
+    public static let sentFor: TimeInterval = 10
+
+    /// A "Sent" from `sentAt` no longer applies (the session still waits on the same prompt; a changed prompt or a
+    /// session no longer waiting is `stale`).
+    public static func sentIsStale(sentAt: Date, now: Date) -> Bool {
+        now.timeIntervalSince(sentAt) > sentFor
+    }
 }
 
 extension SessionLog {
