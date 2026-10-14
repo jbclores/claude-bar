@@ -14,11 +14,17 @@ public struct SessionEvent: Codable, Equatable, Sendable {
 public struct SessionLog: Equatable, Sendable {
     public private(set) var events: [SessionEvent] = []
     private var last: [String: (status: AgentStatus, project: String)] = [:]
+    /// When `update` last ran (after a restart: the log's last event).
+    private var lastUpdate: Date?
     static let keepFor: TimeInterval = 2 * 86_400
+    /// Longer than this between updates (the Mac slept, ClaudeBar was off): nobody was seen working in between.
+    static let maxGap: TimeInterval = 120
 
-    /// Keys whose last event is "started working" are seeded as working, so a restart continues their span.
+    /// Keys whose last event is "started working" are seeded as working, so a restart continues their span (closed at
+    /// the log's last event instead when the restart comes after a gap; see `update`).
     public init(events: [SessionEvent] = []) {
         self.events = events
+        lastUpdate = events.map(\.at).max()
         var lastEvent: [String: SessionEvent] = [:]
         for e in events { lastEvent[e.key] = e }
         for (key, e) in lastEvent where e.working { last[key] = (.working, e.project) }
@@ -27,10 +33,19 @@ public struct SessionLog: Equatable, Sendable {
 
     public static var defaultFile: URL { Paths.home.appendingPathComponent(".claude/claude-bar/sessions-today.jsonl") }
 
-    /// Notes who started or stopped working since the last update. True when events were added.
+    /// Notes who started or stopped working since the last update. True when events were added. After a gap (sleep,
+    /// ClaudeBar off) the sessions working at the last update stop there (not finished); one still working starts again
+    /// now, so the gap never counts as working time.
     @discardableResult
     public mutating func update(_ sessions: [(key: String, project: String, status: AgentStatus)], now: Date) -> Bool {
         let before = events.count
+        if let lastUpdate, now.timeIntervalSince(lastUpdate) > Self.maxGap {
+            for key in last.keys.sorted() where last[key]?.status == .working {
+                events.append(SessionEvent(at: lastUpdate, key: key, project: last[key]!.project, working: false, finished: false))
+                last[key] = nil
+            }
+        }
+        lastUpdate = now
         var seen = Set<String>()
         for s in sessions {
             seen.insert(s.key)
