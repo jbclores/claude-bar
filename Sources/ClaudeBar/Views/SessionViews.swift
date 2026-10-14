@@ -71,7 +71,13 @@ struct AnswerPanel: View {
             Text(message).font(.caption).foregroundStyle(Theme.waiting).fixedSize(horizontal: false, vertical: true)
             if links { JumpLinks(agent: agent) }
         case nil:
-            if choices.buttons.isEmpty {
+            if !agent.canBeAnswered, !agent.isOffice {
+                // Not in an Orca terminal: Cat Office can't type the answer (it would refuse), so no buttons.
+                Text("Answer it in its terminal: Cat Office answers only sessions in Orca")
+                    .font(.caption).foregroundStyle(Theme.secondaryText).fixedSize(horizontal: false, vertical: true)
+                    .recordFrame(targetPrefix.map { "\($0)-terminal-only" }, in: state.shortcutTargets)
+                if links { JumpLinks(agent: agent) }
+            } else if choices.buttons.isEmpty || !agent.canBeAnswered {
                 Button("Answer in Cat Office") { state.openInCatOffice(agent) }.buttonStyle(.link).font(.caption)
             } else {
                 FlowRow(spacing: 6) {

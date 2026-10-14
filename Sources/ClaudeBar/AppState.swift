@@ -968,13 +968,15 @@ final class AppState: ObservableObject {
     }
 
     /// The agent the render seam makes wait: the first office worker, else the first agent. With
-    /// CLAUDEBAR_RENDER_WAITING_EXTERNAL=1, a stand-in terminal session (the answerable kind) added for the render.
+    /// CLAUDEBAR_RENDER_WAITING_EXTERNAL=1, a stand-in session in an Orca terminal (the answerable kind) added for the
+    /// render; =noterm, the same in another terminal (not answerable: no buttons).
     private static func renderWaitingIndex(_ agents: inout [OfficeAgent]) -> Int? {
-        if ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_WAITING_EXTERNAL"] == "1" {
+        if let external = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_WAITING_EXTERNAL"], external == "1" || external == "noterm" {
             var a = OfficeAgent(id: "render-external-0001", name: "orca-terminal", owner: "external", status: .waiting,
                                 cwd: agents.first?.cwd ?? "/tmp", repoName: agents.first?.repoName, task: "Wire the answer buttons",
                                 lastAction: "Bash: npm run build", sessionId: "render-external-0001")
             a.cat = agents.first?.cat
+            a.orcaTerminal = external == "1" ? "term_render" : nil
             agents.append(a)
             return agents.count - 1
         }

@@ -22,4 +22,23 @@ import Testing
         #expect(try agent(#"{"id":"a","status":"waiting","pendingPrompt":{"kind":"something-new"}}"#).pendingPrompt == nil)
         #expect(try agent(#"{"id":"a","status":"idle","pid":null}"#).pid == nil)
     }
+
+    @Test func decodesTheOrcaTerminal() throws {
+        let orca = try agent(#"{"id":"a","owner":"external","status":"waiting","terminal":{"app":"orca","handle":"term_60ff"}}"#)
+        #expect(orca.orcaTerminal == "term_60ff")
+        #expect(try agent(#"{"id":"a","status":"waiting","terminal":null}"#).orcaTerminal == nil)
+        #expect(try agent(#"{"id":"a","status":"waiting"}"#).orcaTerminal == nil)
+        #expect(try agent(#"{"id":"a","status":"waiting","terminal":{"app":"orca"}}"#).orcaTerminal == nil)
+        #expect(try agent(#"{"id":"a","status":"waiting","terminal":{"app":"orca","handle":""}}"#).orcaTerminal == nil)
+    }
+
+    /// Cat Office types an answer only into an external session's Orca terminal (else it answers 409).
+    @Test func onlyAnExternalSessionInOrcaCanBeAnswered() throws {
+        let orca = try agent(#"{"id":"a","owner":"external","status":"waiting","terminal":{"app":"orca","handle":"t1"}}"#)
+        #expect(orca.canBeAnswered)
+        #expect(try !agent(#"{"id":"a","owner":"external","status":"waiting","terminal":null}"#).canBeAnswered, "Terminal, iTerm, VS Code")
+        #expect(try !agent(#"{"id":"a","owner":"office","status":"waiting","terminal":{"app":"orca","handle":"t1"}}"#).canBeAnswered, "office worker")
+        #expect(try !agent(#"{"id":"a","owner":"external","kind":"subagent","status":"waiting","terminal":{"app":"orca","handle":"t1"}}"#).canBeAnswered, "helper")
+        #expect(try !agent(#"{"id":"a","owner":"external","kind":"teammate","status":"waiting","terminal":{"app":"orca","handle":"t1"}}"#).canBeAnswered, "teammate")
+    }
 }

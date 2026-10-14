@@ -55,6 +55,15 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
     public var pendingPrompt: PendingPrompt?
     /// The session's process id, if Cat Office says.
     public var pid: Int32?
+    /// The Orca terminal handle an external session runs in (Cat Office's `terminal.handle`): where Cat Office types
+    /// replies and answers. Nil for other terminals and for office workers.
+    public var orcaTerminal: String?
+
+    /// Cat Office can answer this session's dialogs: an external session (not a helper) in an Orca terminal. Any other
+    /// answer would get a 409, so no answer buttons show for it.
+    public var canBeAnswered: Bool {
+        owner == "external" && !isSubagent && kind != "teammate" && orcaTerminal != nil
+    }
 
     /// What to call the agent: a custom or AI title, else its project, else the first words of its task, else
     /// its name.
@@ -113,10 +122,11 @@ extension OfficeAgent: Decodable {
         var root: String?
     }
     private struct Action: Decodable { var label: String }
+    private struct Terminal: Decodable { var handle: String? }
 
     enum CodingKeys: String, CodingKey {
         case id, name, owner, status, waitReason, cwd, repo, branch, model, task, lastAction, waitingSince, sessionId, cat
-        case titleSource, desk, kind, parentName, agentType, description, place, updatedAt, pendingPrompt, pid
+        case titleSource, desk, kind, parentName, agentType, description, place, updatedAt, pendingPrompt, pid, terminal
     }
 
     public init(from decoder: Decoder) throws {
@@ -149,6 +159,7 @@ extension OfficeAgent: Decodable {
         place = (try? c.decodeIfPresent(MirrorPlace.self, forKey: .place)) ?? nil
         pendingPrompt = (try? c.decodeIfPresent(PendingPrompt.self, forKey: .pendingPrompt)) ?? nil
         pid = (try? c.decodeIfPresent(Int32.self, forKey: .pid)) ?? nil
+        orcaTerminal = ((try? c.decodeIfPresent(Terminal.self, forKey: .terminal)) ?? nil)?.handle.flatMap { $0.isEmpty ? nil : $0 }
         updatedAt = (try? c.decodeIfPresent(Double.self, forKey: .updatedAt)).flatMap { $0 }.flatMap { $0.isFinite && $0 > 0 ? Date(timeIntervalSince1970: $0 / 1000) : nil }
     }
 }

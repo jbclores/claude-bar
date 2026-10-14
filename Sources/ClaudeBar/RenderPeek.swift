@@ -515,8 +515,10 @@ enum TestAnswer {
             Foundation.exit(code)
         }
         func fail(_ reason: String) -> Never { print("FAIL: \(reason)"); exit(1) }
-        guard ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_WAITING"] == "permission" else {
-            fail("run with CLAUDEBAR_RENDER_WAITING=permission")
+        // Answer buttons show only for a session in an Orca terminal: the render seam's stand-in one.
+        guard ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_WAITING"] == "permission",
+              ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_WAITING_EXTERNAL"] == "1" else {
+            fail("run with CLAUDEBAR_RENDER_WAITING=permission CLAUDEBAR_RENDER_WAITING_EXTERNAL=1")
         }
         let controller = DropdownController(state: state)
         let window = KeyWindow(contentViewController: controller)
