@@ -646,7 +646,7 @@
 +}
 --- a/src/agents/live/agent-link.ts
 +++ b/src/agents/live/agent-link.ts
-@@ -0,0 +1,17 @@
+@@ -0,0 +1,22 @@
 +/*
 + * ?agent=<id>: other local apps (ClaudeBar's "Open in Cat Office") open the page on one agent's drawer. Read once
 + * when the agents are in; then dropped from the address so a reload doesn't open it again.
@@ -663,6 +663,11 @@
 +  const url = new URL(href);
 +  url.searchParams.delete('agent');
 +  return url.toString();
++}
++
++/** True when a pending ?agent= link names an agent that is in the office (it then wins over the remembered drawer). */
++export function linkWins(linkedId: string | null, agentIds: readonly string[]): boolean {
++  return linkedId !== null && agentIds.includes(linkedId);
 +}
 --- a/src/agents/live/places-share.ts
 +++ b/src/agents/live/places-share.ts
@@ -846,7 +851,7 @@
  import { countByStatus, formatRuntime, runtimeMs, sumTokens } from '../../agents/live/status';
  import { useAgentCats, type Portrait } from '../../agents/live/useAgentCats';
 +import { useReportDesks } from '../../agents/live/agent-desks';
-+import { agentParam, withoutAgentParam } from '../../agents/live/agent-link';
++import { agentParam, linkWins, withoutAgentParam } from '../../agents/live/agent-link';
 +import { usePlacesShare } from '../../agents/live/places-share';
  import { useLiveAgents } from '../../agents/live/useLiveAgents';
  import { useWarmStart } from '../../agents/live/warm-start';
@@ -862,30 +867,53 @@
    const agents = live.snapshot?.agents ?? NO_AGENTS;
    // Every session's face in the roster, drawer and feed: its cat's, the one it had, or one picked from its id;
    // muted when no cat in the office stands for it now (ended, or queued for a free cat).
-@@ -283,6 +290,15 @@
+@@ -283,6 +290,7 @@
      pickAgent(agent);
      setReveal((n) => n + 1);
    };
-+  // ?agent=<id> (ClaudeBar's "Open in Cat Office"): once the agents are in, open that agent's drawer, then drop it.
 +  const linkedAgent = useRef(agentParam());
-+  useEffect(() => {
-+    const id = linkedAgent.current;
-+    if (!id || agents.length === 0) return;
-+    linkedAgent.current = null;
-+    if (agents.some((a) => a.id === id)) pickAgentId(id);
-+    window.history.replaceState(null, '', withoutAgentParam());
-+  }, [agents]); // eslint-disable-line react-hooks/exhaustive-deps
    // A pick from the roster (the restore on load calls pickAgent itself, and leaves a hidden drawer hidden).
    const pickAgentShown = (agent: LiveAgent): void => {
      pickAgent(agent);
+@@ -297,6 +305,11 @@
+   useEffect(() => {
+     if (live.snapshot === null || restored || editing) return;
+     setRestored(true);
++    // A pending ?agent= link to an agent in the office wins over the remembered drawer (the link effect opens it).
++    if (linkWins(linkedAgent.current, agents.map((a) => a.id))) {
++      setRestoring(null);
++      return;
++    }
+     if (restoreOff()) {
+       setRestoring(null);
+       return;
+@@ -316,6 +329,18 @@
+     // `restoring` stays until the live drawer has the agent, so the column doesn't blink.
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [live.snapshot, restored, editing]);
++  // ?agent=<id> (ClaudeBar's "Open in Cat Office"): once the live snapshot is in, open that agent's drawer, then
++  // drop the parameter (even if the agent, or every agent, is gone) so a reload doesn't reopen it.
++  useEffect(() => {
++    const id = linkedAgent.current;
++    if (!id || live.snapshot === null) return;
++    linkedAgent.current = null;
++    if (agents.some((a) => a.id === id)) {
++      setRestored(true);
++      pickAgentId(id);
++    }
++    window.history.replaceState(null, '', withoutAgentParam());
++  }, [live.snapshot]); // eslint-disable-line react-hooks/exhaustive-deps
+   useEffect(() => {
+     if (restoring !== null && selectedAgentKey === restoring) setRestoring(null);
+   }, [restoring, selectedAgentKey]);
 --- a/tests/sim/agent-link.test.ts
 +++ b/tests/sim/agent-link.test.ts
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,25 @@
 +// ?agent=<id>: ClaudeBar's "Open in Cat Office" link opens the page on that agent; the parameter is then dropped.
 +import assert from 'node:assert/strict';
 +import { test } from 'node:test';
 +
-+const { agentParam, withoutAgentParam } = await import('../../src/agents/live/agent-link.ts');
++const { agentParam, linkWins, withoutAgentParam } = await import('../../src/agents/live/agent-link.ts');
 +
 +test('agentParam: the id in ?agent=, else null', () => {
 +  assert.equal(agentParam('?agent=sess-1'), 'sess-1');
@@ -898,6 +926,13 @@
 +  assert.equal(withoutAgentParam('http://localhost:5173/?agent=x'), 'http://localhost:5173/');
 +  assert.equal(withoutAgentParam('http://localhost:5173/?floor=3&agent=x#y'), 'http://localhost:5173/?floor=3#y');
 +  assert.equal(withoutAgentParam('http://localhost:5173/'), 'http://localhost:5173/');
++});
++
++test('linkWins: only a pending link to an agent that is in the office', () => {
++  assert.equal(linkWins('b', ['a', 'b']), true);
++  assert.equal(linkWins('c', ['a', 'b']), false);
++  assert.equal(linkWins(null, ['a', 'b']), false);
++  assert.equal(linkWins('a', []), false);
 +});
 --- a/tests/sim/cat-assignments.test.ts
 +++ b/tests/sim/cat-assignments.test.ts
