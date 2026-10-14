@@ -9,8 +9,13 @@ import Testing
         let bash = AnswerChoices.of(.permission(tool: "Bash", input: "npm run build"))
         #expect(bash.prompt == "Allow this command?" && bash.detail == "npm run build")
         #expect(bash.buttons.map(\.title) == ["Allow", "Always allow", "Deny"])
+        // `expect`: the prompt the button was built from; Cat Office refuses (409) if the session now waits on another.
+        let expect = #""expect":{"input":"npm run build","tool":"Bash"}"#
         #expect(bash.buttons.map { json($0.request) } == [
-            #"{"choice":"yes","kind":"permission"}"#, #"{"choice":"yes-always","kind":"permission"}"#, #"{"choice":"no","kind":"permission"}"#])
+            #"{"choice":"yes","#+expect+#","kind":"permission"}"#, #"{"choice":"yes-always","#+expect+#","kind":"permission"}"#,
+            #"{"choice":"no","#+expect+#","kind":"permission"}"#])
+        #expect(json(AnswerChoices.of(.permission(tool: "Read", input: "/tmp/a b")).buttons[0].request)
+            == #"{"choice":"yes","expect":{"input":"/tmp/a b","tool":"Read"},"kind":"permission"}"#, "slashes as they are")
         #expect(AnswerChoices.of(.permission(tool: "Edit", input: "a.swift")).prompt == "Allow this edit?")
         #expect(AnswerChoices.of(.permission(tool: "WebFetch", input: "x")).prompt == "Allow WebFetch?")
     }
@@ -21,7 +26,7 @@ import Testing
         let c = AnswerChoices.of(.question([q]))
         #expect(c.prompt == "Which auth?" && c.buttons.map(\.title) == ["OAuth", "Token"])
         #expect(c.buttons[1].help == "Paste")
-        #expect(json(c.buttons[1].request) == #"{"answers":[{"optionIndexes":[1]}],"kind":"question"}"#)
+        #expect(json(c.buttons[1].request) == #"{"answers":[{"optionIndexes":[1]}],"expect":"Which auth?","kind":"question"}"#)
         var multi = q
         multi.multiSelect = true
         #expect(AnswerChoices.of(.question([multi])).buttons.isEmpty, "multi-pick: answer in Cat Office")
@@ -32,7 +37,8 @@ import Testing
         let c = AnswerChoices.of(.plan("# Add login\n\nSteps…"))
         #expect(c.prompt == "Claude proposes a plan" && c.detail == "Add login")
         #expect(c.buttons.map(\.title) == ["Approve", "Reject"])
-        #expect(json(c.buttons[0].request) == #"{"choice":"approve","kind":"plan"}"#)
+        #expect(json(c.buttons[0].request) == ##"{"choice":"approve","expect":"# Add login\n\nSteps…","kind":"plan"}"##)
+        #expect(json(c.buttons[1].request) == ##"{"choice":"reject","expect":"# Add login\n\nSteps…","kind":"plan"}"##)
     }
 
     /// Cat Office's 409 texts (server/agent-bridge/answer.ts, index.ts, and the patch's `expect` check) in plain words.
@@ -63,5 +69,21 @@ import Testing
         #expect(AnswerChoices.refusal(status: nil, error: nil) == "Couldn't reach Cat Office")
         #expect(AnswerChoices.refusal(status: 400, error: "answers don't fit") == "answers don't fit")
         #expect(AnswerChoices.refusal(status: 500, error: nil) == "Cat Office couldn't send it (error 500)")
+    }
+
+    /// A button is sent only while its agent still waits on the prompt it was built from.
+    @Test func aButtonGoesOnlyToThePromptItWasBuiltFor() {
+        let asked = PendingPrompt.permission(tool: "Bash", input: "npm run build")
+        func agent(_ status: AgentStatus, _ p: PendingPrompt?) -> OfficeAgent {
+            var a = OfficeAgent(id: "a", name: "a", status: status, cwd: "/tmp")
+            a.pendingPrompt = p
+            return a
+        }
+        let changed = "That question changed: check it again"
+        #expect(AnswerChoices.changed(asked, agentId: "a", in: [agent(.waiting, asked)]) == nil)
+        #expect(AnswerChoices.changed(asked, agentId: "a", in: [agent(.waiting, .permission(tool: "Bash", input: "rm -rf build"))]) == changed)
+        #expect(AnswerChoices.changed(asked, agentId: "a", in: [agent(.working, nil)]) == changed)
+        #expect(AnswerChoices.changed(asked, agentId: "a", in: [agent(.working, asked)]) == changed, "no longer waiting")
+        #expect(AnswerChoices.changed(asked, agentId: "a", in: []) == changed, "gone")
     }
 }

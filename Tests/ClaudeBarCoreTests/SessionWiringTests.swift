@@ -19,20 +19,33 @@ import Testing
 
 @Suite struct StickyCardTests {
     @Test func theHoveredCatWins() {
-        #expect(StickyCard.shown(hovered: "a", card: "b", onCard: false, lingering: false) == "a")
+        #expect(StickyCard.shown(hovered: "a", hoveredFor: 0, card: "b", onCard: false, lingering: false) == "a")
     }
 
     @Test func theCardStaysWhileThePointerIsOnIt() {
-        #expect(StickyCard.shown(hovered: nil, card: "a", onCard: true, lingering: false) == "a")
+        #expect(StickyCard.shown(hovered: nil, hoveredFor: 0, card: "a", onCard: true, lingering: false) == "a")
     }
 
     @Test func theCardLingersBrieflyOnTheWayToIt() {
-        #expect(StickyCard.shown(hovered: nil, card: "a", onCard: false, lingering: true) == "a")
+        #expect(StickyCard.shown(hovered: nil, hoveredFor: 0, card: "a", onCard: false, lingering: true) == "a")
     }
 
     @Test func leavingBothClosesIt() {
-        #expect(StickyCard.shown(hovered: nil, card: "a", onCard: false, lingering: false) == nil)
-        #expect(StickyCard.shown(hovered: String?.none, card: nil, onCard: true, lingering: true) == nil)
+        #expect(StickyCard.shown(hovered: nil, hoveredFor: 0, card: "a", onCard: false, lingering: false) == nil)
+        #expect(StickyCard.shown(hovered: String?.none, hoveredFor: 0, card: nil, onCard: true, lingering: true) == nil)
+    }
+
+    /// On the way up to the card the pointer crosses other cats: the card stays on its cat unless the pointer rests on
+    /// another one (StickyCard.switchAfter, ~150 ms).
+    @Test func passingOverAnotherCatOnTheWayKeepsTheCard() {
+        #expect(StickyCard.switchAfter == 0.15)
+        #expect(StickyCard.shown(hovered: "b", hoveredFor: 0.05, card: "a", onCard: false, lingering: true) == "a")
+        #expect(StickyCard.shown(hovered: "b", hoveredFor: 0.149, card: "a", onCard: false, lingering: true) == "a")
+        #expect(StickyCard.shown(hovered: "b", hoveredFor: 0.15, card: "a", onCard: false, lingering: true) == "b")
+        #expect(StickyCard.shown(hovered: "b", hoveredFor: 0.05, card: "a", onCard: true, lingering: false) == "a")
+        #expect(StickyCard.shown(hovered: "b", hoveredFor: 0.3, card: "a", onCard: true, lingering: false) == "b")
+        #expect(StickyCard.shown(hovered: "a", hoveredFor: 0, card: "a", onCard: false, lingering: true) == "a")
+        #expect(StickyCard.shown(hovered: "b", hoveredFor: 0, card: String?.none, onCard: false, lingering: true) == "b", "no card yet")
     }
 }
 
@@ -89,5 +102,19 @@ import Testing
         #expect(entries.map(\.key) == ["s-a", "b", "h", "t"])
         #expect(entries.map(\.project) == ["claude-bar", "turbo", "claude-bar", "notes"])
         #expect(entries.map(\.status) == [.working, .idle, .working, .waiting])
+    }
+}
+
+@Suite struct AnswerTicketsTests {
+    /// An older send finishing after a newer click (on a new prompt) doesn't overwrite the newer one's state.
+    @Test func onlyTheLatestSendPerAgentCounts() {
+        var tickets = AnswerTickets()
+        let first = tickets.issue(for: "a")
+        let other = tickets.issue(for: "b")
+        let second = tickets.issue(for: "a")
+        #expect(!tickets.isLatest(first, for: "a"))
+        #expect(tickets.isLatest(second, for: "a"))
+        #expect(tickets.isLatest(other, for: "b"))
+        #expect(!tickets.isLatest(second, for: "b"))
     }
 }

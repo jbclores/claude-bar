@@ -11,10 +11,18 @@ public enum TerminalTTY {
 }
 
 /// Which cat's hover card shows: the cat under the pointer, else the card's own cat while the pointer is on the card
-/// or on its way there (`lingering`, a moment after leaving the cat). Leaving both closes it.
+/// or on its way there (`lingering`, a moment after leaving the cat). Leaving both closes it. While the card is held
+/// (lingering or pointed at), another cat takes it only once the pointer has rested on that cat `switchAfter`: on the
+/// way up to the card the pointer crosses other cats, and their card must not replace the one being reached for.
 public enum StickyCard {
-    public static func shown<ID: Equatable>(hovered: ID?, card: ID?, onCard: Bool, lingering: Bool) -> ID? {
-        hovered ?? ((onCard || lingering) ? card : nil)
+    public static let switchAfter: TimeInterval = 0.15
+
+    /// `hoveredFor`: how long the pointer has been on `hovered`.
+    public static func shown<ID: Equatable>(hovered: ID?, hoveredFor: TimeInterval, card: ID?, onCard: Bool, lingering: Bool) -> ID? {
+        let held = (onCard || lingering) ? card : nil
+        guard let hovered else { return held }
+        guard let held, held != hovered else { return hovered }
+        return hoveredFor >= switchAfter ? hovered : held
     }
 }
 
@@ -37,6 +45,22 @@ public enum AnswerReset {
     public static func sentIsStale(sentAt: Date, now: Date) -> Bool {
         now.timeIntervalSince(sentAt) > sentFor
     }
+}
+
+/// One ticket per answer click, per agent: only the latest click's send may set the agent's answer state (an older
+/// send finishing late doesn't overwrite a newer click's "Sent" or error).
+public struct AnswerTickets: Sendable {
+    private var latest: [String: Int] = [:]
+    private var counter = 0
+    public init() {}
+
+    public mutating func issue(for id: String) -> Int {
+        counter += 1
+        latest[id] = counter
+        return counter
+    }
+
+    public func isLatest(_ ticket: Int, for id: String) -> Bool { latest[id] == ticket }
 }
 
 extension SessionLog {

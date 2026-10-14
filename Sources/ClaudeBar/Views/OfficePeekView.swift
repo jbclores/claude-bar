@@ -191,6 +191,8 @@ struct OfficeRoomView: View {
     @State private var cardRect: CGRect = .zero
     @State private var lingering = false
     @State private var lingerToken = 0
+    /// When the pointer reached the cat under it (nil: none).
+    @State private var hoveredAt: Date?
     /// How long the card waits for the pointer after it leaves the cat.
     static let cardLinger: TimeInterval = 0.6
 
@@ -199,7 +201,8 @@ struct OfficeRoomView: View {
     private var shownCard: OfficeAgent? {
         // Renders and the answer click test: a card shown without a pointer.
         if let forced = state.renderCardAgent { return agent(id: forced) }
-        return StickyCard.shown(hovered: hovered?.id, card: cardId, onCard: onCard, lingering: lingering).flatMap(agent(id:))
+        return StickyCard.shown(hovered: hovered?.id, hoveredFor: hoveredAt.map { Date().timeIntervalSince($0) } ?? 0,
+                                card: cardId, onCard: onCard, lingering: lingering).flatMap(agent(id:))
     }
 
     private func agent(id: String) -> OfficeAgent? {
@@ -207,11 +210,21 @@ struct OfficeRoomView: View {
     }
 
     /// The pointer moved onto a cat (its card shows) or off it (the card lingers a moment for the pointer to reach it).
+    /// While a card is held (lingering or pointed at), a cat the pointer passes over takes it only after resting there
+    /// StickyCard.switchAfter: on the way up to the card the pointer crosses other cats.
     private func hoverChanged(from old: String?, to new: String?) {
         lingerToken += 1
+        hoveredAt = new == nil ? nil : Date()
         if let new {
-            cardId = new
-            lingering = false
+            if onCard || lingering, let card = cardId, card != new {
+                let token = lingerToken
+                DispatchQueue.main.asyncAfter(deadline: .now() + StickyCard.switchAfter) {
+                    if lingerToken == token { cardId = new; lingering = false }
+                }
+            } else {
+                cardId = new
+                lingering = false
+            }
         } else if old != nil {
             lingering = true
             let token = lingerToken

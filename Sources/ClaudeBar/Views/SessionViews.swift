@@ -82,7 +82,7 @@ struct AnswerPanel: View {
             } else {
                 FlowRow(spacing: 6) {
                     ForEach(Array(choices.buttons.enumerated()), id: \.offset) { i, button in
-                        answerButton(button, first: i == 0)
+                        answerButton(button, first: i == 0, prompt: prompt)
                     }
                     if links, case .plan = prompt {
                         Button("Open in Cat Office") { state.openInCatOffice(agent) }.buttonStyle(.link).font(.caption)
@@ -94,13 +94,13 @@ struct AnswerPanel: View {
     }
 
     @ViewBuilder
-    private func answerButton(_ button: AnswerButton, first: Bool) -> some View {
+    private func answerButton(_ button: AnswerButton, first: Bool, prompt: PendingPrompt) -> some View {
         let name = targetPrefix.map { "\($0)-\(button.title.lowercased().replacingOccurrences(of: " ", with: "-"))" }
         Group {
             if first {
-                Button(button.title) { state.answer(agent, button) }.buttonStyle(.borderedProminent)
+                Button(button.title) { state.answer(agent, button, prompt: prompt) }.buttonStyle(.borderedProminent)
             } else {
-                Button(button.title) { state.answer(agent, button) }.buttonStyle(.bordered)
+                Button(button.title) { state.answer(agent, button, prompt: prompt) }.buttonStyle(.bordered)
             }
         }
         .controlSize(.small)

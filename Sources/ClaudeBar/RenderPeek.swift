@@ -588,7 +588,7 @@ enum TestAnswer {
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { MainActor.assumeIsolated {
                     print("card answer:", state.lastAnswerRequest.map { "\($0.id) \(String(decoding: $0.body, as: UTF8.self))" } ?? "none")
-                    guard sent(id, #"{"choice":"no","kind":"permission"}"#) else { fail("the card's Deny didn't send the expected answer") }
+                    guard sent(id, #"{"choice":"no","expect":{"input":"npm run build && npm test -- --watch=false --reporter=dot src/agents/live","tool":"Bash"},"kind":"permission"}"#) else { fail("the card's Deny didn't send the expected answer") }
                     // Back to unanswered, the card closed, for the row's turn.
                     state.answerState[id] = nil
                     state.renderCardAgent = nil
@@ -599,9 +599,21 @@ enum TestAnswer {
                             shot("sent")
                             print("row answer:", state.lastAnswerRequest.map { "\($0.id) \(String(decoding: $0.body, as: UTF8.self))" } ?? "none",
                                   "· state:", state.answerState[id].map { "\($0)" } ?? "none")
-                            guard sent(id, #"{"choice":"yes","kind":"permission"}"#) else { fail("the row's Allow didn't send the expected answer") }
+                            guard sent(id, #"{"choice":"yes","expect":{"input":"npm run build && npm test -- --watch=false --reporter=dot src/agents/live","tool":"Bash"},"kind":"permission"}"#) else { fail("the row's Allow didn't send the expected answer") }
                             guard case .sent = state.answerState[id] else { fail("the row doesn't say Sent") }
-                            print("PASS: card Deny and row Allow answered \(id); the row shows Sent")
+                            // A button built from a prompt the session no longer waits on: nothing goes out.
+                            state.answerState[id] = nil
+                            let before = state.lastAnswerRequest?.body
+                            let old = PendingPrompt.permission(tool: "Bash", input: "an older command")
+                            guard let agent = state.office?.agents.first(where: { $0.id == id }),
+                                  let button = AnswerChoices.of(old).buttons.first else { fail("no agent to answer") }
+                            state.answer(agent, button, prompt: old)
+                            print("stale answer: state:", state.answerState[id].map { "\($0)" } ?? "none")
+                            guard state.lastAnswerRequest?.body == before,
+                                  state.answerState[id] == .failed("That question changed: check it again") else {
+                                fail("an answer to a changed prompt wasn't stopped")
+                            }
+                            print("PASS: card Deny and row Allow answered \(id); the row shows Sent; a changed prompt's answer wasn't sent")
                             exit(0)
                         }
                     }

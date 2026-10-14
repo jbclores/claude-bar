@@ -1,6 +1,8 @@
 import Foundation
 
-/// One answer button: its title, what it means (hover), and the AnswerRequest JSON Cat Office expects for it.
+/// One answer button: its title, what it means (hover), and the AnswerRequest JSON Cat Office expects for it. The JSON
+/// carries `expect`, the prompt it answers (permission `{tool, input}`, question the first question's text, plan the
+/// whole plan): the patched Cat Office refuses it (409 "the question changed") once the session waits on another.
 public struct AnswerButton: Equatable, Sendable {
     public var title: String
     public var help: String?
@@ -20,16 +22,17 @@ public struct AnswerChoices: Equatable, Sendable {
         switch p {
         case let .permission(tool, input):
             let prompt = tool == "Bash" ? "Allow this command?" : editTools.contains(tool) ? "Allow this edit?" : "Allow \(tool)?"
+            let expect = ["tool": tool, "input": input]
             return AnswerChoices(prompt: prompt, detail: input.isEmpty ? nil : input, buttons: [
-                button("Allow", ["kind": "permission", "choice": "yes"]),
-                button("Always allow", ["kind": "permission", "choice": "yes-always"]),
-                button("Deny", ["kind": "permission", "choice": "no"]),
+                button("Allow", ["kind": "permission", "choice": "yes", "expect": expect]),
+                button("Always allow", ["kind": "permission", "choice": "yes-always", "expect": expect]),
+                button("Deny", ["kind": "permission", "choice": "no", "expect": expect]),
             ])
         case let .question(questions):
             guard let q = questions.first else { return AnswerChoices(prompt: "Claude has a question", detail: nil, buttons: []) }
             guard questions.count == 1, !q.multiSelect else { return AnswerChoices(prompt: q.question, detail: nil, buttons: []) }
             return AnswerChoices(prompt: q.question, detail: nil, buttons: q.options.enumerated().map { i, o in
-                var b = button(o.label, ["kind": "question", "answers": [["optionIndexes": [i]]]])
+                var b = button(o.label, ["kind": "question", "answers": [["optionIndexes": [i]]], "expect": q.question])
                 b.help = o.description.isEmpty ? nil : o.description
                 return b
             })
@@ -37,15 +40,24 @@ public struct AnswerChoices: Equatable, Sendable {
             let first = plan.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
                 .first { !$0.isEmpty }.map { String($0.drop { $0 == "#" }).trimmingCharacters(in: .whitespaces) }
             return AnswerChoices(prompt: "Claude proposes a plan", detail: first, buttons: [
-                button("Approve", ["kind": "plan", "choice": "approve"]),
-                button("Reject", ["kind": "plan", "choice": "reject"]),
+                button("Approve", ["kind": "plan", "choice": "approve", "expect": plan]),
+                button("Reject", ["kind": "plan", "choice": "reject", "expect": plan]),
             ])
         }
     }
 
     private static func button(_ title: String, _ body: [String: Any]) -> AnswerButton {
-        let data = (try? JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])) ?? Data()
+        let data = (try? JSONSerialization.data(withJSONObject: body, options: [.sortedKeys, .withoutEscapingSlashes])) ?? Data()
         return AnswerButton(title: title, help: nil, request: data)
+    }
+
+    /// Before sending: nil while agent `agentId` still waits on `prompt` (the one the clicked button was built from),
+    /// else why not: the session moved on (or went away) since the prompt was drawn, so the answer isn't sent.
+    public static func changed(_ prompt: PendingPrompt, agentId: String, in agents: [OfficeAgent]) -> String? {
+        guard let now = agents.first(where: { $0.id == agentId }), now.status == .waiting, now.pendingPrompt == prompt else {
+            return "That question changed: check it again"
+        }
+        return nil
     }
 
     /// A 409 from Cat Office in plain words: the dialog closed or changed, it isn't on screen, the prompt lacks that

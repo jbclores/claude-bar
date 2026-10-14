@@ -905,10 +905,19 @@ final class AppState: ObservableObject {
     /// Click tests only (side effects off): the answer that would have been sent, never sent.
     @Published private(set) var lastAnswerRequest: (id: String, body: Data)?
 
-    /// Sends `button`'s answer to Cat Office for `agent` (POST /__agents/<id>/answer).
-    func answer(_ agent: OfficeAgent, _ button: AnswerButton) {
+    /// One ticket per click: only the latest click's send sets the agent's state.
+    private var answerTickets = AnswerTickets()
+
+    /// Sends `button`'s answer to Cat Office for `agent` (POST /__agents/<id>/answer), only while the agent still waits
+    /// on `prompt`, the one the button was built from (Cat Office checks it again through the request's `expect`).
+    func answer(_ agent: OfficeAgent, _ button: AnswerButton, prompt: PendingPrompt) {
         let id = agent.id
         guard answerState[id] != .sending else { return }
+        if let changed = AnswerChoices.changed(prompt, agentId: id, in: office?.agents ?? []) {
+            showBriefly(id, .failed(changed))
+            return
+        }
+        let ticket = answerTickets.issue(for: id)
         guard sideEffects else {
             lastAnswerRequest = (id, button.request)
             markSent(id)
@@ -921,9 +930,19 @@ final class AppState: ObservableObject {
         answerState[id] = .sending
         Task { @MainActor in
             let refusal = await CatOfficeActions.answer(button.request, agentId: id, bridge: bridge)
-            // The prompt changed or closed meanwhile: that state was cleared; don't bring back a stale one.
-            guard answerState[id] == .sending else { return }
+            // A newer click owns the state now, or the prompt changed or closed meanwhile (that state was cleared):
+            // don't bring back a stale one.
+            guard answerTickets.isLatest(ticket, for: id), answerState[id] == .sending else { return }
             if let refusal { answerState[id] = .failed(refusal) } else { markSent(id) }
+        }
+    }
+
+    /// `state` for `id` for a few seconds (the prompt changed under the click): then the new prompt's buttons show.
+    private func showBriefly(_ id: String, _ state: AnswerState) {
+        answerState[id] = state
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+            guard let self, self.answerState[id] == state else { return }
+            self.answerState[id] = nil
         }
     }
 
