@@ -19,26 +19,47 @@ struct UsageSparkline: View {
     let samples: [UsageSample]
 
     var body: some View {
+        // In the bar's colour (green, amber when high), filled underneath so it reads as "your usage" at a glance.
+        let color = Theme.color(UsageLevel(percent: samples.last?.fiveHourPct ?? 0))
         GeometryReader { geo in
-            // The last 5 hours (the 5-hour window's length), or since midnight if that's shorter.
-            let now = Date().timeIntervalSince1970
-            let start = max(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970, now - 5 * 3600)
-            let span = max(3600, now - start)
-            Path { p in
-                var last: CGPoint?
-                for s in samples {
-                    guard let pct = s.fiveHourPct else { continue }
-                    let x = geo.size.width * CGFloat(max(0, s.at.timeIntervalSince1970 - start) / span)
-                    let y = geo.size.height * CGFloat(1 - min(100, pct) / 100)
-                    if let l = last { p.addLine(to: CGPoint(x: x, y: l.y)); p.addLine(to: CGPoint(x: x, y: y)) } else { p.move(to: CGPoint(x: x, y: y)) }
-                    last = CGPoint(x: x, y: y)
+            let line = Self.line(samples, in: geo.size)
+            ZStack {
+                if let first = line.first, let last = line.last {
+                    Path { p in
+                        p.move(to: CGPoint(x: first.x, y: geo.size.height))
+                        for point in line { p.addLine(to: point) }
+                        p.addLine(to: CGPoint(x: last.x, y: geo.size.height))
+                        p.closeSubpath()
+                    }
+                    .fill(color.opacity(0.28))
+                    Path { p in
+                        p.move(to: first)
+                        for point in line.dropFirst() { p.addLine(to: point) }
+                    }
+                    .stroke(color, style: StrokeStyle(lineWidth: 1.6, lineJoin: .round))
                 }
-                if let l = last { p.addLine(to: CGPoint(x: geo.size.width * CGFloat((Date().timeIntervalSince1970 - start) / span), y: l.y)) }
             }
-            .stroke(Theme.working, lineWidth: 1.5)
         }
-        .frame(height: 12)
-        .accessibilityLabel("Today's 5-hour usage")
+        .frame(height: 16)
+        .accessibilityLabel("Your last 5 hours of usage")
+    }
+
+    /// The step line's points: the last 5 hours (the 5-hour window's length; since midnight if shorter) left to now
+    /// right, 0–100% bottom to top.
+    static func line(_ samples: [UsageSample], in size: CGSize) -> [CGPoint] {
+        let now = Date().timeIntervalSince1970
+        let start = max(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970, now - 5 * 3600)
+        let span = max(3600, now - start)
+        var points: [CGPoint] = []
+        for s in samples {
+            guard let pct = s.fiveHourPct else { continue }
+            let x = size.width * CGFloat(max(0, s.at.timeIntervalSince1970 - start) / span)
+            let y = size.height * CGFloat(1 - min(100, pct) / 100)
+            if let l = points.last { points.append(CGPoint(x: x, y: l.y)) }
+            points.append(CGPoint(x: x, y: y))
+        }
+        if let l = points.last { points.append(CGPoint(x: size.width * CGFloat((now - start) / span), y: l.y)) }
+        return points
     }
 }
 

@@ -603,7 +603,7 @@ struct UsageHeader: View {
             Text(label).font(.caption.monospaced()).frame(width: 20, alignment: .leading)
             UsageBar(percent: pct)
             Text(pct.map(Format.percent) ?? "—").font(.caption.monospacedDigit()).frame(width: 36, alignment: .trailing)
-            if let spark { UsageSparkline(samples: spark).frame(width: 56).help("Today's 5-hour use") }
+            if let spark { UsageSparkline(samples: spark).frame(width: 84).help("Your last 5 hours") }
             if let extra { Text(extra).font(.caption).foregroundStyle(Theme.working) }
             Spacer()
             if let resets { Text(Format.resets(resets, now: Date())).font(.caption).foregroundStyle(Theme.secondaryText) }
