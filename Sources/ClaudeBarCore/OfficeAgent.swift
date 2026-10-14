@@ -51,6 +51,10 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
     public var place: MirrorPlace?
     /// Where `task` came from: "custom" (renamed), "ai", "description", or "prompt" (the first message).
     public var titleSource: String?
+    /// What a waiting session waits on (a question, a tool to allow, a plan), if Cat Office says and it is understood.
+    public var pendingPrompt: PendingPrompt?
+    /// The session's process id, if Cat Office says.
+    public var pid: Int32?
 
     /// What to call the agent: a custom or AI title, else its project, else the first words of its task, else
     /// its name.
@@ -112,7 +116,7 @@ extension OfficeAgent: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case id, name, owner, status, waitReason, cwd, repo, branch, model, task, lastAction, waitingSince, sessionId, cat
-        case titleSource, desk, kind, parentName, agentType, description, place, updatedAt
+        case titleSource, desk, kind, parentName, agentType, description, place, updatedAt, pendingPrompt, pid
     }
 
     public init(from decoder: Decoder) throws {
@@ -143,6 +147,8 @@ extension OfficeAgent: Decodable {
         agentType = try? c.decodeIfPresent(String.self, forKey: .agentType)
         agentDescription = try? c.decodeIfPresent(String.self, forKey: .description)
         place = (try? c.decodeIfPresent(MirrorPlace.self, forKey: .place)) ?? nil
+        pendingPrompt = (try? c.decodeIfPresent(PendingPrompt.self, forKey: .pendingPrompt)) ?? nil
+        pid = (try? c.decodeIfPresent(Int32.self, forKey: .pid)) ?? nil
         updatedAt = (try? c.decodeIfPresent(Double.self, forKey: .updatedAt)).flatMap { $0 }.flatMap { $0.isFinite && $0 > 0 ? Date(timeIntervalSince1970: $0 / 1000) : nil }
     }
 }
