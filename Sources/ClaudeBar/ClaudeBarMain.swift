@@ -1,5 +1,6 @@
 import AppKit
 import ServiceManagement
+import ClaudeBarCore
 
 @main
 enum ClaudeBarMain {
@@ -31,6 +32,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: StatusItemController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // One ClaudeBar at a time: a second copy (say the build folder's, also opened at login) quits before it
+        // starts anything, leaving the one already in the menu bar. Renders and click tests run beside it.
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
+            .map(\.processIdentifier)
+        if SingleInstance.shouldQuit(arguments: CommandLine.arguments, me: getpid(), running: others) {
+            NSApp.terminate(nil)
+            return
+        }
         state = AppState()
         if RenderPeek.runIfRequested(state: state) {
             state.sideEffects = false
