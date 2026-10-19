@@ -124,8 +124,8 @@ Orca can be answered this way, the same as the buttons.
 - **Permissions:** the first time you turn Talk on, macOS asks for the microphone and for speech recognition. Speech
   is recognised on the Mac itself; if it says dictation is off, turn it on in System Settings → Keyboard → Dictation.
 - **Keep the permission when you update:** run `scripts/make-signing-cert.sh` once. It makes a local signing
-  certificate so macOS keeps the microphone permission across updates (then `scripts/run.sh --install`; macOS asks one
-  more time, then remembers).
+  certificate in a keychain of its own (not your login keychain, so no password dialogs) and macOS keeps the microphone
+  permission across updates (then `scripts/run.sh --install`; macOS asks one more time, then remembers).
 - **Click test** (fake recognition and speech, a fake Cat Office; nothing is heard or sent):
   `CLAUDEBAR_RENDER_WAITING=permission CLAUDEBAR_RENDER_WAITING_EXTERNAL=1 build/ClaudeBar.app/Contents/MacOS/ClaudeBar --test-voice`.
 
