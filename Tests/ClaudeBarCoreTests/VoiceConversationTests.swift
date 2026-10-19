@@ -168,4 +168,18 @@ import Foundation
         #expect(c.handle(VoiceCommand(intent: .allow), waiting: [two("x"), plan], now: t0)
             == .say("turborepo-lab is asking you to approve a plan, not permission."))
     }
+    @Test func onlyATerminalSessionWaiting() {
+        var c = VoiceConversation()
+        let term = VoiceWaiting(id: "t1", name: "lab", prompt: perm.prompt, answerable: false)
+        #expect(c.handle(VoiceCommand(intent: .allow), waiting: [term], now: t0) == .say("Answer that one in its terminal."))
+        #expect(c.handle(VoiceCommand(intent: .deny, target: "t1"), waiting: [term], now: t0) == .say("Answer that one in its terminal."))
+    }
+
+    @Test func terminalSessionIsNeverTargeted() {
+        var c = VoiceConversation()
+        let term = VoiceWaiting(id: "t1", name: "lab", prompt: perm.prompt, answerable: false)
+        #expect(c.handle(VoiceCommand(intent: .allow), waiting: [plan, term], now: t0) == .say("Answer that one in its terminal."))
+        #expect(c.handle(VoiceCommand(intent: .allow), waiting: [plan, term, perm], now: t0) == .say("Allow npm run build for claude-bar? Say yes."))
+        #expect(c.handle(VoiceCommand(intent: .approve), waiting: [plan, term], now: t0) == .say("Approve turborepo-lab's plan? Say yes."))
+    }
 }

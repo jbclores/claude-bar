@@ -1,15 +1,18 @@
 import Foundation
 
-/// A session Cat Office can answer that is waiting on a prompt.
+/// A session that is waiting on a prompt.
 public struct VoiceWaiting: Equatable, Sendable {
     public var id: String
     public var name: String
     public var prompt: PendingPrompt
+    /// Cat Office can answer it (false: a Terminal, iTerm or VS Code session, answered only in its terminal).
+    public var answerable: Bool
 
-    public init(id: String, name: String, prompt: PendingPrompt) {
+    public init(id: String, name: String, prompt: PendingPrompt, answerable: Bool = true) {
         self.id = id
         self.name = name
         self.prompt = prompt
+        self.answerable = answerable
     }
 }
 
@@ -66,16 +69,21 @@ public struct VoiceConversation: Sendable {
 
     private mutating func answer(_ command: VoiceCommand, waiting: [VoiceWaiting], now: Date) -> VoiceReply {
         let intent = command.intent
-        guard let first = waiting.first else { return .say("Nothing is waiting.") }
+        if waiting.isEmpty { return .say("Nothing is waiting.") }
         var scope = waiting
         if let target = command.target {
             scope = waiting.filter { $0.id == target }
             if scope.isEmpty { return .say("That one isn't waiting anymore.") }
         }
-        let fits = scope.filter { Self.fits(intent, $0.prompt) }
+        // A session Cat Office can't answer never fits; say so when it is the one meant.
+        let fits = scope.filter { $0.answerable && Self.fits(intent, $0.prompt) }
 
         if fits.isEmpty {
-            guard let w = scope.first(where: { Self.buttons($0.prompt) > 0 }) else { return .say("Answer that one in Cat Office.") }
+            let answerable = scope.filter(\.answerable)
+            if answerable.isEmpty || scope.contains(where: { !$0.answerable && Self.fits(intent, $0.prompt) }) {
+                return .say("Answer that one in its terminal.")
+            }
+            guard let w = answerable.first(where: { Self.buttons($0.prompt) > 0 }) else { return .say("Answer that one in Cat Office.") }
             if case .option = intent, case .question = w.prompt, Self.buttons(w.prompt) > 0 {
                 return .say("\(w.name) has no such choice.")
             }

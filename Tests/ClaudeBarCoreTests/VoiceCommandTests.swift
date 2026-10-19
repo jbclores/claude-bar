@@ -74,4 +74,31 @@ import Testing
         #expect(parse("the weather is nice") == VoiceCommand(intent: .none, target: nil))
         #expect(parse("") == VoiceCommand(intent: .none, target: nil))
     }
+    @Test func yesWithCancelWordsCancels() {
+        for s in ["yes cancel", "yeah no", "yes never mind", "yes no wait cancel", "yes wait", "yes stop", "yeah don't"] {
+            #expect(parse(s).intent == .cancel, "\(s)")
+        }
+        for s in ["yes", "yeah", "confirm"] { #expect(parse(s).intent == .yes, "\(s)") }
+        #expect(parse("yes allow").intent == .allow)
+    }
+
+    @Test func sameNameTwiceHasNoTarget() {
+        let twins = [VoiceTarget(id: "a1", name: "claude-bar", options: []), VoiceTarget(id: "a2", name: "claude-bar", options: [])]
+        #expect(VoiceCommand.parse("deny claude bar", targets: twins) == VoiceCommand(intent: .deny, target: nil))
+    }
+
+    @Test func plainYesBeatsAYesOption() {
+        let yesNo = [VoiceTarget(id: "q1", name: "lab", options: ["Yes", "No"])]
+        for s in ["yes", "yeah please", "confirm"] {
+            #expect(VoiceCommand.parse(s, targets: yesNo).intent == .yes, "\(s)")
+        }
+        #expect(VoiceCommand.parse("option one", targets: yesNo).intent == .option(0))
+    }
+
+    @Test func negatedDenyIsNotGuessed() {
+        for s in ["don't deny", "do not deny", "never deny that"] {
+            #expect(parse(s).intent == .none, "\(s)")
+        }
+        #expect(parse("deny").intent == .deny)
+    }
 }

@@ -50,14 +50,20 @@ public struct VoiceCommand: Equatable, Sendable {
         func hasAny(_ phrases: [String]) -> Bool { phrases.contains(where: has) }
 
         let intent: VoiceIntent
-        if hasAny(["deny", "don t allow", "do not allow"]) || text == "no" { intent = .deny }
-        else if negatedAllow(words) { intent = .none }
+        let saidYes = hasAny(yesWords)
+        if negated(words, "deny") { intent = .none }
+        else if hasAny(["deny", "don t allow", "do not allow"]) || text == "no" { intent = .deny }
+        else if negated(words, "allow") { intent = .none }
+        // "yes, no wait, cancel": a yes taken back is never a yes.
+        else if saidYes, hasAny(["cancel", "never mind", "no", "wait", "stop", "don t", "dont", "do not"]) { intent = .cancel }
         else if has("always allow") { intent = .alwaysAllow }
         else if has("allow") { intent = .allow }
         else if has("approve") { intent = .approve }
         else if has("reject") { intent = .reject }
+        // Only yes-words ("yes", "yeah please"): a yes, even when a choice is called "Yes".
+        else if saidYes, words.allSatisfy({ yesWords.contains($0) || $0 == "please" }) { intent = .yes }
         else if let i = optionIndex(words, text: text, targets: targets) { intent = .option(i) }
-        else if hasAny(["yes", "yeah", "yep", "confirm"]) { intent = .yes }
+        else if saidYes { intent = .yes }
         else if hasAny(["cancel", "never mind"]) { intent = .cancel }
         else if hasAny(["status", "running"]) { intent = .status }
         else if has("usage") { intent = .usage }
@@ -74,10 +80,12 @@ public struct VoiceCommand: Equatable, Sendable {
         "confirm", "cancel", "never", "mind", "status", "running", "usage", "recap",
     ]
 
-    /// True when a negator comes before "allow" ("never allow that"): too unsure to act on.
-    private static func negatedAllow(_ words: [String]) -> Bool {
-        guard let allowAt = words.firstIndex(of: "allow") else { return false }
-        let before = Array(words[..<allowAt])
+    private static let yesWords = ["yes", "yeah", "yep", "confirm"]
+
+    /// True when a negator comes before `verb` ("never allow that", "don't deny"): too unsure to act on.
+    private static func negated(_ words: [String], _ verb: String) -> Bool {
+        guard let at = words.firstIndex(of: verb) else { return false }
+        let before = Array(words[..<at])
         let negators = ["don t", "do not", "never", "not", "won t", "can t", "dont"]
         return negators.contains { contains(before, $0.split(separator: " ").map(String.init)) }
     }
@@ -118,8 +126,10 @@ public struct VoiceCommand: Equatable, Sendable {
                 let run = words[start...end].joined()
                 let len = end - start + 1
                 if let b = best, b.len >= len { continue }
-                if let exact = names.first(where: { $0.key == run }) {
-                    best = (len, exact.id)
+                let exact = Set(names.filter { $0.key == run }.map(\.id))
+                if !exact.isEmpty {
+                    // Two sessions with the same name: like an unsure prefix, no target.
+                    if exact.count == 1 { best = (len, exact.first!) }
                 } else if run.count >= 3 {
                     let hits = names.filter { $0.key.hasPrefix(run) }
                     if hits.count == 1 { best = (len, hits[0].id) }
