@@ -48,13 +48,19 @@ enum ListenProblem: Error {
     private var tapped = false
     /// Recognition already gave its last result (the audio ended early, e.g. the input device changed).
     private var ended = false
+    /// The device-change observer, removed with the listener.
+    nonisolated(unsafe) private var observer: (any NSObjectProtocol)?
 
     init() {
         // A new input device (AirPods connecting, say) stops the engine: end this listen with what was heard so far;
         // the transcript is handed over when the key is let go.
-        NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+        observer = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.audioEnded() }
         }
+    }
+
+    deinit {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
     }
 
     /// Asks for microphone and speech recognition permission where not yet asked; `done` gets the first problem, if any.
@@ -116,7 +122,9 @@ enum ListenProblem: Error {
                 guard let self, self.session == session else { return }
                 if let text { self.heard = text }
                 if final || error != nil {
+                    // Recognition is over (even with the key still held): the microphone goes off now.
                     self.ended = true
+                    self.stopAudio()
                     self.deliver()
                 }
             }
@@ -146,6 +154,7 @@ enum ListenProblem: Error {
     }
 
     private func deliver() {
+        stopAudio()
         guard let done else { return }
         self.done = nil
         let text = heard
@@ -161,6 +170,7 @@ enum ListenProblem: Error {
         request?.endAudio()
     }
 
+    /// Microphone off: safe to call any number of times.
     private func stopAudio() {
         if engine.isRunning { engine.stop() }
         if tapped {
