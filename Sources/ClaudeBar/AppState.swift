@@ -192,7 +192,11 @@ final class AppState: ObservableObject {
     /// `config` defaults to the real projects.json; the setup click test passes a temp one.
     init(config: ConfigStore = ConfigStore()) {
         self.config = config
+        voice = VoiceController(state: self, speaker: SystemSpeaker())
     }
+
+    /// Spoken alerts (and, later, push-to-talk).
+    private(set) var voice: VoiceController!
     private let snapshots = SnapshotReader()
     private let sessions = LiveSessionReader()
     private let git = GitBranchReader()
@@ -581,6 +585,10 @@ final class AppState: ObservableObject {
             // Quiet hours: no notifications or sounds (they aren't sent later).
             for event in finished where !isQuiet {
                 let sound = soundGate.sound(for: .finished(event.key), settings: settings.sounds, now: now)
+                if settings.sounds.on, settings.voice.speakAlerts {
+                    voice.alert(SpokenAlert.finished(name: event.name, task: event.task, details: settings.voice.sayDetails),
+                                key: "finished|\(event.key)", afterSound: sound != nil)
+                }
                 if config.config.notifications {
                     let volume = settings.sounds.volume
                     notifier.post(event, sound: sound) { [weak self] s in
@@ -590,7 +598,14 @@ final class AppState: ObservableObject {
                     soundPlayer.play(sound, volume: settings.sounds.volume)
                 }
             }
-            for key in tracker.startedWaiting { playSound(.needsYou(key)) }
+            for key in tracker.startedWaiting {
+                let played = playSound(.needsYou(key))
+                if !isQuiet, settings.sounds.on, settings.voice.speakAlerts {
+                    let agent = office?.agents.first { $0.key == key }
+                    voice.alert(SpokenAlert.needsYou(name: agent?.label ?? key, prompt: agent?.pendingPrompt, details: settings.voice.sayDetails),
+                                key: "needsYou|\(key)", afterSound: played)
+                }
+            }
         }
         input.attention = tracker.attention
         input.statusSince = tracker.since
@@ -784,14 +799,19 @@ final class AppState: ObservableObject {
     private(set) var lastSoundRequest: SoundEvent?
 
     /// A cat sound for `event`, if its switch is on and the spacing allows (SoundGate).
-    func playSound(_ event: SoundEvent) {
+    /// True when a sound was played.
+    @discardableResult func playSound(_ event: SoundEvent) -> Bool {
         lastSoundRequest = event
-        guard sideEffects, !isQuiet else { return }
-        if case .clicked = event, !officeVisible { return }
-        if case .elevator = event, !officeVisible { return }
-        guard let sound = soundGate.sound(for: event, settings: settings.sounds, now: Date()) else { return }
+        guard sideEffects, !isQuiet else { return false }
+        if case .clicked = event, !officeVisible { return false }
+        if case .elevator = event, !officeVisible { return false }
+        guard let sound = soundGate.sound(for: event, settings: settings.sounds, now: Date()) else { return false }
         soundPlayer.play(sound, volume: settings.sounds.volume)
+        return true
     }
+
+    /// A Bool switch under "voice" (speakAlerts, sayDetails, talk).
+    func setVoice(_ key: String, _ on: Bool) { setSetting(on, at: ["voice", key]) }
 
     func setSound(_ key: String, _ on: Bool) {
         setSetting(on, at: ["sounds", key])

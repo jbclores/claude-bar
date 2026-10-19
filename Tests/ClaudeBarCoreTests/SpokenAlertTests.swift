@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import ClaudeBarCore
 
@@ -54,5 +55,13 @@ import Testing
         #expect(SpokenAlert.capped(five) == ["1", "2", "3", "and 2 more."])
         #expect(SpokenAlert.capped(["1", "2", "3"]) == ["1", "2", "3"])
         #expect(SpokenAlert.capped(["x", "y", "z", "w"]).last == "and 1 more.")
+    }
+
+    @Test func repeatWindow() {
+        let t = Date(timeIntervalSince1970: 1_000_000)
+        let last = ["needsYou|a": t]
+        #expect(SpokenAlert.shouldSpeak(key: "needsYou|a", last: last, now: t + 30) == false)
+        #expect(SpokenAlert.shouldSpeak(key: "needsYou|a", last: last, now: t + 61))
+        #expect(SpokenAlert.shouldSpeak(key: "needsYou|b", last: last, now: t + 1))
     }
 }

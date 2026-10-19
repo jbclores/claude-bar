@@ -386,6 +386,11 @@ struct SettingsTabView: View {
             Divider()
             heading("Alerts")
             setting("Notify when a cat finishes", state.settings.notifications) { state.setNotifications($0) }
+            setting("Speak alerts", state.settings.voice.speakAlerts) { state.setVoice("speakAlerts", $0) }
+            if state.settings.voice.speakAlerts {
+                setting("Say what it asks", state.settings.voice.sayDetails) { state.setVoice("sayDetails", $0) }
+                    .padding(.leading, 16)
+            }
             setting("Warn before I hit a usage limit", state.settings.usageWarnings) { state.setUsageWarnings($0) }
             QuietHoursSettings()
             Divider()

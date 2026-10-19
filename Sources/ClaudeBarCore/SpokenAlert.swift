@@ -43,6 +43,12 @@ public enum SpokenAlert {
         return Array(sentences.prefix(max)) + ["and \(sentences.count - max) more."]
     }
 
+    /// False when the same alert (`key`) was spoken less than 60 seconds ago.
+    public static func shouldSpeak(key: String, last: [String: Date], now: Date) -> Bool {
+        guard let at = last[key] else { return true }
+        return now.timeIntervalSince(at) >= 60
+    }
+
     /// The first `max` words of the first non-empty line (no "…").
     public static func words(_ text: String, max: Int) -> String {
         guard let line = text.split(whereSeparator: \.isNewline).first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
