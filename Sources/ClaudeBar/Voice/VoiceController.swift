@@ -12,14 +12,17 @@ import Foundation
     private var speaking = false
     private var flushScheduled = false
     private var lastSpoken: [String: Date] = [:]
-    /// The key is held or a conversation reply is speaking: alerts wait in the queue.
-    var holding = false {
-        didSet { if !holding { flush() } }
-    }
+    /// The talk key is held, its transcript is on the way, or a reply is speaking: alerts wait in the queue.
+    /// Worked out from those, so one ending can't let alerts through while another still holds them.
+    var holding: Bool { pressedAt != nil || awaitingTranscript || replying > 0 }
 
     private let listener: SpeechInput
     /// When the talk key went down (nil: not held).
     private var pressedAt: Date?
+    /// The key was let go and the listener is turning what was said into text.
+    private var awaitingTranscript = false
+    /// Replies still speaking.
+    private var replying = 0
     private var listenTimeout: Timer?
     /// Longest listen; then it ends as if the key were let go.
     static let maxListen: TimeInterval = 15
@@ -38,8 +41,9 @@ import Foundation
     func keyDown() {
         guard state.sideEffects, state.settings.voice.talk, pressedAt == nil else { return }
         pressedAt = Date()
+        // Starting drops a transcript still on its way from the last press.
+        awaitingTranscript = false
         NSSound(named: "Tink")?.play()
-        holding = true
         state.voiceListening = true
         do {
             try listener.start(hints: hints)
@@ -48,6 +52,7 @@ import Foundation
             pressedAt = nil
             state.voiceListening = false
             problem(error as? ListenProblem ?? .microphoneDenied)
+            released()
             return
         }
         listenTimeout = Timer.scheduledTimer(withTimeInterval: Self.maxListen, repeats: false) { [weak self] _ in
@@ -64,14 +69,34 @@ import Foundation
         if Date().timeIntervalSince(pressedAt) < Self.minListen {
             listener.cancel()
             state.voiceListening = false
-            holding = false
+            released()
             return
         }
+        awaitingTranscript = true
         listener.finish { [weak self] transcript in
-            guard let self else { return }
+            guard let self, self.awaitingTranscript else { return }
+            self.awaitingTranscript = false
             self.state.voiceListening = false
             self.heard(transcript ?? "")
+            self.released()
         }
+    }
+
+    /// Stops any listen at once and drops what was heard ("Talk to ClaudeBar" turned off mid-press).
+    func cancelListening() {
+        guard pressedAt != nil || awaitingTranscript else { return }
+        pressedAt = nil
+        awaitingTranscript = false
+        listenTimeout?.invalidate()
+        listenTimeout = nil
+        listener.cancel()
+        state.voiceListening = false
+        released()
+    }
+
+    /// One of the things that hold alerts ended: let them through if nothing else holds them.
+    private func released() {
+        if !holding { flush() }
     }
 
     /// What was said while the key was held. Task 8 turns it into a command; for now nothing is understood.
@@ -81,8 +106,12 @@ import Foundation
 
     /// Says `sentence` now (alerts keep waiting until it is said).
     private func reply(_ sentence: String) {
-        holding = true
-        speaker.speak(sentence) { [weak self] in self?.holding = false }
+        replying += 1
+        speaker.speak(sentence) { [weak self] in
+            guard let self else { return }
+            self.replying -= 1
+            self.released()
+        }
     }
 
     /// Can't listen: says why, shows it in Settings, and opens the Privacy pane for a denied permission.

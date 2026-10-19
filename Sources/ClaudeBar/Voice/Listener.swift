@@ -44,6 +44,18 @@ enum ListenProblem: Error {
     private var heard: String?
     /// One per start: a late callback from an earlier listen is ignored.
     private var session = 0
+    /// Our tap is on the input node (removed even when the engine stopped by itself).
+    private var tapped = false
+    /// Recognition already gave its last result (the audio ended early, e.g. the input device changed).
+    private var ended = false
+
+    init() {
+        // A new input device (AirPods connecting, say) stops the engine: end this listen with what was heard so far;
+        // the transcript is handed over when the key is let go.
+        NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.audioEnded() }
+        }
+    }
 
     /// Asks for microphone and speech recognition permission where not yet asked; `done` gets the first problem, if any.
     static func requestPermissions(_ done: @escaping @MainActor (ListenProblem?) -> Void) {
@@ -86,11 +98,12 @@ enum ListenProblem: Error {
         input.installTap(onBus: 0, bufferSize: 1024, format: input.outputFormat(forBus: 0)) { buffer, _ in
             request.append(buffer)
         }
+        tapped = true
         engine.prepare()
         do {
             try engine.start()
         } catch {
-            input.removeTap(onBus: 0)
+            stopAudio()
             throw ListenProblem.microphoneDenied
         }
         self.request = request
@@ -102,7 +115,10 @@ enum ListenProblem: Error {
             Task { @MainActor in
                 guard let self, self.session == session else { return }
                 if let text { self.heard = text }
-                if final || error != nil { self.deliver() }
+                if final || error != nil {
+                    self.ended = true
+                    self.deliver()
+                }
             }
         }
     }
@@ -110,6 +126,7 @@ enum ListenProblem: Error {
     func finish(_ done: @escaping (String?) -> Void) {
         guard request != nil else { done(nil); return }
         self.done = done
+        if ended { deliver(); return }
         stopAudio()
         request?.endAudio()
         // Recognition that never ends (no speech at all): give up after 5 s with what was heard.
@@ -137,15 +154,25 @@ enum ListenProblem: Error {
         done(text)
     }
 
+    /// The input device changed mid-listen: stop the audio and let recognition finish with what it has.
+    private func audioEnded() {
+        guard request != nil else { return }
+        stopAudio()
+        request?.endAudio()
+    }
+
     private func stopAudio() {
-        guard engine.isRunning else { return }
-        engine.stop()
-        engine.inputNode.removeTap(onBus: 0)
+        if engine.isRunning { engine.stop() }
+        if tapped {
+            engine.inputNode.removeTap(onBus: 0)
+            tapped = false
+        }
     }
 
     private func reset() {
         task = nil
         request = nil
         heard = nil
+        ended = false
     }
 }

@@ -773,6 +773,8 @@ final class AppState: ObservableObject {
     func setTalk(_ on: Bool) {
         setVoice("talk", on)
         voiceProblem = nil
+        // Off mid-press: the talk key is unregistered, so no release comes; stop listening now.
+        if !on { voice.cancelListening() }
         guard on, sideEffects else { return }
         SystemListener.requestPermissions { [weak self] problem in
             guard let self, self.settings.voice.talk else { return }
