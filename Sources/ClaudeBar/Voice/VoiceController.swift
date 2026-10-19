@@ -1,5 +1,6 @@
 import AppKit
 import ClaudeBarCore
+import Combine
 import Foundation
 
 /// ClaudeBar's voice: spoken alerts, one sentence at a time, and push-to-talk (hold the talk shortcut, speak, let go).
@@ -24,6 +25,13 @@ import Foundation
     /// Replies still speaking.
     private var replying = 0
     private var listenTimeout: Timer?
+    /// The spoken back-and-forth ("which one?", "say yes"); it forgets what it asked after 20 s.
+    private var conversation = VoiceConversation()
+    /// Sent answers still waiting for Cat Office's word, by a number of their own.
+    private var watching: [Int: AnyCancellable] = [:]
+    private var nextWatch = 0
+    /// How long to wait for Cat Office to take a spoken answer.
+    static let answerTimeout: TimeInterval = 15
     /// Longest listen; then it ends as if the key were let go.
     static let maxListen: TimeInterval = 15
     /// A shorter press is a slip: nothing is heard or said.
@@ -99,9 +107,78 @@ import Foundation
         if !holding { flush() }
     }
 
-    /// What was said while the key was held. Task 8 turns it into a command; for now nothing is understood.
+    /// What was said while the key was held: answers a waiting session, or tells how things stand.
     func heard(_ transcript: String) {
-        reply("Sorry, I didn't catch that.")
+        let agents = (state.office?.agents ?? []).filter { !$0.isSpare && !$0.isSubagent }
+        let waiting = agents.compactMap { a -> VoiceWaiting? in
+            guard a.canBeAnswered, a.status == .waiting, let prompt = a.pendingPrompt else { return nil }
+            return VoiceWaiting(id: a.id, name: a.label, prompt: prompt)
+        }
+        let targets = waiting.map { w -> VoiceTarget in
+            var options: [String] = []
+            if case .question = w.prompt { options = AnswerChoices.of(w.prompt).buttons.map(\.title) }
+            return VoiceTarget(id: w.id, name: w.name, options: options)
+        }
+        let command = VoiceCommand.parse(transcript, targets: targets)
+        switch conversation.handle(command, waiting: waiting, now: Date()) {
+        case .say(let sentence):
+            reply(sentence)
+        case let .send(agentId, prompt, button, then):
+            send(agentId, prompt: prompt, button: button, then: then)
+        case .status:
+            let live = agents.filter { $0.status != .ended }
+            let needYou = live.filter { $0.status == .waiting || state.attention.contains($0.key) }
+            let rest = live.filter { a in !needYou.contains { $0.id == a.id } }
+            reply(VoiceStatus.status(running: rest.filter { $0.status == .working }.map(\.label),
+                                     needYou: needYou.map(\.label),
+                                     idle: rest.filter { $0.status == .idle }.map(\.label)))
+        case .usage:
+            reply(VoiceStatus.usage(state.output.usage, forecast: state.usageForecast, time: AppState.usageTime))
+        case .recap:
+            reply(VoiceStatus.recap(state.todayRecap))
+        }
+    }
+
+    /// Sends the answer, then says `then` once Cat Office takes it, or why it didn't (AnswerState's words). Alerts
+    /// keep waiting until that is said.
+    private func send(_ agentId: String, prompt: PendingPrompt, button: Int, then: String) {
+        let buttons = AnswerChoices.of(prompt).buttons
+        guard let agent = state.office?.agents.first(where: { $0.id == agentId }), buttons.indices.contains(button) else {
+            reply("That one isn't waiting anymore.")
+            return
+        }
+        replying += 1
+        let key = nextWatch
+        nextWatch += 1
+        var finished = false
+        /// The outcome, said once; nil while the answer is still on its way.
+        func outcome(_ answer: AnswerState?) -> String? {
+            switch answer {
+            case .sent: return then
+            case .failed(let message): return VoiceStatus.failure(message)
+            // Cleared: the session stopped waiting on that prompt (the answer closed it).
+            case nil: return then
+            case .sending: return nil
+            }
+        }
+        let finish = { [weak self] (sentence: String) in
+            guard let self, !finished else { return }
+            finished = true
+            self.watching[key] = nil
+            self.replying -= 1
+            self.reply(sentence)
+        }
+        state.answer(agent, buttons[button], prompt: prompt)
+        if let sentence = outcome(state.answerState[agentId]) { finish(sentence); return }
+        // `answerState` publishes before it changes: the new dictionary is the one handed in.
+        watching[key] = state.$answerState.dropFirst().sink { answers in
+            MainActor.assumeIsolated {
+                if let sentence = outcome(answers[agentId]) { finish(sentence) }
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.answerTimeout) {
+            MainActor.assumeIsolated { finish(VoiceStatus.failure("Couldn't reach Cat Office")) }
+        }
     }
 
     /// Says `sentence` now (alerts keep waiting until it is said).

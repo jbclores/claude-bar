@@ -514,7 +514,7 @@ final class AppState: ObservableObject {
         // Renders and the answer click test (CLAUDEBAR_RENDER_WAITING=<permission|question|plan>): the first office
         // agent waits on a sample prompt.
         if !sideEffects, let kind = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_WAITING"], snapshot != nil,
-           let prompt = Self.samplePrompt(kind), let i = Self.renderWaitingIndex(&snapshot!.agents) {
+           let prompt = renderPrompt ?? Self.samplePrompt(kind), let i = Self.renderWaitingIndex(&snapshot!.agents) {
             snapshot!.agents[i].status = .waiting
             snapshot!.agents[i].pendingPrompt = prompt
             renderWaitingId = snapshot!.agents[i].id
@@ -1067,6 +1067,18 @@ final class AppState: ObservableObject {
     /// Renders and click tests: the agent CLAUDEBAR_RENDER_WAITING made wait, and the cat whose hover card shows
     /// without a pointer (CLAUDEBAR_RENDER_CARD=1, or set by --test-answer).
     private(set) var renderWaitingId: String?
+    /// The prompt renderReplacePrompt put in place of the sample one.
+    private var renderPrompt: PendingPrompt?
+
+    /// Click tests only (side effects off): the waiting agent now waits on `prompt` instead, from now on.
+    func renderReplacePrompt(_ id: String, _ prompt: PendingPrompt) {
+        guard !sideEffects, id == renderWaitingId else { return }
+        renderPrompt = prompt
+        if var snapshot = office, let i = snapshot.agents.firstIndex(where: { $0.id == id }) {
+            snapshot.agents[i].pendingPrompt = prompt
+            office = snapshot
+        }
+    }
     @Published var renderCardAgent: String?
     private var renderAnswerApplied = false
 

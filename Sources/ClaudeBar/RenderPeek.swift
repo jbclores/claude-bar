@@ -12,6 +12,7 @@ enum RenderPeek {
         if TestStart.runIfRequested(state: state) { return true }
         if TestShortcut.runIfRequested(state: state) { return true }
         if TestAnswer.runIfRequested(state: state) { return true }
+        if TestVoice.runIfRequested(state: state) { return true }
         if TestZoom.runIfRequested(state: state) { return true }
         if TestSetup.runIfRequested() { return true }
         if TestUndo.runIfRequested() { return true }
@@ -641,6 +642,98 @@ enum TestAnswer {
                         }
                     } }
                 } }
+            }
+        }
+        return true
+    }
+}
+
+/// `CLAUDEBAR_RENDER_WAITING=permission CLAUDEBAR_RENDER_WAITING_EXTERNAL=1 ClaudeBar --test-voice`: talks to ClaudeBar
+/// in words (no microphone, nothing spoken aloud) about the stand-in waiting session: "allow" asks for a yes, "yes"
+/// allows, "deny" denies at once, and a yes to a question that changed meanwhile sends nothing. Side effects are off:
+/// the answers land in `lastAnswerRequest`, never in Cat Office.
+@MainActor
+enum TestVoice {
+    /// Writes down each sentence instead of saying it, and is done at once.
+    final class RecordingSpeaker: SpeechOutput {
+        private(set) var said: [String] = []
+        func speak(_ text: String, done: @escaping () -> Void) { said.append(text); done() }
+        func stop() {}
+    }
+
+    /// Hears nothing: the test hands the controller its words directly.
+    final class SilentListener: SpeechInput {
+        func start(hints: [String]) throws {}
+        func finish(_ done: @escaping (String?) -> Void) { done(nil) }
+        func cancel() {}
+    }
+
+    static func runIfRequested(state: AppState) -> Bool {
+        guard CommandLine.arguments.contains("--test-voice") else { return false }
+        setvbuf(stdout, nil, _IOLBF, 0)
+        func fail(_ reason: String) -> Never { print("FAIL: \(reason)"); exit(1) }
+        guard ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_WAITING"] == "permission",
+              ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_WAITING_EXTERNAL"] == "1" else {
+            fail("run with CLAUDEBAR_RENDER_WAITING=permission CLAUDEBAR_RENDER_WAITING_EXTERNAL=1")
+        }
+        let speaker = RecordingSpeaker()
+        let voice = VoiceController(state: state, speaker: speaker, listener: SilentListener())
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { fail("timed out") }
+
+        /// Waits (polling, up to 10 s) for `done`, then runs `then`.
+        func when(_ what: String, _ done: @escaping @MainActor () -> Bool, _ then: @escaping @MainActor () -> Void) {
+            let deadline = Date().addingTimeInterval(10)
+            func poll() {
+                if done() { then(); return }
+                guard Date() < deadline else { fail("gave up waiting for \(what)") }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { MainActor.assumeIsolated { poll() } }
+            }
+            poll()
+        }
+        /// Hands the controller `words` as if heard, then waits for its spoken reply.
+        func say(_ words: String, _ then: @escaping @MainActor (String) -> Void) {
+            let count = speaker.said.count
+            voice.heard(words)
+            when("a reply to \"\(words)\"", { speaker.said.count > count }) {
+                let reply = speaker.said.last ?? ""
+                print("heard \"\(words)\" → said \"\(reply)\" · request:", body() ?? "none")
+                then(reply)
+            }
+        }
+        func body() -> String? { state.lastAnswerRequest.map { "\($0.id) \(String(decoding: $0.body, as: UTF8.self))" } }
+        func waiting(_ id: String) -> OfficeAgent? { state.office?.agents.first { $0.id == id && $0.pendingPrompt != nil } }
+
+        when("the waiting agent", { state.renderWaitingId.flatMap(waiting) != nil }) {
+            guard let id = state.renderWaitingId, let agent = waiting(id) else { fail("no waiting agent") }
+            print("waiting agent: \(id) (\(agent.label))")
+            say("allow") { reply in
+                guard state.lastAnswerRequest == nil else { fail("\"allow\" sent an answer before a yes") }
+                guard reply.hasSuffix("Say yes.") else { fail("\"allow\" didn't ask for a yes") }
+                say("yes") { reply in
+                    guard state.lastAnswerRequest?.id == id, body()?.contains(#""choice":"yes""#) == true else { fail("\"yes\" didn't allow") }
+                    guard reply == "Allowed." else { fail("\"yes\" said \"\(reply)\", not \"Allowed.\"") }
+                    // Back to unanswered for the next one (the last request stays; the next must replace it).
+                    state.answerState[id] = nil
+                    say("deny") { reply in
+                        guard state.lastAnswerRequest?.id == id, body()?.contains(#""choice":"no""#) == true else { fail("\"deny\" didn't deny at once") }
+                        guard reply == "Denied for \(agent.label)." else { fail("\"deny\" said \"\(reply)\"") }
+                        state.answerState[id] = nil
+                        say("allow") { reply in
+                            guard reply.hasSuffix("Say yes.") else { fail("the second \"allow\" didn't ask for a yes") }
+                            let before = body()
+                            let changed = PendingPrompt.permission(tool: "Bash", input: "something else")
+                            state.renderReplacePrompt(id, changed)
+                            when("the changed prompt", { waiting(id)?.pendingPrompt == changed }) {
+                                say("yes") { reply in
+                                    guard body() == before else { fail("a yes to a changed question sent an answer") }
+                                    guard reply == "That question changed; check it again." else { fail("a yes to a changed question said \"\(reply)\"") }
+                                    print("PASS: \"allow\" asked for a yes, \"yes\" allowed, \"deny\" denied at once, a yes to a changed question sent nothing")
+                                    exit(0)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
         return true
