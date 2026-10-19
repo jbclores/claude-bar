@@ -46,6 +46,20 @@ public enum OfficeLighting: String, Equatable, Sendable, CaseIterable {
     }
 }
 
+/// Spoken alerts and push-to-talk. In projects.json under "voice"; all off until turned on.
+public struct VoiceSettings: Equatable, Sendable {
+    /// Speak a short line when a session needs you or finishes.
+    public var speakAlerts = false
+    /// Include the details (which session, what it asked) in the spoken line.
+    public var sayDetails = false
+    /// Push-to-talk is on.
+    public var talk = false
+    /// Hold this to talk; nil when turned off ("").
+    public var talkShortcut: Shortcut? = .talkStandard
+
+    public init() {}
+}
+
 public struct Config: Equatable, Sendable {
     public var projects: [Project]
     public var catOffice: CatOfficeSettings
@@ -62,6 +76,7 @@ public struct Config: Equatable, Sendable {
     /// The shortcut that opens ClaudeBar; nil when turned off ("").
     public var shortcut: Shortcut? = .standard
     public var sounds = SoundSettings()
+    public var voice = VoiceSettings()
     public var setup = SetupSettings()
 
     public static let empty = Config(projects: [], catOffice: CatOfficeSettings(), notifications: true)
@@ -107,6 +122,12 @@ public struct Config: Equatable, Sendable {
         if let s = root["shortcut"] as? String { config.shortcut = s.isEmpty ? nil : Shortcut(string: s) ?? .standard }
         if let l = (root["officeLighting"] as? String).flatMap(OfficeLighting.init(rawValue:)) { config.officeLighting = l }
         if let o = root["office"] as? [String: Any], let v = o["spareCats"] as? Bool { config.showSpareCats = v }
+        if let v = root["voice"] as? [String: Any] {
+            if let b = v["speakAlerts"] as? Bool { config.voice.speakAlerts = b }
+            if let b = v["sayDetails"] as? Bool { config.voice.sayDetails = b }
+            if let b = v["talk"] as? Bool { config.voice.talk = b }
+            if let s = v["shortcut"] as? String { config.voice.talkShortcut = s.isEmpty ? nil : Shortcut(string: s) ?? .talkStandard }
+        }
         if let s = root["sounds"] as? [String: Any] {
             if let v = s["needsYou"] as? Bool { config.sounds.needsYou = v }
             if let v = s["finished"] as? Bool { config.sounds.finished = v }

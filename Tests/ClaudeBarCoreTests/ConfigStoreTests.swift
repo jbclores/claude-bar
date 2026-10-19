@@ -141,4 +141,18 @@ import Testing
         #expect(try Config.parse(Data(#"{"projects":[]}"#.utf8)).usageWarnings)
         #expect(try !Config.parse(Data(#"{"projects":[],"usageWarnings":false}"#.utf8)).usageWarnings)
     }
+
+    @Test func voiceSettingsDefaultOff() {
+        let v = Config.empty.voice
+        #expect(!v.speakAlerts && !v.sayDetails && !v.talk)
+        #expect(v.talkShortcut?.string == "ctrl+opt+V")
+    }
+
+    @Test func voiceSettingsParse() throws {
+        let on = try Config.parse(Data(#"{"voice":{"speakAlerts":true,"sayDetails":true,"talk":true,"shortcut":"ctrl+opt+K"}}"#.utf8)).voice
+        #expect(on.speakAlerts && on.sayDetails && on.talk)
+        #expect(on.talkShortcut?.string == "ctrl+opt+K")
+        #expect(try Config.parse(Data(#"{"voice":{"shortcut":""}}"#.utf8)).voice.talkShortcut == nil)
+        #expect(try Config.parse(Data(#"{"voice":{"shortcut":"nonsense"}}"#.utf8)).voice.talkShortcut?.string == "ctrl+opt+V")
+    }
 }

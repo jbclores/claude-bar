@@ -58,6 +58,8 @@ public struct Shortcut: Equatable, Sendable {
     public var command: Bool
 
     public static let standard = Shortcut(string: "ctrl+opt+C")!
+    /// The default push-to-talk shortcut.
+    public static let talkStandard = Shortcut(string: "ctrl+opt+V")!
 
     /// Carbon virtual key codes (ANSI layout) of the keys a shortcut may use.
     static let keys: [String: UInt32] = [
