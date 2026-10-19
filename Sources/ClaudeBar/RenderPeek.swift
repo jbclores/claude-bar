@@ -679,6 +679,9 @@ enum TestVoice {
         let speaker = RecordingSpeaker()
         let voice = VoiceController(state: state, speaker: speaker, listener: SilentListener())
         DispatchQueue.main.asyncAfter(deadline: .now() + 30) { fail("timed out") }
+        // Every answer recorded, even one with the same body as the last.
+        var requests = 0
+        let counting = state.$lastAnswerRequest.dropFirst().sink { _ in requests += 1 }
 
         /// Waits (polling, up to 10 s) for `done`, then runs `then`.
         func when(_ what: String, _ done: @escaping @MainActor () -> Bool, _ then: @escaping @MainActor () -> Void) {
@@ -717,18 +720,27 @@ enum TestVoice {
                     say("deny") { reply in
                         guard state.lastAnswerRequest?.id == id, body()?.contains(#""choice":"no""#) == true else { fail("\"deny\" didn't deny at once") }
                         guard reply == "Denied for \(agent.label)." else { fail("\"deny\" said \"\(reply)\"") }
-                        state.answerState[id] = nil
-                        say("allow") { reply in
-                            guard reply.hasSuffix("Say yes.") else { fail("the second \"allow\" didn't ask for a yes") }
-                            let before = body()
-                            let changed = PendingPrompt.permission(tool: "Bash", input: "something else")
-                            state.renderReplacePrompt(id, changed)
-                            when("the changed prompt", { waiting(id)?.pendingPrompt == changed }) {
-                                say("yes") { reply in
-                                    guard body() == before else { fail("a yes to a changed question sent an answer") }
-                                    guard reply == "That question changed; check it again." else { fail("a yes to a changed question said \"\(reply)\"") }
-                                    print("PASS: \"allow\" asked for a yes, \"yes\" allowed, \"deny\" denied at once, a yes to a changed question sent nothing")
-                                    exit(0)
+                        // An answer still on its way: another isn't sent, and nothing claims it went through.
+                        state.answerState[id] = .sending
+                        guard requests == 2 else { fail("counted \(requests) answers after a yes and a deny, not 2") }
+                        let sent = requests
+                        say("deny") { reply in
+                            guard requests == sent else { fail("\"deny\" sent while an answer was on its way") }
+                            guard reply == "An answer is already on its way." else { fail("\"deny\" while sending said \"\(reply)\"") }
+                            state.answerState[id] = nil
+                            say("allow") { reply in
+                                guard reply.hasSuffix("Say yes.") else { fail("the second \"allow\" didn't ask for a yes") }
+                                let before = requests
+                                let changed = PendingPrompt.permission(tool: "Bash", input: "something else")
+                                state.renderReplacePrompt(id, changed)
+                                when("the changed prompt", { waiting(id)?.pendingPrompt == changed }) {
+                                    say("yes") { reply in
+                                        guard requests == before else { fail("a yes to a changed question sent an answer") }
+                                        guard reply == "That question changed; check it again." else { fail("a yes to a changed question said \"\(reply)\"") }
+                                        print("PASS: \"allow\" asked for a yes, \"yes\" allowed, \"deny\" denied at once, nothing sent or claimed while an answer was on its way, a yes to a changed question sent nothing")
+                                        counting.cancel()
+                                        exit(0)
+                                    }
                                 }
                             }
                         }

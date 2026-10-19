@@ -1,6 +1,5 @@
 import AppKit
 import ClaudeBarCore
-import Combine
 import Foundation
 
 /// ClaudeBar's voice: spoken alerts, one sentence at a time, and push-to-talk (hold the talk shortcut, speak, let go).
@@ -27,9 +26,6 @@ import Foundation
     private var listenTimeout: Timer?
     /// The spoken back-and-forth ("which one?", "say yes"); it forgets what it asked after 20 s.
     private var conversation = VoiceConversation()
-    /// Sent answers still waiting for Cat Office's word, by a number of their own.
-    private var watching: [Int: AnyCancellable] = [:]
-    private var nextWatch = 0
     /// How long to wait for Cat Office to take a spoken answer.
     static let answerTimeout: TimeInterval = 15
     /// Longest listen; then it ends as if the key were let go.
@@ -139,8 +135,8 @@ import Foundation
         }
     }
 
-    /// Sends the answer, then says `then` once Cat Office takes it, or why it didn't (AnswerState's words). Alerts
-    /// keep waiting until that is said.
+    /// Sends the answer, then says `then` once Cat Office takes it, or why it wasn't sent (the answer's own result,
+    /// never the row's state). Alerts keep waiting until that is said.
     private func send(_ agentId: String, prompt: PendingPrompt, button: Int, then: String) {
         let buttons = AnswerChoices.of(prompt).buttons
         guard let agent = state.office?.agents.first(where: { $0.id == agentId }), buttons.indices.contains(button) else {
@@ -148,34 +144,17 @@ import Foundation
             return
         }
         replying += 1
-        let key = nextWatch
-        nextWatch += 1
         var finished = false
-        /// The outcome, said once; nil while the answer is still on its way.
-        func outcome(_ answer: AnswerState?) -> String? {
-            switch answer {
-            case .sent: return then
-            case .failed(let message): return VoiceStatus.failure(message)
-            // Cleared: the session stopped waiting on that prompt (the answer closed it).
-            case nil: return then
-            case .sending: return nil
-            }
-        }
         let finish = { [weak self] (sentence: String) in
             guard let self, !finished else { return }
             finished = true
-            self.watching[key] = nil
             self.replying -= 1
             self.reply(sentence)
         }
-        state.answer(agent, buttons[button], prompt: prompt)
-        if let sentence = outcome(state.answerState[agentId]) { finish(sentence); return }
-        // `answerState` publishes before it changes: the new dictionary is the one handed in.
-        watching[key] = state.$answerState.dropFirst().sink { answers in
-            MainActor.assumeIsolated {
-                if let sentence = outcome(answers[agentId]) { finish(sentence) }
-            }
+        state.answer(agent, buttons[button], prompt: prompt) { refusal in
+            MainActor.assumeIsolated { finish(refusal.map(VoiceStatus.failure) ?? then) }
         }
+        // A fallback: Cat Office never answered.
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.answerTimeout) {
             MainActor.assumeIsolated { finish(VoiceStatus.failure("Couldn't reach Cat Office")) }
         }

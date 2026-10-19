@@ -1016,32 +1016,43 @@ final class AppState: ObservableObject {
 
     /// Sends `button`'s answer to Cat Office for `agent` (POST /__agents/<id>/answer), only while the agent still waits
     /// on `prompt`, the one the button was built from (Cat Office checks it again through the request's `expect`).
-    func answer(_ agent: OfficeAgent, _ button: AnswerButton, prompt: PendingPrompt) {
+    /// `done` is called once with this call's own result: nil when Cat Office took it (side effects off: recorded in
+    /// `lastAnswerRequest`), else why it wasn't sent, in plain words.
+    func answer(_ agent: OfficeAgent, _ button: AnswerButton, prompt: PendingPrompt, done: ((String?) -> Void)? = nil) {
         let id = agent.id
-        guard answerState[id] != .sending else { return }
+        guard answerState[id] != .sending else { done?(Self.answerOnItsWay); return }
         if let changed = AnswerChoices.changed(prompt, agentId: id, in: office?.agents ?? []) {
             showBriefly(id, .failed(changed))
+            done?(changed)
             return
         }
         let ticket = answerTickets.issue(for: id)
         guard sideEffects else {
             lastAnswerRequest = (id, button.request)
             markSent(id)
+            done?(nil)
             return
         }
         guard let bridge = officeClient.bridge else {
-            answerState[id] = .failed(AnswerChoices.refusal(status: nil, error: nil))
+            let refusal = AnswerChoices.refusal(status: nil, error: nil)
+            answerState[id] = .failed(refusal)
+            done?(refusal)
             return
         }
         answerState[id] = .sending
         Task { @MainActor in
             let refusal = await CatOfficeActions.answer(button.request, agentId: id, bridge: bridge)
+            // The caller hears the real result even when the row's state below is left alone.
+            defer { done?(refusal) }
             // A newer click owns the state now, or the prompt changed or closed meanwhile (that state was cleared):
             // don't bring back a stale one.
             guard answerTickets.isLatest(ticket, for: id), answerState[id] == .sending else { return }
             if let refusal { answerState[id] = .failed(refusal) } else { markSent(id) }
         }
     }
+
+    /// Why a second answer isn't sent while the first is still on its way.
+    static let answerOnItsWay = "An answer is already on its way"
 
     /// `state` for `id` for a few seconds (the prompt changed under the click): then the new prompt's buttons show.
     private func showBriefly(_ id: String, _ state: AnswerState) {
