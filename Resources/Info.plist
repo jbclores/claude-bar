@@ -12,6 +12,8 @@
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
     <key>NSAppleEventsUsageDescription</key><string>"Show terminal" brings the session's Terminal or iTerm tab forward.</string>
+    <key>NSMicrophoneUsageDescription</key><string>Hold your talk shortcut to answer or ask ClaudeBar by voice.</string>
+    <key>NSSpeechRecognitionUsageDescription</key><string>ClaudeBar turns what you say into a command on this Mac; nothing is sent anywhere.</string>
     <key>NSAppTransportSecurity</key>
     <dict><key>NSAllowsLocalNetworking</key><true/></dict>
 </dict>

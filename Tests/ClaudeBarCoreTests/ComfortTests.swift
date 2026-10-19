@@ -81,4 +81,9 @@ import Testing
         #expect(try Config.parse(Data(#"{"projects":[],"shortcut":"cmd+opt+K"}"#.utf8)).shortcut?.display == "⌥⌘K")
         #expect(try Config.parse(Data(#"{"projects":[],"shortcut":""}"#.utf8)).shortcut == nil, "turned off")
     }
+
+    @Test func talkStandardShortcut() {
+        #expect(Shortcut.talkStandard.display == "⌃⌥V")
+        #expect(Shortcut.talkStandard.keyCode == 9)
+    }
 }

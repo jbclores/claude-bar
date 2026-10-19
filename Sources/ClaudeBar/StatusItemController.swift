@@ -78,9 +78,21 @@ final class StatusItemController: NSResponder {
             .sink { [weak self] _, _ in DispatchQueue.main.async { self?.dropdownController.updateTabs() } }
             .store(in: &subscriptions)
         // The shortcut opens and closes the dropdown; re-registered whenever it changes in Settings.
-        HotKeyCenter.shared.onPress = { [weak self] in self?.toggleDropdown() }
+        HotKeyCenter.shared.onPress[.open] = { [weak self] in self?.toggleDropdown() }
         state.$settings.map(\.shortcut).removeDuplicates()
-            .sink { [weak self] shortcut in self?.state.shortcutTaken = !HotKeyCenter.shared.register(shortcut) }
+            .sink { [weak self] shortcut in self?.state.shortcutTaken = !HotKeyCenter.shared.register(shortcut, slot: .open) }
+            .store(in: &subscriptions)
+        // Hold the talk shortcut to talk: registered only while "Talk to ClaudeBar" is on.
+        HotKeyCenter.shared.onPress[.talk] = { [weak self] in self?.state.voice.keyDown() }
+        HotKeyCenter.shared.onRelease[.talk] = { [weak self] in self?.state.voice.keyUp() }
+        state.$settings.map { $0.voice.talk ? $0.voice.talkShortcut : nil }.removeDuplicates()
+            .sink { [weak self] shortcut in
+                guard let self, self.state.sideEffects else { return }
+                self.state.talkShortcutTaken = !HotKeyCenter.shared.register(shortcut, slot: .talk)
+            }
+            .store(in: &subscriptions)
+        state.$voiceListening.removeDuplicates()
+            .sink { [weak self] listening in self?.showIcon(listening: listening) }
             .store(in: &subscriptions)
         state.$menuCat.removeDuplicates()
             .sink { [weak self] cat in self?.updateIcon(cat) }
@@ -115,16 +127,25 @@ final class StatusItemController: NSResponder {
         NSAppearance(named: UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark" ? .darkAqua : .aqua)
     }
 
+    /// The cat now in the menu bar (without the microphone).
+    private var catIcon = MenuBarIcon.fallback
+
+    /// Shows `cat` (or the cat already shown), with a microphone beside it while ClaudeBar listens.
+    private func showIcon(_ cat: NSImage? = nil, listening: Bool? = nil) {
+        if let cat { catIcon = cat }
+        item.button?.image = listening ?? state.voiceListening ? MenuBarIcon.withMic(catIcon) : catIcon
+    }
+
     /// The menu bar cat: from the icon cache, else trimmed from the art cache; the plain cat symbol meanwhile.
     private func updateIcon(_ cat: MenuBarCat?) {
         iconTask?.cancel()
         guard let cat else {
-            item.button?.image = MenuBarIcon.fallback
+            showIcon(MenuBarIcon.fallback)
             return
         }
         let key = "\(cat.cat)-\(cat.pose.rawValue)"
         if let cached = iconCache[key] {
-            item.button?.image = cached
+            showIcon(cached)
             return
         }
         iconTask = Task { @MainActor [weak self] in
@@ -132,7 +153,7 @@ final class StatusItemController: NSResponder {
             let image = await MenuBarIcon.load(cat, art: self.state.art)
             guard !Task.isCancelled, self.state.menuCat == cat else { return }
             if let image { self.iconCache[key] = image }
-            self.item.button?.image = image ?? MenuBarIcon.fallback
+            self.showIcon(image ?? MenuBarIcon.fallback)
         }
     }
 
@@ -312,6 +333,30 @@ enum MenuBarIcon {
         image.isTemplate = true
         return image
     }()
+
+    /// `cat` with a small microphone after it (push-to-talk is listening). A template cat stays a template; a
+    /// coloured one gets a microphone in the menu bar's text colour.
+    static func withMic(_ cat: NSImage) -> NSImage {
+        guard let mic = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "Listening")?
+            .withSymbolConfiguration(.init(pointSize: 11, weight: .medium)) else { return cat }
+        let gap: CGFloat = 2
+        let size = NSSize(width: cat.size.width + gap + mic.size.width, height: max(cat.size.height, mic.size.height))
+        let image = NSImage(size: size, flipped: false) { _ in
+            cat.draw(in: NSRect(x: 0, y: ((size.height - cat.size.height) / 2).rounded(), width: cat.size.width, height: cat.size.height))
+            let micRect = NSRect(x: cat.size.width + gap, y: ((size.height - mic.size.height) / 2).rounded(),
+                                 width: mic.size.width, height: mic.size.height)
+            mic.draw(in: micRect)
+            if !cat.isTemplate {
+                // Tint the (black) symbol to the text colour, resolved when drawn.
+                NSColor.labelColor.set()
+                micRect.fill(using: .sourceAtop)
+            }
+            return true
+        }
+        image.isTemplate = cat.isTemplate
+        image.accessibilityDescription = "ClaudeBar, listening"
+        return image
+    }
 
     /// Fits every pose into the same box, so a sleeping cat isn't smaller than a standing one.
     static let box = NSSize(width: 22, height: 18)

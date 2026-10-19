@@ -107,26 +107,34 @@ struct UsageWeekChart: View {
 }
 
 /// Settings' shortcut box: shows the shortcut; click it and press a new one (Escape cancels); ✕ turns it off.
+/// `talk` makes it the push-to-talk shortcut's box instead of the open shortcut's.
 struct ShortcutField: View {
     @EnvironmentObject var state: AppState
+    var talk = false
     @State private var recording = false
     @State private var monitor: Any?
+
+    private var shortcut: Shortcut? { talk ? state.settings.voice.talkShortcut : state.settings.shortcut }
+
+    private func set(_ shortcut: Shortcut?) {
+        if talk { state.setTalkShortcut(shortcut) } else { state.setShortcut(shortcut) }
+    }
 
     var body: some View {
         HStack(spacing: 6) {
             Button {
                 recording ? stop() : start()
             } label: {
-                Text(recording ? "Press keys…" : state.settings.shortcut?.display ?? "Off")
+                Text(recording ? "Press keys…" : shortcut?.display ?? "Off")
                     .font(.callout).frame(minWidth: 56)
                     .padding(.horizontal, 8).padding(.vertical, 2)
                     .background(RoundedRectangle(cornerRadius: 5).fill(Color.primary.opacity(recording ? 0.12 : 0.06)))
             }
             .buttonStyle(.plain)
             .help("Click, then press a new shortcut (Escape cancels)")
-            .target("shortcut-field", in: state.shortcutTargets)
-            if state.settings.shortcut != nil, !recording {
-                Button { state.setShortcut(nil) } label: { Image(systemName: "xmark.circle.fill") }
+            .target(talk ? "talk-shortcut-field" : "shortcut-field", in: state.shortcutTargets)
+            if shortcut != nil, !recording {
+                Button { set(nil) } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.plain).foregroundStyle(Theme.secondaryText).help("Turn the shortcut off")
             }
         }
@@ -135,13 +143,13 @@ struct ShortcutField: View {
 
     private func start() {
         recording = true
-        state.shortcutTaken = false
+        if talk { state.talkShortcutTaken = false } else { state.shortcutTaken = false }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode == 53 { stop(); return nil } // Escape
             let f = event.modifierFlags
             if let s = Shortcut(keyCode: UInt32(event.keyCode), control: f.contains(.control), option: f.contains(.option),
                                 shift: f.contains(.shift), command: f.contains(.command)) {
-                state.setShortcut(s)
+                set(s)
                 stop()
             } else {
                 NSSound.beep()

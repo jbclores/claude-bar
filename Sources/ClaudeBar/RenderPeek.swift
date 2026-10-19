@@ -452,7 +452,8 @@ enum TestStart {
 }
 
 /// `ClaudeBar --test-shortcut`: the live dropdown offscreen on Settings; clicks the shortcut box (found by its frame),
-/// presses ⌃⌥K, and prints the shortcut it recorded. Side effects are off: nothing is saved or registered.
+/// presses ⌃⌥K, and prints the shortcut it recorded. With CLAUDEBAR_RENDER_TALK=1 it then does the same in the talk
+/// shortcut box. Side effects are off: nothing is saved or registered.
 @MainActor
 enum TestShortcut {
     static func runIfRequested(state: AppState) -> Bool {
@@ -464,32 +465,47 @@ enum TestShortcut {
             UserDefaults.standard.set(previousTab, forKey: TabSelection.key)
             Foundation.exit(code)
         }
+        let talk = ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_TALK"] == "1"
         let controller = DropdownController(state: state)
         let window = KeyWindow(contentViewController: controller)
         window.styleMask = [.borderless]
         window.setFrameOrigin(NSPoint(x: -10_000, y: -10_000))
         window.makeKeyAndOrderFront(nil)
+
+        /// Clicks the box `target` (by its recorded frame), presses ⌃⌥K, then checks `recorded`.
+        func record(_ target: String, _ name: String, recorded: @escaping () -> Shortcut?, then next: @escaping () -> Void) {
+            guard let frame = state.shortcutTargets.targets[target] else { print("FAIL: no \(name) box"); exit(1) }
+            let point = NSPoint(x: frame.midX, y: window.contentView!.bounds.height - frame.midY)
+            let hit = window.contentView!.hitTest(window.contentView!.superview!.convert(point, from: nil))
+            print("\(name) box at \(frame), hits \(hit.map { String(describing: type(of: $0)) } ?? "nothing")")
+            NSApp.postEvent(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                               windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0)!, atStart: false)
+            window.sendEvent(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                // ⌃⌥K (key code 40), through the app as a real key press is.
+                let key = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.control, .option],
+                                           timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                           context: nil, characters: "k", charactersIgnoringModifiers: "k", isARepeat: false, keyCode: 40)!
+                NSApp.sendEvent(key)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    guard recorded()?.string == "ctrl+opt+K" else {
+                        print("FAIL: \(name) recorded \(recorded()?.display ?? "nothing")")
+                        exit(1)
+                    }
+                    next()
+                }
+            }
+        }
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
             if controller.preferredContentSize.height > 0 { window.setContentSize(controller.preferredContentSize) }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                guard let frame = state.shortcutTargets.targets["shortcut-field"] else { print("FAIL: no shortcut box"); exit(1) }
-                let point = NSPoint(x: frame.midX, y: window.contentView!.bounds.height - frame.midY)
-                let hit = window.contentView!.hitTest(window.contentView!.superview!.convert(point, from: nil))
-                print("shortcut box at \(frame), hits \(hit.map { String(describing: type(of: $0)) } ?? "nothing")")
-                NSApp.postEvent(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                                                   windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0)!, atStart: false)
-                window.sendEvent(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                                                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    // ⌃⌥K (key code 40), through the app as a real key press is.
-                    let key = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.control, .option],
-                                               timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
-                                               context: nil, characters: "k", charactersIgnoringModifiers: "k", isARepeat: false, keyCode: 40)!
-                    NSApp.sendEvent(key)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        if state.recordedShortcut?.string == "ctrl+opt+K" { print("PASS: recorded ⌃⌥K"); exit(0) }
-                        print("FAIL: recorded \(state.recordedShortcut?.display ?? "nothing")")
-                        exit(1)
+                record("shortcut-field", "shortcut", recorded: { state.recordedShortcut }) {
+                    guard talk else { print("PASS: recorded ⌃⌥K"); exit(0) }
+                    record("talk-shortcut-field", "talk shortcut", recorded: { state.recordedTalkShortcut }) {
+                        print("PASS: recorded ⌃⌥K (open and talk)")
+                        exit(0)
                     }
                 }
             }

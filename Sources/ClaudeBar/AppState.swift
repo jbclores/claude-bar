@@ -192,10 +192,10 @@ final class AppState: ObservableObject {
     /// `config` defaults to the real projects.json; the setup click test passes a temp one.
     init(config: ConfigStore = ConfigStore()) {
         self.config = config
-        voice = VoiceController(state: self, speaker: SystemSpeaker())
+        voice = VoiceController(state: self, speaker: SystemSpeaker(), listener: SystemListener())
     }
 
-    /// Spoken alerts (and, later, push-to-talk).
+    /// Spoken alerts and push-to-talk.
     private(set) var voice: VoiceController!
     private let snapshots = SnapshotReader()
     private let sessions = LiveSessionReader()
@@ -737,18 +737,60 @@ final class AppState: ObservableObject {
     let shortcutTargets = FloorSelection()
     /// Click tests only: the shortcut the recorder produced (side effects off: nothing is saved).
     @Published private(set) var recordedShortcut: Shortcut?
+    /// Click tests only: the talk shortcut the recorder produced (side effects off: nothing is saved).
+    @Published private(set) var recordedTalkShortcut: Shortcut?
 
     /// A new shortcut, or nil to turn it off.
     func setShortcut(_ shortcut: Shortcut?) {
         guard sideEffects else { recordedShortcut = shortcut; return }
         // Taken by another app: keep the old one.
-        if let shortcut, !HotKeyCenter.shared.register(shortcut) {
+        if let shortcut, !HotKeyCenter.shared.register(shortcut, slot: .open) {
             shortcutTaken = true
-            HotKeyCenter.shared.register(settings.shortcut)
+            HotKeyCenter.shared.register(settings.shortcut, slot: .open)
             return
         }
         shortcutTaken = false
         do { try config.set(shortcut?.string ?? "", at: ["shortcut"]) } catch let e as ConfigError { configError = e.message } catch {}
+        settings = config.config
+    }
+
+    // MARK: Talk to ClaudeBar
+
+    /// The talk shortcut couldn't be registered (another app has it): the Settings box says so.
+    @Published var talkShortcutTaken = false
+    /// The talk key is held and ClaudeBar is listening (the menu bar shows a microphone).
+    @Published var voiceListening = false
+    /// Why ClaudeBar can't listen, shown under "Talk to ClaudeBar" (nil: nothing wrong).
+    @Published var voiceProblem: String?
+
+    /// Settings shows the talk shortcut: "Talk to ClaudeBar" is on, or a render / click test asks with
+    /// CLAUDEBAR_RENDER_TALK=1 (nothing saved).
+    var talkShown: Bool {
+        settings.voice.talk || (!sideEffects && ProcessInfo.processInfo.environment["CLAUDEBAR_RENDER_TALK"] == "1")
+    }
+
+    /// "Talk to ClaudeBar": on asks for microphone and speech recognition permission (where not yet asked).
+    func setTalk(_ on: Bool) {
+        setVoice("talk", on)
+        voiceProblem = nil
+        guard on, sideEffects else { return }
+        SystemListener.requestPermissions { [weak self] problem in
+            guard let self, self.settings.voice.talk else { return }
+            self.voiceProblem = problem?.sentence
+        }
+    }
+
+    /// A new talk shortcut, or nil to turn it off.
+    func setTalkShortcut(_ shortcut: Shortcut?) {
+        guard sideEffects else { recordedTalkShortcut = shortcut; return }
+        // Taken by another app: keep the old one.
+        if settings.voice.talk, let shortcut, !HotKeyCenter.shared.register(shortcut, slot: .talk) {
+            talkShortcutTaken = true
+            HotKeyCenter.shared.register(settings.voice.talkShortcut, slot: .talk)
+            return
+        }
+        talkShortcutTaken = false
+        do { try config.set(shortcut?.string ?? "", at: ["voice", "shortcut"]) } catch let e as ConfigError { configError = e.message } catch {}
         settings = config.config
     }
 

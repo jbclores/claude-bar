@@ -383,6 +383,20 @@ struct SettingsTabView: View {
                 if state.shortcutTaken { Text("That shortcut is taken; try another").font(.caption).foregroundStyle(Theme.waitingText) }
                 ShortcutField()
             }
+            setting("Talk to ClaudeBar", state.settings.voice.talk) { state.setTalk($0) }
+                .help("Hold a shortcut and speak to answer or ask ClaudeBar; recognised on this Mac")
+            if state.talkShown {
+                HStack {
+                    Text("Hold to talk")
+                    Spacer()
+                    if state.talkShortcutTaken { Text("Taken by another app").font(.caption).foregroundStyle(Theme.waitingText) }
+                    ShortcutField(talk: true)
+                }
+                .padding(.leading, 16)
+                if let problem = state.voiceProblem {
+                    Text(problem).font(.caption).foregroundStyle(Theme.waitingText).padding(.leading, 16)
+                }
+            }
             Divider()
             heading("Alerts")
             setting("Notify when a cat finishes", state.settings.notifications) { state.setNotifications($0) }

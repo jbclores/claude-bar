@@ -154,7 +154,7 @@ CLAUDEBAR_LIVE=1 swift test                  # also against the running Cat Offi
 ```
 
 Click tests run offscreen from the built app: `build/ClaudeBar.app/Contents/MacOS/ClaudeBar --test-tabs`,
-`--test-zoom`, `--test-setup`, `--test-undo`, `--test-shortcut` (records ⌃⌥K in the shortcut box; nothing is saved), `CLAUDEBAR_NO_DATA=1 … --test-start` (the Start Cat Office button takes
+`--test-zoom`, `--test-setup`, `--test-undo`, `--test-shortcut` (records ⌃⌥K in the shortcut box, and with `CLAUDEBAR_RENDER_TALK=1` in the talk shortcut box too; nothing is saved), `CLAUDEBAR_NO_DATA=1 … --test-start` (the Start Cat Office button takes
 its click; it never starts Cat Office), and `CLAUDEBAR_RENDER_WAITING=permission CLAUDEBAR_RENDER_WAITING_EXTERNAL=1 … --test-answer` (clicks the hover card's
 Deny over the room and the waiting row's Allow; checks the answer each would send and "Sent"; nothing is sent).
 
