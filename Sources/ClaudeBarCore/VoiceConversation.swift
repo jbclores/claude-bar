@@ -68,12 +68,14 @@ public struct VoiceConversation: Sendable {
         let intent = command.intent
         guard let first = waiting.first else { return .say("Nothing is waiting.") }
         var scope = waiting
-        if let target = command.target, waiting.contains(where: { $0.id == target }) { scope = waiting.filter { $0.id == target } }
+        if let target = command.target {
+            scope = waiting.filter { $0.id == target }
+            if scope.isEmpty { return .say("That one isn't waiting anymore.") }
+        }
         let fits = scope.filter { Self.fits(intent, $0.prompt) }
 
         if fits.isEmpty {
-            if scope.count == 1, Self.buttons(scope[0].prompt) == 0 { return .say("Answer that one in Cat Office.") }
-            let w = scope.first ?? first
+            guard let w = scope.first(where: { Self.buttons($0.prompt) > 0 }) else { return .say("Answer that one in Cat Office.") }
             if case .option = intent, case .question = w.prompt, Self.buttons(w.prompt) > 0 {
                 return .say("\(w.name) has no such choice.")
             }

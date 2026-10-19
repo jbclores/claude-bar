@@ -147,4 +147,25 @@ import Foundation
         #expect(c.handle(VoiceCommand(intent: .none), waiting: [], now: t0) == .say("Sorry, I didn't catch that."))
         #expect(c.handle(VoiceCommand(intent: .name, target: "a1"), waiting: [], now: t0) == .say("Sorry, I didn't catch that."))
     }
+
+    @Test func targetNoLongerWaiting() {
+        var c = VoiceConversation()
+        _ = c.handle(VoiceCommand(intent: .deny), waiting: [perm, perm2], now: t0)
+        #expect(c.handle(VoiceCommand(intent: .name, target: "b2"), waiting: [perm], now: t0) == .say("That one isn't waiting anymore."))
+        #expect(c.handle(VoiceCommand(intent: .deny, target: "b2"), waiting: [perm], now: t0) == .say("That one isn't waiting anymore."))
+        #expect(c.handle(VoiceCommand(intent: .allow, target: "b2"), waiting: [perm], now: t0) == .say("That one isn't waiting anymore."))
+    }
+
+    @Test func noButtonsAmongSeveral() {
+        var c = VoiceConversation()
+        func two(_ id: String) -> VoiceWaiting {
+            VoiceWaiting(id: id, name: id, prompt: .question([
+                .init(question: "A?", header: "A", multiSelect: false, options: []),
+                .init(question: "B?", header: "B", multiSelect: false, options: []),
+            ]))
+        }
+        #expect(c.handle(VoiceCommand(intent: .allow), waiting: [two("x"), two("y")], now: t0) == .say("Answer that one in Cat Office."))
+        #expect(c.handle(VoiceCommand(intent: .allow), waiting: [two("x"), plan], now: t0)
+            == .say("turborepo-lab is asking you to approve a plan, not permission."))
+    }
 }
