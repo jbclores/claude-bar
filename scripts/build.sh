@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds build/ClaudeBar.app (release, ad-hoc signed). Copy it to /Applications to install.
+# Builds build/ClaudeBar.app (release; signed "ClaudeBar Local" if scripts/make-signing-cert.sh made it, else ad hoc). Copy it to /Applications to install.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 swift build -c release
@@ -22,5 +22,9 @@ i=0
 for rev in $(git log --reverse --format=%h -- patches/cat-office.patch 2>/dev/null); do
   i=$((i+1)); git show "$rev:patches/cat-office.patch" > "$SETUP/patch-history/$(printf '%02d' $i).patch"
 done
-codesign --force --sign - "$APP"
+if security find-identity -p codesigning 2>/dev/null | grep -q '"ClaudeBar Local"'; then
+  codesign --force --sign "ClaudeBar Local" "$APP"
+else
+  codesign --force --sign - "$APP"
+fi
 echo "Built $APP"

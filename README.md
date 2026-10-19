@@ -27,6 +27,8 @@ cats, one click away.
 - **Sounds and lofi music,** generated from code (no recorded audio).
 - **Quiet hours and a shortcut:** no sounds or notifications in the hours you pick (or for an hour, for meetings);
   ⌃⌥C (or your own keys) opens ClaudeBar from anywhere.
+- **Voice** (optional): cats can say out loud when they need you or finish, and you can hold ⌃⌥V to answer a waiting
+  session, or ask what's running, how your usage is, or what you did today. All on your Mac.
 - **Speaks Cat Office's language:** statuses read as Cat Office names them (Needs you, Running, Idle, Ended), a
   teammate's own words included.
 - **Works without Cat Office too:** usage and projects only, with a friendly invitation to try the office. With two
@@ -93,6 +95,39 @@ instead.
 Changed your mind? You can undo everything in a minute, and set it up again whenever you like.
 
 `scripts/test-undo-command.sh` tests `--undo` against a temp folder (after `scripts/build.sh`).
+
+## Voice
+
+Both parts are off until you turn them on, and everything happens on your Mac: nothing you say, and no audio, is sent
+anywhere.
+
+- **Speak alerts** (Settings → Alerts): after a cat's meow or purr, a voice says "claude-bar needs you." or
+  "claude-bar finished." It stays quiet in quiet hours and when Cat sounds is off. **Say what it asks** adds the
+  command, question or task ("claude-bar asks: allow npm run build?").
+- **Talk to ClaudeBar** (Settings → General): hold **⌃⌥V** (or your own keys), speak, and let go. Quiet hours don't
+  stop it, since you started it.
+
+What to say:
+
+| Say | What happens |
+|---|---|
+| allow · always allow · deny | answers a waiting permission |
+| approve · reject | answers a waiting plan |
+| option 2 (or the option's words) | picks that option of a waiting question |
+| yes | confirms an allow, always allow, approve or option (nothing is sent before your "yes"); deny and reject go at once |
+| cancel · never mind | drops what was pending |
+| what's running · how's my usage · what did I do today | speaks the status, your usage, or today's recap |
+
+With several sessions waiting, ClaudeBar asks which one; say its name ("allow claude-bar"). Only sessions running in
+Orca can be answered this way, the same as the buttons.
+
+- **Permissions:** the first time you turn Talk on, macOS asks for the microphone and for speech recognition. Speech
+  is recognised on the Mac itself; if it says dictation is off, turn it on in System Settings → Keyboard → Dictation.
+- **Keep the permission when you update:** run `scripts/make-signing-cert.sh` once. It makes a local signing
+  certificate so macOS keeps the microphone permission across updates (then `scripts/run.sh --install`; macOS asks one
+  more time, then remembers).
+- **Click test** (fake recognition and speech, a fake Cat Office; nothing is heard or sent):
+  `CLAUDEBAR_RENDER_WAITING=permission CLAUDEBAR_RENDER_WAITING_EXTERNAL=1 build/ClaudeBar.app/Contents/MacOS/ClaudeBar --test-voice`.
 
 ## Setting up ClaudeBar
 

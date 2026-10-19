@@ -36,6 +36,7 @@ struct HelpPanel: View {
                     section("Mouse tips", [
                         ("Zoom", "Double-click the room, or ⌘-scroll. Drag to look around; click \"1×\" for the whole room."),
                         ("Pat a cat", "Click a cat to hear it meow."),
+                        ("Talk", "Hold ⌃⌥V and say allow, deny, what's running, how's my usage, or what did I do today."),
                         ("🎵", "Lofi music while the office is open. Click to turn it off or on."),
                     ])
                     section("Projects and Settings", [
