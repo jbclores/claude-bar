@@ -32,11 +32,11 @@ struct HelpPanel: View {
                         ("Rings and \"!\"", "Green running, amber or \"!\" needs you, grey asleep. Hover a cat for its details."),
                         ("A cat's card", "Open in Cat Office (its panel), and Show terminal for Terminal and iTerm sessions."),
                         ("Needs you", "Its question shows in the card and under the office. Sessions in Orca can be answered right there."),
+                        ("Talk", talkTip),
                     ])
                     section("Mouse tips", [
                         ("Zoom", "Double-click the room, or ⌘-scroll. Drag to look around; click \"1×\" for the whole room."),
                         ("Pat a cat", "Click a cat to hear it meow."),
-                        ("Talk", "Hold ⌃⌥V and say allow, deny, what's running, how's my usage, or what did I do today."),
                         ("🎵", "Lofi music while the office is open. Click to turn it off or on."),
                     ])
                     section("Projects and Settings", [
@@ -59,6 +59,13 @@ struct HelpPanel: View {
         }
         .padding(14)
         .frame(width: 340, height: 380)
+    }
+
+    /// The Talk row, with the user's own talk shortcut.
+    private var talkTip: String {
+        let says = "say allow, deny, what's running, how's my usage, or what did I do today."
+        guard let key = state.settings.voice.talkShortcut?.display else { return "Hold the talk shortcut and \(says)" }
+        return "Hold \(key) and \(says)"
     }
 
     private func section(_ title: String, _ items: [(String, String)]) -> some View {
