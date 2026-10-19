@@ -23,7 +23,13 @@ import AVFoundation
         synthesizer.speak(utterance)
     }
 
-    func stop() { synthesizer.stopSpeaking(at: .immediate) }
+    /// Stops at once; every sentence not yet finished gets its `done` now (exactly once, even if never started).
+    func stop() {
+        let cut = pending.values
+        pending = [:]
+        synthesizer.stopSpeaking(at: .immediate)
+        cut.forEach { $0() }
+    }
 
     private func finish(_ utterance: AVSpeechUtterance) {
         pending.removeValue(forKey: ObjectIdentifier(utterance))?()

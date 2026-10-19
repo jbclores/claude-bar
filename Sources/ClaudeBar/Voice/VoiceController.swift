@@ -9,8 +9,13 @@ import Foundation
     /// Alerts that arrived but are not yet in the speaking queue (so a burst can be capped together).
     private var arriving: [String] = []
     private var queue: [String] = []
-    private var speaking = false
-    private var flushScheduled = false
+    /// The alert being said (nil: none, or a reply is speaking).
+    private var speaking: String?
+    /// Counts alerts handed to the speaker, so a cut-off alert's late "done" is ignored.
+    private var utterance = 0
+    /// When the arriving alerts are let into the queue (nil: not scheduled).
+    private var flushDue: Date?
+    private var flushWork: DispatchWorkItem?
     private var lastSpoken: [String: Date] = [:]
     /// The talk key is held, its transcript is on the way, or a reply is speaking: alerts wait in the queue.
     /// Worked out from those, so one ending can't let alerts through while another still holds them.
@@ -26,8 +31,8 @@ import Foundation
     private var listenTimeout: Timer?
     /// The spoken back-and-forth ("which one?", "say yes"); it forgets what it asked after 20 s.
     private var conversation = VoiceConversation()
-    /// How long to wait for Cat Office to take a spoken answer.
-    static let answerTimeout: TimeInterval = 15
+    /// How long to wait for Cat Office to take a spoken answer (longer than CatOfficeActions' 15 s request timeout).
+    static let answerTimeout: TimeInterval = 20
     /// Longest listen; then it ends as if the key were let go.
     static let maxListen: TimeInterval = 15
     /// A shorter press is a slip: nothing is heard or said.
@@ -41,12 +46,19 @@ import Foundation
 
     // MARK: Push-to-talk
 
-    /// The talk key went down: a tick, alerts wait, and the listener starts.
+    /// The talk key went down: speech stops, a tick, alerts wait, and the listener starts.
     func keyDown() {
         guard state.sideEffects, state.settings.voice.talk, pressedAt == nil else { return }
         pressedAt = Date()
         // Starting drops a transcript still on its way from the last press.
         awaitingTranscript = false
+        // Nothing speaks into the open microphone: an alert cut off is said again later; a reply cut off is dropped.
+        if let cut = speaking {
+            queue.insert(cut, at: 0)
+            speaking = nil
+            utterance += 1
+        }
+        speaker.stop()
         NSSound(named: "Tink")?.play()
         state.voiceListening = true
         do {
@@ -106,9 +118,10 @@ import Foundation
     /// What was said while the key was held: answers a waiting session, or tells how things stand.
     func heard(_ transcript: String) {
         let agents = (state.office?.agents ?? []).filter { !$0.isSpare && !$0.isSubagent }
+        // Terminal, iTerm and VS Code sessions too, so "allow" can say to answer them in their terminal.
         let waiting = agents.compactMap { a -> VoiceWaiting? in
-            guard a.canBeAnswered, a.status == .waiting, let prompt = a.pendingPrompt else { return nil }
-            return VoiceWaiting(id: a.id, name: a.label, prompt: prompt)
+            guard a.status == .waiting, let prompt = a.pendingPrompt else { return nil }
+            return VoiceWaiting(id: a.id, name: a.label, prompt: prompt, answerable: a.canBeAnswered)
         }
         let targets = waiting.map { w -> VoiceTarget in
             var options: [String] = []
@@ -189,8 +202,8 @@ import Foundation
     }
 
     /// Queues `sentence`; `key` ("needsYou|<key>" / "finished|<key>") stops the same alert repeating within 60 s.
-    /// `afterSound` waits 1.2 s so the meow or purr comes first.
-    func alert(_ sentence: String, key: String? = nil, afterSound: Bool) {
+    /// `delay` lets the meow or purr finish first (its length + 0.2 s; 0 with no sound); a burst waits for its longest.
+    func alert(_ sentence: String, key: String? = nil, delay: TimeInterval) {
         guard state.sideEffects else { return }
         let now = Date()
         if let key {
@@ -198,18 +211,27 @@ import Foundation
             lastSpoken[key] = now
         }
         arriving.append(sentence)
-        guard !flushScheduled else { return }
-        flushScheduled = true
-        Task { @MainActor in
-            if afterSound { try? await Task.sleep(nanoseconds: 1_200_000_000) } else { await Task.yield() }
-            self.flushScheduled = false
-            self.flush()
+        let due = now.addingTimeInterval(max(0, delay))
+        if let flushDue, flushDue >= due { return }
+        flushDue = due
+        flushWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.flushDue = nil
+                self.flushWork = nil
+                self.flush()
+            }
         }
+        flushWork = work
+        // Even with no sound, the next turn of the run loop: alerts arriving together are capped together.
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, delay), execute: work)
     }
 
     private func flush() {
         guard !holding else { return }
-        if !arriving.isEmpty {
+        // Arriving alerts wait for their sound; ones already queued can go.
+        if flushDue == nil, !arriving.isEmpty {
             queue += SpokenAlert.capped(arriving)
             arriving = []
         }
@@ -217,11 +239,14 @@ import Foundation
     }
 
     private func speakNext() {
-        guard !speaking, !holding, !queue.isEmpty else { return }
-        speaking = true
-        speaker.speak(queue.removeFirst()) { [weak self] in
-            guard let self else { return }
-            self.speaking = false
+        guard speaking == nil, !holding, !queue.isEmpty else { return }
+        let sentence = queue.removeFirst()
+        speaking = sentence
+        utterance += 1
+        let mine = utterance
+        speaker.speak(sentence) { [weak self] in
+            guard let self, self.utterance == mine else { return }
+            self.speaking = nil
             self.speakNext()
         }
     }

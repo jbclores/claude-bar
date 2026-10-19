@@ -586,8 +586,10 @@ final class AppState: ObservableObject {
             for event in finished where !isQuiet {
                 let sound = soundGate.sound(for: .finished(event.key), settings: settings.sounds, now: now)
                 if settings.sounds.on, settings.voice.speakAlerts {
+                    // The voice starts once the purr has finished.
+                    let delay = sound.map { soundPlayer.duration($0) + 0.2 } ?? 0
                     voice.alert(SpokenAlert.finished(name: event.name, task: event.task, details: settings.voice.sayDetails),
-                                key: "finished|\(event.key)", afterSound: sound != nil)
+                                key: "finished|\(event.key)", delay: delay)
                 }
                 if config.config.notifications {
                     let volume = settings.sounds.volume
@@ -603,7 +605,7 @@ final class AppState: ObservableObject {
                 if !isQuiet, settings.sounds.on, settings.voice.speakAlerts {
                     let agent = office?.agents.first { $0.key == key }
                     voice.alert(SpokenAlert.needsYou(name: agent?.label ?? key, prompt: agent?.pendingPrompt, details: settings.voice.sayDetails),
-                                key: "needsYou|\(key)", afterSound: played)
+                                key: "needsYou|\(key)", delay: played.map { $0 + 0.2 } ?? 0)
                 }
             }
         }
@@ -843,15 +845,14 @@ final class AppState: ObservableObject {
     private(set) var lastSoundRequest: SoundEvent?
 
     /// A cat sound for `event`, if its switch is on and the spacing allows (SoundGate).
-    /// True when a sound was played.
-    @discardableResult func playSound(_ event: SoundEvent) -> Bool {
+    /// Returns how long the sound lasts (nil: no sound played).
+    @discardableResult func playSound(_ event: SoundEvent) -> TimeInterval? {
         lastSoundRequest = event
-        guard sideEffects, !isQuiet else { return false }
-        if case .clicked = event, !officeVisible { return false }
-        if case .elevator = event, !officeVisible { return false }
-        guard let sound = soundGate.sound(for: event, settings: settings.sounds, now: Date()) else { return false }
-        soundPlayer.play(sound, volume: settings.sounds.volume)
-        return true
+        guard sideEffects, !isQuiet else { return nil }
+        if case .clicked = event, !officeVisible { return nil }
+        if case .elevator = event, !officeVisible { return nil }
+        guard let sound = soundGate.sound(for: event, settings: settings.sounds, now: Date()) else { return nil }
+        return soundPlayer.play(sound, volume: settings.sounds.volume)
     }
 
     /// A Bool switch under "voice" (speakAlerts, sayDetails, talk).

@@ -4,7 +4,7 @@ import Speech
 
 /// Why ClaudeBar can't listen: said out loud and shown under "Talk to ClaudeBar" in Settings.
 enum ListenProblem: Error {
-    case microphoneDenied, speechDenied, notOnDevice
+    case microphoneDenied, speechDenied, notOnDevice, noMicrophone
 
     /// The sentence ClaudeBar says (and Settings shows).
     var sentence: String {
@@ -12,6 +12,7 @@ enum ListenProblem: Error {
         case .microphoneDenied: "I need microphone access; I've opened Settings."
         case .speechDenied: "I need speech recognition access; I've opened Settings."
         case .notOnDevice: "Turn on dictation in System Settings to talk to ClaudeBar."
+        case .noMicrophone: "I can't find a microphone."
         }
     }
 
@@ -20,7 +21,7 @@ enum ListenProblem: Error {
         switch self {
         case .microphoneDenied: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
         case .speechDenied: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition")
-        case .notOnDevice: nil
+        case .notOnDevice, .noMicrophone: nil
         }
     }
 }
@@ -101,7 +102,10 @@ enum ListenProblem: Error {
         request.contextualStrings = hints
         request.shouldReportPartialResults = false
         let input = engine.inputNode
-        input.installTap(onBus: 0, bufferSize: 1024, format: input.outputFormat(forBus: 0)) { buffer, _ in
+        let format = input.outputFormat(forBus: 0)
+        // No input device: a tap on a 0-channel, 0 Hz format would crash.
+        guard format.channelCount > 0, format.sampleRate > 0 else { throw ListenProblem.noMicrophone }
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
             request.append(buffer)
         }
         tapped = true
@@ -110,7 +114,7 @@ enum ListenProblem: Error {
             try engine.start()
         } catch {
             stopAudio()
-            throw ListenProblem.microphoneDenied
+            throw ListenProblem.noMicrophone
         }
         self.request = request
         session += 1
