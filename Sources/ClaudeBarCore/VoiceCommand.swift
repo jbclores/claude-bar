@@ -50,8 +50,9 @@ public struct VoiceCommand: Equatable, Sendable {
         func hasAny(_ phrases: [String]) -> Bool { phrases.contains(where: has) }
 
         let intent: VoiceIntent
-        if has("always allow") { intent = .alwaysAllow }
-        else if hasAny(["deny", "don t allow", "do not allow"]) || text == "no" { intent = .deny }
+        if hasAny(["deny", "don t allow", "do not allow"]) || text == "no" { intent = .deny }
+        else if negatedAllow(words) { intent = .none }
+        else if has("always allow") { intent = .alwaysAllow }
         else if has("allow") { intent = .allow }
         else if has("approve") { intent = .approve }
         else if has("reject") { intent = .reject }
@@ -72,6 +73,14 @@ public struct VoiceCommand: Equatable, Sendable {
         "allow", "always", "deny", "no", "approve", "reject", "option", "number", "yes", "yeah", "yep",
         "confirm", "cancel", "never", "mind", "status", "running", "usage", "recap",
     ]
+
+    /// True when a negator comes before "allow" ("never allow that"): too unsure to act on.
+    private static func negatedAllow(_ words: [String]) -> Bool {
+        guard let allowAt = words.firstIndex(of: "allow") else { return false }
+        let before = Array(words[..<allowAt])
+        let negators = ["don t", "do not", "never", "not", "won t", "can t", "dont"]
+        return negators.contains { contains(before, $0.split(separator: " ").map(String.init)) }
+    }
 
     /// True when `phrase` appears in `words` as a run of whole words.
     private static func contains(_ words: [String], _ phrase: [String]) -> Bool {

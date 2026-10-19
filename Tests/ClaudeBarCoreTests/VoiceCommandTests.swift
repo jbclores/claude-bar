@@ -24,6 +24,14 @@ import Testing
         }
     }
 
+    @Test func negatedAllowIsNotGuessed() {
+        for s in ["don't always allow", "never allow that", "not allow"] {
+            #expect(parse(s).intent == .none, "\(s)")
+        }
+        #expect(parse("don't allow").intent == .deny)
+        #expect(parse("do not allow").intent == .deny)
+    }
+
     @Test func planWords() {
         #expect(parse("approve the plan").intent == .approve)
         #expect(parse("reject").intent == .reject)
