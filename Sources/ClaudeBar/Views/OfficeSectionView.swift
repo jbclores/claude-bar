@@ -37,31 +37,52 @@ struct OfficeCatList: View {
     }
 
     private func rowView(_ row: OfficeRow) -> some View {
-        HStack(spacing: 8) {
+        // On the first line's baseline, so the dot stays by the project when a task line sits underneath.
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             if row.isSubagent {
                 // A helper its parent started, listed under it.
                 Text("↳").font(.caption).foregroundStyle(Theme.secondaryText).padding(.leading, 10)
             }
             Circle().fill(row.needsAttention ? Theme.waiting : Theme.color(row.status)).frame(width: 7, height: 7)
+                .alignmentGuide(.firstTextBaseline) { d in d[VerticalAlignment.center] + 4 }
             if row.isSubagent, let type = row.agentType {
                 Text(type).font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText).lineLimit(1).fixedSize()
                     .padding(.horizontal, 5).padding(.vertical, 1)
                     .background(Capsule().fill(Color.primary.opacity(0.08)))
             }
-            Text(row.label).font(row.isSubagent ? .caption.weight(.medium) : .callout.weight(.medium)).lineLimit(1).layoutPriority(1)
-            Text(statusText(row)).font(.caption)
-                .foregroundStyle(row.needsAttention ? Theme.waitingText : Theme.color(row.status))
-                .fixedSize()
+            if row.isSubagent {
+                Text(row.label).font(.caption.weight(.medium)).lineLimit(1).layoutPriority(1)
+                status(row)
+            } else {
+                // The project names the row; its task, when it has its own title, sits underneath.
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 8) {
+                        Text(row.place).font(.callout.weight(.medium)).lineLimit(1).layoutPriority(1)
+                        status(row)
+                    }
+                    if row.label != row.place {
+                        Text(row.label).font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1)
+                    }
+                }
+            }
             Spacer(minLength: 8)
-            // What it's doing in two or three words; the file or program, and the raw action, are on hover.
-            Text(row.lastAction.map { ActionSummary.short($0, working: row.status == .working) } ?? row.branch ?? "")
-                .font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1).fixedSize()
+            // While it runs, what it's doing in two or three words; the file or program, and the raw action, are on hover.
+            if row.status == .working, let action = row.lastAction {
+                Text(ActionSummary.short(action, working: true))
+                    .font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1).fixedSize()
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture { open(row) }
         .help(([row.name, row.lastAction.map { ActionSummary.calm($0, working: row.status == .working) }, row.detail]
             + [row.lastAction == row.detail ? nil : row.lastAction])
             .compactMap { $0 }.joined(separator: "\n"))
+    }
+
+    private func status(_ row: OfficeRow) -> some View {
+        Text(statusText(row)).font(.caption)
+            .foregroundStyle(row.needsAttention ? Theme.waitingText : Theme.color(row.status))
+            .fixedSize()
     }
 
     private func statusText(_ row: OfficeRow) -> String {
