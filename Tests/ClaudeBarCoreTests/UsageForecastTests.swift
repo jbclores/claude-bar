@@ -61,6 +61,16 @@ import Testing
         #expect(UsageForecast.headline(history: [], now: at(1)) == nil)
     }
 
+    /// "On pace for about 0%" says nothing: the line shows from 10%, or whenever a limit is at risk.
+    @Test func quietPaceIsNotWorthALine() throws {
+        let calm = try #require(UsageForecast.of(.fiveHour, history: [s(0, 1), s(20, 1)], now: at(20)))
+        #expect(!calm.worthShowing)
+        let busier = try #require(UsageForecast.of(.fiveHour, history: [s(0, 20), s(20, 23), s(40, 26)], now: at(40)))
+        #expect(busier.worthShowing)
+        let risky = try #require(UsageForecast.of(.fiveHour, history: [s(0, 40), s(15, 55), s(30, 70)], now: at(30)))
+        #expect(risky.atRisk && risky.worthShowing)
+    }
+
     @Test func warnsOncePerWindow() throws {
         var w = UsageWarner()
         let f = try #require(UsageForecast.of(.fiveHour, history: [s(0, 40), s(15, 55), s(30, 70)], now: at(30)))

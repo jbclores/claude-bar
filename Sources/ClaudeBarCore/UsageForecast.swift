@@ -61,6 +61,12 @@ public struct UsageForecast: Equatable, Sendable {
         return five ?? seven
     }
 
+    /// Worth the line under the bars: a limit reached or at risk, or a pace that rounds to 10% or more
+    /// ("On pace for about 0%" says nothing).
+    public var worthShowing: Bool { reached || atRisk || roundedProjection >= 10 }
+
+    private var roundedProjection: Int { Int((projected / 5).rounded()) * 5 }
+
     private var name: String { window == .fiveHour ? "5-hour" : "7-day" }
 
     /// "On pace for about 55% of the 5-hour limit by 5:40 PM", or at risk "At this pace you'll reach the 5-hour limit
@@ -68,8 +74,7 @@ public struct UsageForecast: Equatable, Sendable {
     public func line(time: (Date) -> String) -> String {
         if reached { return "You've reached the \(name) limit. It resets at \(time(resetsAt))" }
         if let hitAt { return "At this pace you'll reach the \(name) limit around \(time(hitAt))" }
-        let rounded = Int((projected / 5).rounded()) * 5
-        return "On pace for about \(rounded)% of the \(name) limit by \(time(resetsAt))"
+        return "On pace for about \(roundedProjection)% of the \(name) limit by \(time(resetsAt))"
     }
 
     /// The notification's text.

@@ -626,7 +626,7 @@ struct UsageHeader: View {
             row("5h", usage.fiveHourPct, usage.fiveHourResetsAt,
                 extra: usage.workingCount > 0 ? "\(usage.workingCount) \(StatusWords.current.inline(.working))" : nil, spark: today.count >= 2 ? today : nil)
             row("7d", usage.sevenDayPct, usage.sevenDayResetsAt, extra: nil)
-            if let forecast { UsageForecastLine(forecast: forecast) }
+            if let forecast, forecast.worthShowing { UsageForecastLine(forecast: forecast) }
             if showWeek { UsageWeekChart(history: history) }
         }
         // Click the usage area for the last 7 days; click again to fold them.
