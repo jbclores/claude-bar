@@ -79,7 +79,9 @@ struct DropdownBody: View {
                     Button("Open Cat Office ↗") { state.openCatOffice() }
                 }
                 Spacer()
-                Button("Quit") { NSApp.terminate(nil) }
+                // Grey, not a link's blue: quitting is the way out, not the next thing to do.
+                Button("Quit ClaudeBar") { NSApp.terminate(nil) }
+                    .buttonStyle(.plain).foregroundStyle(Theme.secondaryText)
             }
             .buttonStyle(.link)
             .font(.caption)
@@ -419,11 +421,11 @@ struct SettingsTabView: View {
             }
             sounds
             Divider()
-            // Setup in one line; the details, undo and the advanced links folded under it.
+            // Setup in one line, folded from the left like Choose sounds; whether it's set up on the right.
             HStack(spacing: 6) {
-                setupSummary
+                fold("Setup & more", open: $moreOpen).fixedSize()
                 Spacer()
-                fold("Setup & more", open: $moreOpen, small: true).fixedSize()
+                setupSummary
             }
             if moreOpen {
                 VStack(alignment: .leading, spacing: 9) {
@@ -530,14 +532,14 @@ struct SettingsTabView: View {
     }
 
     /// A folded section's header: a chevron, the title and an optional note ("3 of 4 on").
-    private func fold(_ title: String, note: String? = nil, open: Binding<Bool>, small: Bool = false) -> some View {
+    private func fold(_ title: String, note: String? = nil, open: Binding<Bool>) -> some View {
         Button {
             withAnimation(.easeOut(duration: 0.15)) { open.wrappedValue.toggle() }
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: open.wrappedValue ? "chevron.down" : "chevron.right")
                     .font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.secondaryText).frame(width: 10)
-                Text(title).font(small ? .caption : nil).foregroundStyle(small ? Theme.secondaryText : .primary)
+                Text(title)
                 if let note { Text("· \(note)").font(.caption).foregroundStyle(Theme.secondaryText) }
                 Spacer()
             }
