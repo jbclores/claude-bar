@@ -168,6 +168,7 @@ final class StatusItemController: NSResponder {
 
     private func updateTitle(_ output: StatusOutput, attention: Bool) {
         item.button?.attributedTitle = MenuBarTitle.make(usage: output.usage, attention: attention)
+        item.button?.setAccessibilityLabel(MenuBarTitle.spoken(usage: output.usage, attention: attention))
         dropdownController.updateAttention(attention)
     }
 
@@ -379,8 +380,8 @@ enum MenuBarIcon {
 }
 
 enum MenuBarTitle {
-    /// "42% · 18%" (5h · 7d) after the icon, each colored by level; a leading amber "•" when something needs
-    /// the user; "—" with no data.
+    /// "42% · 18%" (5h · 7d) after the icon, in the menu bar's own color until a level is worth a glance (warn,
+    /// high); a leading amber "•" when something needs the user; "—" with no data.
     static func make(usage: UsageSummary, attention: Bool) -> NSAttributedString {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
         let plain: [NSAttributedString.Key: Any] = [.font: font]
@@ -394,13 +395,22 @@ enum MenuBarTitle {
         }
         func pct(_ value: Double?) -> NSAttributedString {
             guard let value else { return NSAttributedString(string: "—", attributes: plain) }
-            return NSAttributedString(string: Format.percent(value),
-                                      attributes: [.font: font, .foregroundColor: Theme.nsColor(UsageLevel(percent: value))])
+            let level = UsageLevel(percent: value)
+            guard level != .ok else { return NSAttributedString(string: Format.percent(value), attributes: plain) }
+            return NSAttributedString(string: Format.percent(value), attributes: [.font: font, .foregroundColor: Theme.nsColor(level)])
         }
         s.append(NSAttributedString(string: " ", attributes: plain))
         s.append(pct(usage.fiveHourPct))
         s.append(NSAttributedString(string: " · ", attributes: plain))
         s.append(pct(usage.sevenDayPct))
         return s
+    }
+
+    /// What VoiceOver reads for the label: which number is which.
+    static func spoken(usage: UsageSummary, attention: Bool) -> String {
+        let parts = [attention ? "A cat needs you" : nil,
+                     usage.fiveHourPct.map { "5-hour limit \(Format.percent($0)) used" },
+                     usage.sevenDayPct.map { "7-day limit \(Format.percent($0)) used" }].compactMap { $0 }
+        return (["ClaudeBar"] + parts).joined(separator: ", ")
     }
 }
