@@ -47,17 +47,9 @@ struct SetupView: View {
                         .frame(height: 4)
                 }
             }
-            Text("Step \(model.step.rawValue + 1) of \(SetupModel.Step.allCases.count) · \(title(model.step))")
+            // Just the count: each step's own heading names it.
+            Text("Step \(model.step.rawValue + 1) of \(SetupModel.Step.allCases.count)")
                 .font(.caption).foregroundStyle(Theme.secondaryText)
-        }
-    }
-
-    private func title(_ step: SetupModel.Step) -> String {
-        switch step {
-        case .welcome: "Welcome"
-        case .find: "Find Cat Office"
-        case .connect: "Connect"
-        case .done: "Done"
         }
     }
 
@@ -289,7 +281,7 @@ struct SetupView: View {
                 choice($model.start, "Start Cat Office now", "Runs Cat Office's dev server (it needs Node.js).", result: "start")
             }
             if model.chosen == nil {
-                Text("That's completely fine: ClaudeBar works without it and still shows your usage and projects. Whenever you'd like the cats, Settings → Set up ClaudeBar… brings Cat Office in.")
+                Text("Without Cat Office, ClaudeBar still shows your usage and projects. To add the cats later, open Settings and click Set up ClaudeBar…")
                     .font(.callout).foregroundStyle(Theme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }

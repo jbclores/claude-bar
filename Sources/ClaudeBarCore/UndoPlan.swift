@@ -38,7 +38,7 @@ public enum UndoPlan {
         switch unpatch {
         case .patched:
             rows.append(UndoRow(kind: .unpatch, title: "Unpatch Cat Office",
-                                detail: "\(shown) · its changed files are backed up first.", available: true, tickedAtStart: true))
+                                detail: shown, available: true, tickedAtStart: true))
         case .cannotUndo:
             rows.append(UndoRow(kind: .unpatch, title: "Unpatch Cat Office", detail: UndoText.cannotUnpatch,
                                 available: false, tickedAtStart: false))
