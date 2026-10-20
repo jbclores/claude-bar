@@ -219,14 +219,17 @@ public enum StatusModel {
         let officeRows = input.office.map { snapshot in
             let alive = snapshot.agents.filter { $0.status != .ended }
             let byName = { (x: OfficeAgent, y: OfficeAgent) in x.name.localizedCaseInsensitiveCompare(y.name) == .orderedAscending }
-            let parents = alive.filter(\.isOffice).sorted(by: byName)
+            // Needs you, then running, then idle: the same cats the office marks with a "!" lead the list.
+            let rank = { (a: OfficeAgent) in input.attention.contains(a.key) ? AgentStatus.waiting.urgency : a.status.urgency }
+            let byUrgency = { (x: OfficeAgent, y: OfficeAgent) in rank(x) != rank(y) ? rank(x) > rank(y) : byName(x, y) }
+            // Office cats, and terminal sessions waiting on you (the office draws their "!" too; a row with a prompt
+            // unfolds the answer buttons).
+            let leads = alive.filter { $0.isOffice || (!$0.isSubagent && $0.status == .waiting) }.sorted(by: byUrgency)
             let helpers = alive.filter(\.isSubagent).sorted(by: byName)
-            // Each office cat, then the helpers it started; helpers whose parent isn't listed come last.
+            // Each lead, then the helpers it started; helpers whose parent isn't listed come last.
             var ordered: [OfficeAgent] = []
-            for p in parents { ordered.append(p); ordered += helpers.filter { $0.parentName == p.name } }
-            ordered += helpers.filter { h in !parents.contains { $0.name == h.parentName } }
-            // Then terminal sessions waiting on a prompt: their row unfolds the answer buttons.
-            ordered += alive.filter { !$0.isOffice && !$0.isSubagent && $0.status == .waiting && $0.pendingPrompt != nil }.sorted(by: byName)
+            for p in leads { ordered.append(p); ordered += helpers.filter { $0.parentName == p.name } }
+            ordered += helpers.filter { h in !leads.contains { $0.name == h.parentName } }
             return ordered
                 .map { a in
                     OfficeRow(

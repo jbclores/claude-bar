@@ -23,9 +23,9 @@ import Testing
             helper, orphan, ended,
         ])
         let rows = StatusModel.build(StatusInput(projects: [], office: office)).office ?? []
-        #expect(rows.map(\.id) == ["a", "b", "h1", "h2"])
-        #expect(rows[2].isSubagent && rows[2].parentName == "office-b" && rows[2].agentType == "Explore")
-        #expect(rows[2].label == "Find usages")
+        #expect(rows.map(\.id) == ["b", "h1", "a", "h2"], "running before idle, helper under its parent")
+        #expect(rows[1].isSubagent && rows[1].parentName == "office-b" && rows[1].agentType == "Explore")
+        #expect(rows[1].label == "Find usages")
         #expect(!rows[0].isSubagent)
     }
 }

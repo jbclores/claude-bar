@@ -169,8 +169,33 @@ import Testing
             OfficeAgent(id: "w1", name: "office-a", owner: "office", status: .working, cwd: "/w/app"),
         ])
         let rows = StatusModel.build(input([], office: office)).office
-        #expect(rows?.map(\.name) == ["office-a", "zed-term"])
-        #expect(rows?.last?.id == "s-t1")
+        #expect(rows?.map(\.name) == ["zed-term", "office-a"], "waiting first")
+        #expect(rows?.first?.id == "s-t1")
+    }
+
+    /// The office draws a "!" on every waiting cat, so the list shows each one, even a terminal session with no
+    /// prompt ClaudeBar can answer.
+    @Test func officeListShowsWaitingTerminalSessionsWithoutAPrompt() {
+        let office = OfficeSnapshot(agents: [
+            OfficeAgent(id: "w1", name: "office-a", owner: "office", status: .idle, cwd: "/w/app"),
+            OfficeAgent(id: "t1", name: "home-term", owner: "external", status: .waiting, cwd: "/Users/me"),
+        ])
+        #expect(StatusModel.build(input([], office: office)).office?.map(\.name) == ["home-term", "office-a"])
+    }
+
+    /// Needs you, then running, then idle (by name within each); a helper stays under the cat that started it.
+    @Test func officeListPutsUrgentCatsFirst() {
+        var helper = OfficeAgent(id: "5", name: "helper", status: .working, cwd: "/w/app")
+        helper.kind = "subagent"; helper.parentName = "a-idle"
+        let office = OfficeSnapshot(agents: [
+            OfficeAgent(id: "1", name: "a-idle", owner: "office", status: .idle, cwd: "/w/app"),
+            OfficeAgent(id: "2", name: "b-working", owner: "office", status: .working, cwd: "/w/app"),
+            OfficeAgent(id: "3", name: "c-waiting", owner: "office", status: .waiting, cwd: "/w/app"),
+            OfficeAgent(id: "4", name: "d-idle-flagged", owner: "office", status: .idle, cwd: "/w/app", sessionId: "s4"),
+            helper,
+        ])
+        let rows = StatusModel.build(input([], office: office, attention: ["s4"])).office
+        #expect(rows?.map(\.name) == ["c-waiting", "d-idle-flagged", "b-working", "a-idle", "helper"])
     }
 
     @Test func officeListShowsLongerTitles() throws {
