@@ -597,6 +597,7 @@ struct TitleRow: View {
             }
             .buttonStyle(.plain)
             .help(colorScheme == .dark ? "Switch ClaudeBar to day" : "Switch ClaudeBar to night")
+            .accessibilityLabel(colorScheme == .dark ? "Switch ClaudeBar to day" : "Switch ClaudeBar to night")
         }
     }
 }
@@ -678,6 +679,7 @@ struct ProjectRowView: View {
                     if hovering {
                         Button(action: onRemove) { Image(systemName: "xmark.circle.fill") }
                             .buttonStyle(.plain).foregroundStyle(Theme.secondaryText).help("Remove from list")
+                            .accessibilityLabel("Remove \(row.name) from the list")
                     }
                 }
                 detail.font(.caption).foregroundStyle(Theme.secondaryText)
@@ -708,7 +710,7 @@ struct ProjectRowView: View {
 
     @ViewBuilder private var trailing: some View {
         switch row.state {
-        case .live(_, let count) where count >= 2: Text("×\(count)")
+        case .live(_, let count) where count >= 2: Text("\(count) sessions")
         case .stale(let since): Text(Format.age(since, now: Date()))
         default: EmptyView()
         }

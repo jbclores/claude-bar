@@ -40,9 +40,9 @@ struct FloorPicker: View {
                 // ▲▼ sit with Follow on the right, so the floor menu has the rest of the row.
                 HStack(spacing: 8) {
                     Button { floors.choice.step(1, from: shown, floors: ids) } label: { Image(systemName: "chevron.up") }
-                        .buttonStyle(.borderless).help("Up a floor").target("floor-up", in: floors)
+                        .buttonStyle(.borderless).help("Up a floor").accessibilityLabel("Up a floor").target("floor-up", in: floors)
                     Button { floors.choice.step(-1, from: shown, floors: ids) } label: { Image(systemName: "chevron.down") }
-                        .buttonStyle(.borderless).help("Down a floor").target("floor-down", in: floors)
+                        .buttonStyle(.borderless).help("Down a floor").accessibilityLabel("Down a floor").target("floor-down", in: floors)
                     MusicButton()
                     Button { floors.choice.resumeFollow() } label: {
                         Label("Follow", systemImage: "scope").font(.caption)
@@ -64,12 +64,27 @@ struct FloorPicker: View {
                         .frame(maxWidth: 30)
                         .contentShape(Rectangle().inset(by: -4))
                         .onTapGesture { floors.choice.pick(f.id) }
-                        .help("\(f.id) · \(f.name)")
+                        .help(Self.stripHelp(f, activity: activity[f.id] ?? .empty, shown: f.id == shown))
+                        .accessibilityElement()
+                        .accessibilityLabel(Self.stripHelp(f, activity: activity[f.id] ?? .empty, shown: f.id == shown))
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction { floors.choice.pick(f.id) }
                 }
             }
         }
         // A picked floor deleted from Cat Office: back to Follow.
         .onChange(of: state.building) { _, b in floors.choice.reconcile(floors: b.floors.map(\.id)) }
+    }
+
+    /// A strip bar's tooltip, saying what its color means: "6 Desk pool: a cat needs you".
+    static func stripHelp(_ f: Floor, activity: FloorActivity, shown: Bool) -> String {
+        let what = switch activity {
+        case .needsYou: "a cat needs you"
+        case .working: "cats running"
+        case .idle: "cats idle"
+        case .empty: "no cats"
+        }
+        return "\(f.id) \(f.name): \(what)\(shown ? " (showing)" : "")"
     }
 
     /// The menu's ⌄ and padding, next to its label.

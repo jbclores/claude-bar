@@ -136,6 +136,7 @@ struct ShortcutField: View {
             if shortcut != nil, !recording {
                 Button { set(nil) } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.plain).foregroundStyle(Theme.secondaryText).help("Turn the shortcut off")
+                    .accessibilityLabel("Turn the shortcut off")
             }
         }
         .onDisappear(perform: stop)
