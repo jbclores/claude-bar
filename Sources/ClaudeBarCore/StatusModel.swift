@@ -38,6 +38,18 @@ public struct OfficeRow: Equatable, Sendable, Identifiable {
     public var parentName: String?
     public var agentType: String?
     public var needsAttention: Bool
+
+    /// The row's second line, telling two sessions in one project apart: the task's own title, else its first
+    /// prompt's words, else the branch; nil when it would only repeat the project.
+    public var subtitle: String? {
+        if label != place { return label }
+        if let detail = task.map({ Format.shortTitle($0, max: StatusModel.listTitleLength) }), !detail.isEmpty, detail != place { return detail }
+        if let branch, !branch.isEmpty { return branch }
+        return nil
+    }
+
+    /// The session's task (a title, or its first prompt's words).
+    public var task: String?
 }
 
 public struct UsageSummary: Equatable, Sendable {
@@ -235,10 +247,10 @@ public enum StatusModel {
                     OfficeRow(
                         id: a.key, name: a.name, label: a.label(max: Self.listTitleLength), status: a.status,
                         since: a.statusSince(tracked: input.statusSince[a.key]),
-                        place: a.repoName ?? (a.cwd as NSString).lastPathComponent,
+                        place: a.project,
                         branch: a.branch, detail: a.task ?? a.lastAction, lastAction: a.lastAction,
                         isSubagent: a.isSubagent, parentName: a.parentName, agentType: a.agentType,
-                        needsAttention: input.attention.contains(a.key))
+                        needsAttention: input.attention.contains(a.key), task: a.task)
                 }
         }
 

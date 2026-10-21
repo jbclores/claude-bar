@@ -24,6 +24,12 @@ struct UsageSparkline: View {
         GeometryReader { geo in
             let line = Self.line(samples, in: geo.size)
             ZStack {
+                // A faint baseline the full width, so a short or low line still reads as a chart, not a stray mark.
+                Path { p in
+                    p.move(to: CGPoint(x: 0, y: geo.size.height - 0.5))
+                    p.addLine(to: CGPoint(x: geo.size.width, y: geo.size.height - 0.5))
+                }
+                .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
                 if let first = line.first, let last = line.last {
                     Path { p in
                         p.move(to: CGPoint(x: first.x, y: geo.size.height))

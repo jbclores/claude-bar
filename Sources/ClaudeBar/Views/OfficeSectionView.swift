@@ -54,14 +54,14 @@ struct OfficeCatList: View {
                 Text(row.label).font(.caption.weight(.medium)).lineLimit(1).layoutPriority(1)
                 status(row)
             } else {
-                // The project names the row; its task, when it has its own title, sits underneath.
+                // The project names the row; what tells it apart (task, first prompt, branch) sits underneath.
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(spacing: 8) {
                         Text(row.place).font(.callout.weight(.medium)).lineLimit(1).layoutPriority(1)
                         status(row)
                     }
-                    if row.label != row.place {
-                        Text(row.label).font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1)
+                    if let subtitle = row.subtitle {
+                        Text(subtitle).font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1)
                     }
                 }
             }

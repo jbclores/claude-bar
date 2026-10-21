@@ -1279,22 +1279,25 @@ struct CatCard: View {
 
     private var sessionCard: some View {
         let needsYou = agent.status == .waiting || state.attention.contains(agent.key)
+        // With a prompt to answer, it takes the room: project, task, then the question; no branch, pastime, wait
+        // reason or last action.
+        let asks = AnswerPanel.shows(agent)
         return VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Circle().fill(needsYou ? Theme.waiting : Theme.color(agent.status)).frame(width: 7, height: 7)
-                Text(agent.label).font(.callout.weight(.semibold)).lineLimit(1)
+                // The project, as in the list under the office; the task has its own line below.
+                Text(agent.project).font(.callout.weight(.semibold)).lineLimit(1)
                 Spacer()
                 Text(Format.statusText(agent.status, needsYou: needsYou, since: agent.waitingSince ?? since))
                     .font(.caption).foregroundStyle(needsYou ? Theme.waitingText : Theme.color(agent.status))
             }
-            let place = [agent.name, agent.repoName, agent.branch, agent.model.map(Format.modelName)]
-                .compactMap { $0 }.filter { !$0.isEmpty }
-            Text(place.joined(separator: " · ")).font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1)
-            // What the cat is doing: the browser's while the mirror is live, else the office's own life (OfficeSim).
-            if let p = state.mirror.places[agent.id] { ActivityLine(place: p, key: agent.id, clock: state.minutesLeft) }
-            // With a prompt to answer, it takes the room: the task on one line, no wait reason or last action.
-            let asks = AnswerPanel.shows(agent)
-            if !asks, let reason = agent.waitReason { Text(reason).font(.caption).foregroundStyle(Theme.waitingText) }
+            if !asks {
+                let meta = [agent.branch, agent.model.map(Format.modelName)].compactMap { $0 }.filter { !$0.isEmpty }
+                if !meta.isEmpty { Text(meta.joined(separator: " · ")).font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(1) }
+                // What the cat is doing: the browser's while the mirror is live, else the office's own life (OfficeSim).
+                if let p = state.mirror.places[agent.id] { ActivityLine(place: p, key: agent.id, clock: state.minutesLeft) }
+                if let reason = agent.waitReason { Text(reason).font(.caption).foregroundStyle(Theme.waitingText) }
+            }
             if let task = agent.task, !task.isEmpty { Text(task).font(.caption).lineLimit(asks ? 1 : 3) }
             if asks { AnswerPanel(agent: agent, targetPrefix: "card", links: false).padding(.vertical, 2) }
             if !asks, let last = agent.lastAction, !last.isEmpty {

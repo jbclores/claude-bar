@@ -183,6 +183,23 @@ import Testing
         #expect(StatusModel.build(input([], office: office)).office?.map(\.name) == ["home-term", "office-a"])
     }
 
+    /// Two sessions in one project read apart: the second line is the task's own title, else its first prompt's
+    /// words, else the branch; nothing when it would only repeat the project.
+    @Test func officeRowSubtitleTellsSessionsApart() {
+        var titled = OfficeAgent(id: "1", name: "a", owner: "office", status: .idle, cwd: "/w/app", repoName: "app", branch: "main", task: "Fix login")
+        titled.titleSource = "ai"
+        var prompted = OfficeAgent(id: "2", name: "b", owner: "office", status: .idle, cwd: "/w/app", repoName: "app", branch: "main", task: "add a dark mode toggle")
+        prompted.titleSource = "prompt"
+        let branchOnly = OfficeAgent(id: "3", name: "c", owner: "office", status: .idle, cwd: "/w/app", repoName: "app", branch: "feature/x")
+        let bare = OfficeAgent(id: "4", name: "d", owner: "office", status: .idle, cwd: "/w/app", repoName: "app")
+        let rows = StatusModel.build(input([], office: OfficeSnapshot(agents: [titled, prompted, branchOnly, bare]))).office ?? []
+        let byName = Dictionary(uniqueKeysWithValues: rows.map { ($0.name, $0.subtitle) })
+        #expect(byName["a"] == "Fix login")
+        #expect(byName["b"] == "add a dark mode toggle")
+        #expect(byName["c"] == "feature/x")
+        #expect(byName["d"] == .some(nil))
+    }
+
     /// Needs you, then running, then idle (by name within each); a helper stays under the cat that started it.
     @Test func officeListPutsUrgentCatsFirst() {
         var helper = OfficeAgent(id: "5", name: "helper", status: .working, cwd: "/w/app")

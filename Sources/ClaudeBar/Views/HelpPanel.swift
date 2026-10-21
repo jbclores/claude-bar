@@ -27,7 +27,7 @@ struct HelpPanel: View {
                     ])
                     section("Office", [
                         ("Floors", "Each floor is one of your projects, laid out like your Cat Office. Idle cats sleep in the Lounge (1)."),
-                        ("Floor menu · ▲▼ · strip", "Pick a floor. Strip colours: green running, amber needs you, grey empty."),
+                        ("Floor menu · strip", "Pick a floor, or click its bar in the strip. Strip colours: green running, amber needs you, grey empty."),
                         ("Follow", "Shows where things are happening. On each time the dropdown opens; picking a floor turns it off."),
                         ("Rings and \"!\"", "Green running, amber or \"!\" needs you, grey asleep. Hover a cat for its details."),
                         ("A cat's card", "Open in Cat Office (its panel), and Show terminal for Terminal and iTerm sessions."),

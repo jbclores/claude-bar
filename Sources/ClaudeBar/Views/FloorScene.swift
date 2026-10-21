@@ -148,9 +148,12 @@ struct SceneCats: View {
             + shownCovers.map { Entry(z: $0.box.z, order: 1 + $0.order, id: $0.key, item: .cover($0)) }
         let sorted = items.sorted { ($0.z, $0.order, $0.id) < ($1.z, $1.order, $1.id) }
         let scale = zoom.view.scale
-        // Only cats mostly in view get a tag (NameTags.isMostlyHidden): one cut off at the top of a deep floor doesn't.
+        // Only cats that need you or are running get a tag, so a full lounge isn't a stack of tags (an idle cat's
+        // name is on hover); and only cats mostly in view (NameTags.isMostlyHidden): one cut off at the top of a deep
+        // floor doesn't.
         let area = tagArea(scale: scale)
         let tagged = drawn.filter { d in
+            guard needsYou(d.cat.agent) || d.cat.agent.status == .working else { return false }
             let c = d.canvas
             return !NameTags.isMostlyHidden(figure: CGRect(x: c.minX * scale, y: c.minY * scale, width: c.width * scale, height: c.height * scale),
                                             visible: area)
@@ -162,7 +165,9 @@ struct SceneCats: View {
             return ("\u{0}note\(i)", CGRect(x: p.x * scale, y: p.y * scale, width: size.width, height: size.height))
         }, uniquingKeysWith: { a, _ in a })
         let needy = Set(drawn.map(\.cat.agent).filter(needsYou).map(\.id))
-        let tags = NameTags.layout(pills.mapValues(\.rect), avoid: Array(noteRects.values), priority: needy, in: area)
+        // Tags keep clear of the "!" bubbles too, so it's plain which cat needs you.
+        let bubbles = drawn.filter { $0.cat.agent.status == .waiting }.map { bubbleRect($0, scale: scale) }
+        let tags = NameTags.layout(pills.mapValues(\.rect), avoid: Array(noteRects.values) + bubbles, priority: needy, in: area)
 
         ZStack(alignment: .topLeading) {
             ForEach(sorted) { entry in
@@ -173,8 +178,8 @@ struct SceneCats: View {
             }
             ForEach(drawn.filter { $0.cat.agent.status == .waiting }, id: \.cat.agent.id) { d in
                 Text("!").font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
-                    .frame(width: 16, height: 16).background(Circle().fill(Color(hex: 0xE5484D)))
-                    .offset(x: d.feet.x + 8 * d.rel, y: d.canvas.minY + 2 * d.rel)
+                    .frame(width: Self.bubbleSize, height: Self.bubbleSize).background(Circle().fill(Color(hex: 0xE5484D)))
+                    .offset(bubbleOrigin(d))
             }
             ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
                 let p = fit.point(room.frame.px(note.1))
@@ -241,9 +246,20 @@ struct SceneCats: View {
         return Drawn(cat: cat, feet: feet, k: frame.scale(catHeight: CGFloat(h)) * fit.scale, z: z, figure: figure, frame: frame)
     }
 
+    static let bubbleSize: CGFloat = 16
+
+    /// A waiting cat's "!" bubble: by its head, in scene points.
+    private func bubbleOrigin(_ d: Drawn) -> CGSize { CGSize(width: d.feet.x + 8 * d.rel, height: d.canvas.minY + 2 * d.rel) }
+
+    /// The same bubble in view points after zoom, for the name tags to keep clear of.
+    private func bubbleRect(_ d: Drawn, scale: CGFloat) -> CGRect {
+        let o = bubbleOrigin(d)
+        return CGRect(x: o.width * scale, y: o.height * scale, width: Self.bubbleSize * scale, height: Self.bubbleSize * scale)
+    }
+
     /// Where a cat's name tag wants to go, in view points after zoom: centred under its feet, the tag's own size.
     private func pillRect(_ d: Drawn, scale: CGFloat) -> (rect: CGRect, size: CGSize) {
-        let size = Self.pillSize(NameTags.text(d.cat.agent.label), detail: nil)
+        let size = Self.pillSize(tagText(d.cat.agent), detail: nil)
         return (CGRect(x: d.feet.x * scale - size.width / 2, y: d.feet.y * scale + 3, width: size.width, height: size.height), size)
     }
 
@@ -257,9 +273,12 @@ struct SceneCats: View {
         return CGSize(width: min(84, w + 12), height: line(a) + line(b) + 4)
     }
 
-    /// One line, the readable name cut to 14 characters: the ring under the cat already shows its status.
+    /// A session cat's project (as the list under the office names it), a spare cat's name; cut to 14 characters.
+    private func tagText(_ a: OfficeAgent) -> String { NameTags.text(a.isSpare ? a.label : a.project) }
+
+    /// One line: the ring under the cat already shows its status.
     private func nameTag(_ a: OfficeAgent, light: Bool = false) -> some View {
-        RoomPill(text: NameTags.text(a.label), light: light)
+        RoomPill(text: tagText(a), light: light)
     }
 
     @ViewBuilder

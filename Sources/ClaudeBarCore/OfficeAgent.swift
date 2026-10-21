@@ -78,6 +78,12 @@ public struct OfficeAgent: Equatable, Sendable, Identifiable {
         return name
     }
 
+    /// The project it works in, as the list, the name tags and the hover card name it: the repo, else the folder.
+    public var project: String {
+        if let repoName, !repoName.isEmpty { return repoName }
+        return (cwd as NSString).lastPathComponent
+    }
+
     public var isOffice: Bool { owner == "office" }
     /// A spare cat of the browser's office (OfficeMirror.spareAgent), not a session.
     public var isSpare: Bool { owner == OfficeMirror.spareOwner }

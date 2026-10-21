@@ -1,5 +1,5 @@
 // Sources/ClaudeBarCore/FloorChoice.swift
-/// Which floor the Office tab shows: Follow (the default) shows FloorPlan.followTarget; picking a floor (menu, ▲▼,
+/// Which floor the Office tab shows: Follow (the default) shows FloorPlan.followTarget; picking a floor (menu or
 /// strip) shows that one until Follow is pressed. A picked floor that no longer exists shows the target.
 public struct FloorChoice: Equatable, Sendable {
     public var follow = true

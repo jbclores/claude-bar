@@ -575,6 +575,11 @@ struct TitleRow: View {
                 Image(systemName: "cat.fill").font(.system(size: 13)).foregroundStyle(Theme.secondaryText)
             }
             Text("ClaudeBar").font(.headline)
+            // How many sessions are running: the app's own status, beside its name (not a usage figure).
+            if state.output.usage.workingCount > 0 {
+                Text("\(state.output.usage.workingCount) \(StatusWords.current.inline(.working))")
+                    .font(.caption).foregroundStyle(Theme.working)
+            }
             Spacer()
             Button { state.helpShown.toggle() } label: {
                 Text("?").font(.system(size: 12, weight: .bold))
@@ -626,9 +631,8 @@ struct UsageHeader: View {
             }
             // Today's 5-hour use as a small line on its own row, beside the percentage.
             let today = history.today(now: Date(), calendar: .current)
-            row("5h", usage.fiveHourPct, usage.fiveHourResetsAt,
-                extra: usage.workingCount > 0 ? "\(usage.workingCount) \(StatusWords.current.inline(.working))" : nil, spark: today.count >= 2 ? today : nil)
-            row("7d", usage.sevenDayPct, usage.sevenDayResetsAt, extra: nil)
+            row("5h", usage.fiveHourPct, usage.fiveHourResetsAt, spark: today.count >= 2 ? today : nil)
+            row("7d", usage.sevenDayPct, usage.sevenDayResetsAt)
             if let forecast, forecast.worthShowing { UsageForecastLine(forecast: forecast) }
             if showWeek { UsageWeekChart(history: history) }
         }
@@ -638,13 +642,12 @@ struct UsageHeader: View {
         .help(showWeek ? "Hide this week's usage" : "Show this week's usage")
     }
 
-    private func row(_ label: String, _ pct: Double?, _ resets: Date?, extra: String?, spark: [UsageSample]? = nil) -> some View {
+    private func row(_ label: String, _ pct: Double?, _ resets: Date?, spark: [UsageSample]? = nil) -> some View {
         HStack(spacing: 8) {
             Text(label).font(.caption.monospaced()).frame(width: 20, alignment: .leading)
             UsageBar(percent: pct)
             Text(pct.map(Format.percent) ?? "—").font(.caption.monospacedDigit()).frame(width: 36, alignment: .trailing)
             if let spark { UsageSparkline(samples: spark).frame(width: 84).help("Your last 5 hours") }
-            if let extra { Text(extra).font(.caption).foregroundStyle(Theme.working) }
             Spacer()
             if let resets { Text(Format.resets(resets, now: Date())).font(.caption).foregroundStyle(Theme.secondaryText) }
         }

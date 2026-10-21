@@ -22,7 +22,8 @@ cats, one click away.
   doing the same thing; with no page open, ClaudeBar runs Cat Office's own office rules, so idle cats nap, read and
   snack in the Lounge.
 - **Cats walk around furniture,** on the same routes as Cat Office, and ride the elevator between floors.
-- **Name tags** on every cat, and a hover card with its project, branch, model and what it's doing in plain words.
+- **Name tags** on cats that need you or are running, and on hover a card with any cat's project, branch, model and
+  what it's doing in plain words.
 - **Spare cats** (optional): the office's own cats roaming the building.
 - **Sounds and lofi music,** generated from code (no recorded audio).
 - **Quiet hours and a shortcut:** no sounds or notifications in the hours you pick (or for an hour, for meetings);
@@ -171,7 +172,7 @@ or see the by-hand steps in `Resources/Help/changes.html`.
 ## Floors
 
 The Office tab and the hover peek show Cat Office's building one floor at a time: idle cats in the Lounge, working
-cats on their project's floor (else the Desk pool), helpers beside their parent. The floor menu, ▲▼ and the strip pick
+cats on their project's floor (else the Desk pool), helpers beside their parent. The floor menu and the strip pick
 a floor; Follow (on whenever the dropdown opens) shows where things happen. Cats ride the elevator between floors.
 
 Each floor is drawn from that Cat Office's own layout (`building.json` and its catalogues), so a teammate's ClaudeBar

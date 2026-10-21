@@ -3,18 +3,17 @@ import AppKit
 import ClaudeBarCore
 import SwiftUI
 
-/// "12 claude-bar · 3 cats ⌃⌄" menu, ▲ / ▼, Follow, and a strip with one bar per floor.
+/// "12 claude-bar · 3 cats ⌃⌄" menu, music, Follow, and a strip with one bar per floor (click one to go there).
 struct FloorPicker: View {
     @EnvironmentObject var state: AppState
     @EnvironmentObject var floors: FloorSelection
-    /// The ▲▼ + Follow group's width, to fit the floor menu into the rest of the row.
+    /// The music + Follow group's width, to fit the floor menu into the rest of the row.
     @State private var controlsWidth: CGFloat = 0
 
     var body: some View {
         let shown = floors.shown(state)
         let agents = state.office?.agents ?? []
         let activity = FloorPlan.activity(of: state.building, agents: agents, attention: state.attention, mirror: state.mirror)
-        let ids = state.building.floors.map(\.id)
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
                 Menu {
@@ -37,12 +36,9 @@ struct FloorPicker: View {
                 .fixedSize()
                 // (the row is the dropdown's fixed content width: it grows to fit its content, so it can't be measured)
                 Spacer(minLength: 8)
-                // ▲▼ sit with Follow on the right, so the floor menu has the rest of the row.
+                // Music and Follow on the right, so the floor menu has the rest of the row; the strip and the menu
+                // pick floors, so there are no ▲▼.
                 HStack(spacing: 8) {
-                    Button { floors.choice.step(1, from: shown, floors: ids) } label: { Image(systemName: "chevron.up") }
-                        .buttonStyle(.borderless).help("Up a floor").accessibilityLabel("Up a floor").target("floor-up", in: floors)
-                    Button { floors.choice.step(-1, from: shown, floors: ids) } label: { Image(systemName: "chevron.down") }
-                        .buttonStyle(.borderless).help("Down a floor").accessibilityLabel("Down a floor").target("floor-down", in: floors)
                     MusicButton()
                     Button { floors.choice.resumeFollow() } label: {
                         Label("Follow", systemImage: "scope").font(.caption)

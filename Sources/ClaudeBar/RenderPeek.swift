@@ -376,9 +376,9 @@ enum TestTabs {
         return true
     }
 
-    /// The floor picker: clicks ▲, ▼ and Follow (found by their help tags, nothing else), printing the choice after each.
+    /// The floor picker: clicks Follow (found by its target, nothing else), printing the choice after it.
     private static func floorSteps(controller: DropdownController, window: NSWindow, state: AppState) {
-        var steps: [(String, String)] = [("▲", "floor-up"), ("▼", "floor-down"), ("Follow", "floor-follow")]
+        var steps: [(String, String)] = [("Follow", "floor-follow")]
         let floors = controller.floorSelection
         print("floor before: shown \(floors.shown(state)) · \(floors.choice)")
         func step() {
@@ -395,12 +395,7 @@ enum TestTabs {
                                                     windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
             } else {
                 print("floor: click target for \(name) not found; calling the action directly")
-                let shown = floors.shown(state), ids = state.building.floors.map(\.id)
-                switch name {
-                case "▲": floors.choice.step(1, from: shown, floors: ids)
-                case "▼": floors.choice.step(-1, from: shown, floors: ids)
-                default: floors.choice.resumeFollow()
-                }
+                floors.choice.resumeFollow()
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 print("floor clicked \(name) → shown \(floors.shown(state)) · \(floors.choice)")
